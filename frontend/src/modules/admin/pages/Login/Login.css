@@ -1,0 +1,9 @@
+/* Additional custom styles for Login page */
+/* Responsive adjustments for mobile */
+@media (max-width: 1024px) {
+  /* Ensure full height on mobile */
+  .min-h-screen {
+    min-height: 100vh;
+  }
+}
+

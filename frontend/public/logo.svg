@@ -1,0 +1,48 @@
+<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background - Vibrant Blue -->
+  <rect width="200" height="200" rx="30" fill="#2563EB"/>
+  
+  <!-- Large Orange D -->
+  <path d="M 50 40 L 50 160 L 100 160 Q 130 160 130 130 L 130 70 Q 130 40 100 40 Z" fill="#F97316" stroke="#EA580C" stroke-width="2"/>
+  <path d="M 60 50 L 60 150 L 95 150 Q 120 150 120 130 L 120 70 Q 120 50 95 50 Z" fill="#FB923C"/>
+  
+  <!-- D'Vision Text -->
+  <text x="100" y="90" font-family="Arial, sans-serif" font-size="28" font-weight="bold" fill="white" text-anchor="middle" filter="url(#shadow)">D'Vision</text>
+  
+  <!-- ACADEMY Text -->
+  <text x="100" y="115" font-family="Arial, sans-serif" font-size="14" font-weight="600" fill="white" text-anchor="middle" letter-spacing="2" filter="url(#shadow)">ACADEMY</text>
+  
+  <!-- Children Silhouette -->
+  <g transform="translate(100, 140)">
+    <!-- Left child with pigtails -->
+    <circle cx="-30" cy="-5" r="8" fill="white" opacity="0.9"/>
+    <ellipse cx="-30" cy="5" rx="6" ry="8" fill="white" opacity="0.9"/>
+    <rect x="-35" y="13" width="10" height="12" rx="2" fill="white" opacity="0.9"/>
+    <circle cx="-33" cy="-3" r="2" fill="white" opacity="0.9"/>
+    <circle cx="-27" cy="-3" r="2" fill="white" opacity="0.9"/>
+    
+    <!-- Middle child (boy) -->
+    <circle cx="0" cy="-5" r="8" fill="white" opacity="0.9"/>
+    <ellipse cx="0" cy="5" rx="6" ry="8" fill="white" opacity="0.9"/>
+    <rect x="-5" y="13" width="10" height="12" rx="2" fill="white" opacity="0.9"/>
+    
+    <!-- Right child with braids -->
+    <circle cx="30" cy="-5" r="8" fill="white" opacity="0.9"/>
+    <ellipse cx="30" cy="5" rx="6" ry="8" fill="white" opacity="0.9"/>
+    <rect x="25" y="13" width="10" height="12" rx="2" fill="white" opacity="0.9"/>
+    <ellipse cx="27" cy="-2" rx="1.5" ry="4" fill="white" opacity="0.9"/>
+    <ellipse cx="33" cy="-2" rx="1.5" ry="4" fill="white" opacity="0.9"/>
+    
+    <!-- Hands connecting -->
+    <line x1="-20" y1="8" x2="-10" y2="8" stroke="white" stroke-width="2" opacity="0.9"/>
+    <line x1="10" y1="8" x2="20" y2="8" stroke="white" stroke-width="2" opacity="0.9"/>
+  </g>
+  
+  <!-- Shadow filter -->
+  <defs>
+    <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
+      <feDropShadow dx="2" dy="2" stdDeviation="2" flood-color="rgba(0,0,0,0.3)"/>
+    </filter>
+  </defs>
+</svg>
+
