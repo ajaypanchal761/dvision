@@ -33,3 +33,7 @@ build/
 # Uploads directory (temporary files before Cloudinary upload)
 uploads/
 
+# Service account keys and secrets
+serviceAccountKey.json
+*.json.key
+
