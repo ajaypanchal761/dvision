@@ -42,28 +42,43 @@ const corsOptions = {
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
 
-    // List of allowed origins
-    const allowedOrigins = [
-      'http://localhost:3000',
-      'http://localhost:5173',
-      'http://localhost:5174',
-      'https://www.dvisionacademy.com/onboarding',
-      'https://www.dvisionacademy.com/',
-      'http://127.0.0.1:3000',
-      'http://127.0.0.1:5173',
-      'http://127.0.0.1:5174',
-      process.env.CORS_ORIGIN
-    ].filter(Boolean); // Remove undefined values
-
     // In development, allow all origins
     if (process.env.NODE_ENV === 'development') {
       return callback(null, true);
     }
 
-    // Check if origin is allowed
-    if (allowedOrigins.indexOf(origin) !== -1 || process.env.CORS_ORIGIN === '*') {
+    // List of allowed origins (without paths - CORS only checks protocol + domain + port)
+    const allowedOrigins = [
+      'http://localhost:3000',
+      'http://localhost:5173',
+      'http://localhost:5174',
+      'http://127.0.0.1:3000',
+      'http://127.0.0.1:5173',
+      'http://127.0.0.1:5174',
+      'https://dvisionacademy.com',
+      'https://www.dvisionacademy.com',
+      process.env.CORS_ORIGIN
+    ].filter(Boolean); // Remove undefined values
+
+    // Normalize origin for comparison (remove trailing slash, convert to lowercase)
+    const normalizedOrigin = origin.toLowerCase().replace(/\/$/, '');
+    
+    // Normalize allowed origins for comparison
+    const normalizedAllowed = allowedOrigins.map(o => o.toLowerCase().replace(/\/$/, ''));
+
+    // Check if origin is allowed (exact match or wildcard)
+    if (normalizedAllowed.indexOf(normalizedOrigin) !== -1 || 
+        process.env.CORS_ORIGIN === '*' ||
+        normalizedAllowed.some(allowed => {
+          // Allow both www and non-www versions of dvisionacademy.com
+          if (allowed.includes('dvisionacademy.com')) {
+            return normalizedOrigin.includes('dvisionacademy.com');
+          }
+          return false;
+        })) {
       callback(null, true);
     } else {
+      console.warn(`CORS blocked origin: ${origin}`);
       callback(new Error('Not allowed by CORS'));
     }
   },
@@ -71,13 +86,15 @@ const corsOptions = {
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
   exposedHeaders: ['Content-Range', 'X-Content-Range'],
-  maxAge: 86400 // 24 hours
+  maxAge: 86400, // 24 hours
+  preflightContinue: false,
+  optionsSuccessStatus: 204
 };
 
 // Apply CORS middleware
 app.use(cors(corsOptions));
 
-// Handle preflight requests
+// Handle preflight requests explicitly
 app.options('*', cors(corsOptions));
 
 // Body parsing middleware - Increase limit for base64 images
@@ -95,6 +112,11 @@ app.get('/', (req, res) => {
     status: 'Server is running',
     timestamp: new Date().toISOString()
   });
+});
+
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'ok', message: 'Backend is running' });
 });
 
 // API Routes
