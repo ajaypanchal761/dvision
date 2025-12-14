@@ -36,66 +36,15 @@ connectRedis().then(client => {
 // Initialize Express app
 const app = express();
 
-// CORS Configuration
-const corsOptions = {
+// CORS Configuration - Allow all origins with credentials
+// Note: Cannot use "*" with credentials: true, so using function that allows all
+app.use(cors({
   origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
-
-    // In development, allow all origins
-    if (process.env.NODE_ENV === 'development') {
-      return callback(null, true);
-    }
-
-    // List of allowed origins (without paths - CORS only checks protocol + domain + port)
-    const allowedOrigins = [
-      'http://localhost:3000',
-      'http://localhost:5173',
-      'http://localhost:5174',
-      'http://127.0.0.1:3000',
-      'http://127.0.0.1:5173',
-      'http://127.0.0.1:5174',
-      'https://dvisionacademy.com',
-      'https://www.dvisionacademy.com',
-      process.env.CORS_ORIGIN
-    ].filter(Boolean); // Remove undefined values
-
-    // Normalize origin for comparison (remove trailing slash, convert to lowercase)
-    const normalizedOrigin = origin.toLowerCase().replace(/\/$/, '');
-    
-    // Normalize allowed origins for comparison
-    const normalizedAllowed = allowedOrigins.map(o => o.toLowerCase().replace(/\/$/, ''));
-
-    // Check if origin is allowed (exact match or wildcard)
-    if (normalizedAllowed.indexOf(normalizedOrigin) !== -1 || 
-        process.env.CORS_ORIGIN === '*' ||
-        normalizedAllowed.some(allowed => {
-          // Allow both www and non-www versions of dvisionacademy.com
-          if (allowed.includes('dvisionacademy.com')) {
-            return normalizedOrigin.includes('dvisionacademy.com');
-          }
-          return false;
-        })) {
-      callback(null, true);
-    } else {
-      console.warn(`CORS blocked origin: ${origin}`);
-      callback(new Error('Not allowed by CORS'));
-    }
+    // Allow all origins
+    callback(null, true);
   },
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-  exposedHeaders: ['Content-Range', 'X-Content-Range'],
-  maxAge: 86400, // 24 hours
-  preflightContinue: false,
-  optionsSuccessStatus: 204
-};
-
-// Apply CORS middleware
-app.use(cors(corsOptions));
-
-// Handle preflight requests explicitly
-app.options('*', cors(corsOptions));
+  credentials: true
+}));
 
 // Body parsing middleware - Increase limit for base64 images
 app.use(express.json({ limit: '10mb' }));

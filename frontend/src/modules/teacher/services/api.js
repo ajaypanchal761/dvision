@@ -2,6 +2,7 @@
 const getApiBaseUrl = () => {
   // If explicitly set via environment variable, use that
   if (import.meta.env.VITE_API_BASE_URL) {
+    console.log('[Teacher API] Using VITE_API_BASE_URL from env:', import.meta.env.VITE_API_BASE_URL);
     return import.meta.env.VITE_API_BASE_URL;
   }
   
@@ -13,21 +14,29 @@ const getApiBaseUrl = () => {
     if (isProduction) {
       // Try api subdomain first, fallback to same domain
       const protocol = window.location.protocol;
+      let apiUrl;
       if (hostname.startsWith('www.')) {
-        return `${protocol}//api.${hostname.substring(4)}/api`;
+        apiUrl = `${protocol}//api.${hostname.substring(4)}/api`;
       } else if (!hostname.startsWith('api.')) {
-        return `${protocol}//api.${hostname}/api`;
+        apiUrl = `${protocol}//api.${hostname}/api`;
       } else {
-        return `${protocol}//${hostname}/api`;
+        apiUrl = `${protocol}//${hostname}/api`;
       }
+      console.log('[Teacher API] Production detected. Hostname:', hostname, '→ API URL:', apiUrl);
+      return apiUrl;
+    } else {
+      console.log('[Teacher API] Development mode. Hostname:', hostname);
     }
   }
   
   // Default to localhost for development
-  return 'http://localhost:5000/api';
+  const defaultUrl = 'http://localhost:5000/api';
+  console.log('[Teacher API] Using default API URL:', defaultUrl);
+  return defaultUrl;
 };
 
 const API_BASE_URL = getApiBaseUrl();
+console.log('[Teacher API] Final API_BASE_URL:', API_BASE_URL);
 // Helper function to get auth token
 const getAuthToken = () => {
   return localStorage.getItem('dvision_token');
@@ -59,9 +68,28 @@ const apiRequest = async (endpoint, options = {}) => {
 
   try {
     const fullUrl = `${API_BASE_URL}${endpoint}`;
-    console.log('[API Request]', { method: config.method || 'GET', url: fullUrl });
+    const method = options.method || 'GET';
     
+    console.log(`[Teacher API] ${method} Request:`, {
+      endpoint,
+      fullUrl,
+      hasToken: !!token,
+      hasBody: !!options.body,
+      isFormData
+    });
+    
+    if (options.body && typeof options.body === 'object' && !isFormData) {
+      console.log('[Teacher API] Request Body:', options.body);
+    }
+    
+    console.log('[Teacher API] Sending request to:', fullUrl);
     const response = await fetch(fullUrl, config);
+    console.log('[Teacher API] Response received:', {
+      status: response.status,
+      statusText: response.statusText,
+      ok: response.ok,
+      url: response.url
+    });
 
     // Check if response is ok
     if (!response.ok) {
@@ -71,9 +99,21 @@ const apiRequest = async (endpoint, options = {}) => {
       try {
         errorData = await response.json();
         errorMessage = errorData.message || errorData.error || errorMessage;
-      } catch (e) {
+        console.error('[Teacher API] Error Response:', {
+          status: response.status,
+          statusText: response.statusText,
+          errorData,
+          errorMessage
+        });
+      } catch (parseError) {
         // If response is not JSON, use status text
         errorMessage = response.statusText || errorMessage;
+        console.error('[Teacher API] Error parsing response:', parseError);
+        console.error('[Teacher API] Error Response (non-JSON):', {
+          status: response.status,
+          statusText: response.statusText,
+          errorMessage
+        });
       }
 
       const error = new Error(errorMessage);
@@ -90,23 +130,42 @@ const apiRequest = async (endpoint, options = {}) => {
     const contentType = response.headers.get('content-type');
     if (contentType && contentType.includes('application/json')) {
       const data = await response.json();
+      console.log('[Teacher API] Success Response:', {
+        endpoint,
+        success: data.success,
+        hasData: !!data.data
+      });
       return data;
     } else {
       // Handle non-JSON responses
       const text = await response.text();
+      console.log('[Teacher API] Success Response (non-JSON):', {
+        endpoint,
+        contentType,
+        textLength: text.length
+      });
       return { success: true, data: text };
     }
   } catch (error) {
-    // Handle network errors with more details
-    if (error.name === 'TypeError' && (error.message.includes('fetch') || error.message.includes('Failed to fetch'))) {
-      console.error('[API Error] Network error:', {
-        url: `${API_BASE_URL}${endpoint}`,
+    // Handle network errors
+    if (error.name === 'TypeError' && error.message.includes('fetch')) {
+      console.error('[Teacher API] Network Error:', {
+        endpoint,
+        fullUrl,
         error: error.message,
-        apiBaseUrl: API_BASE_URL
+        errorName: error.name,
+        stack: error.stack
       });
-      throw new Error(`Network error: Cannot connect to ${API_BASE_URL}. Please check if the server is running.`);
+      throw new Error('Network error. Please check if the server is running.');
     }
-    console.error('[API Error]', error);
+    console.error('[Teacher API] Request Error:', {
+      endpoint,
+      fullUrl,
+      error: error.message,
+      errorName: error.name,
+      status: error.status,
+      stack: error.stack
+    });
     throw error;
   }
 };

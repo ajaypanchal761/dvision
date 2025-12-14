@@ -38,32 +38,48 @@ const Login = () => {
     e.preventDefault();
     setError('');
     
+    console.log('[Login] Starting login process...');
+    
     if (!phone || phone.length < 10) {
+      console.log('[Login] Validation failed: Invalid phone number');
       setError('Please enter a valid mobile number');
       return;
     }
 
     setIsLoading(true);
+    const fullPhone = `${selectedCountryCode}${phone}`;
+    console.log('[Login] Phone number:', fullPhone);
 
     try {
-      const fullPhone = `${selectedCountryCode}${phone}`;
-      
+      console.log('[Login] Importing studentAPI...');
       // Login student - POST API Call (sends OTP)
       const { studentAPI } = await import('../services/api');
+      console.log('[Login] Calling studentAPI.login...');
+      
       const result = await studentAPI.login(fullPhone);
+      console.log('[Login] API Response:', result);
       
       if (result.success) {
+        console.log('[Login] Success! Storing phone and navigating to OTP page...');
         // Store phone number for OTP verification page
         sessionStorage.setItem('login_phone', fullPhone);
         // Navigate to OTP verification page
         navigate(ROUTES.FINAL_OTP);
       } else {
+        console.error('[Login] API returned success=false:', result);
         setError(result.message || 'Failed to login');
       }
     } catch (error) {
+      console.error('[Login] Error occurred:', {
+        message: error.message,
+        name: error.name,
+        stack: error.stack,
+        status: error.status
+      });
       setError(error.message || 'Something went wrong. Please try again.');
     } finally {
       setIsLoading(false);
+      console.log('[Login] Login process completed');
     }
   };
 

@@ -2,6 +2,7 @@
 const getApiBaseUrl = () => {
   // If explicitly set via environment variable, use that
   if (import.meta.env.VITE_API_BASE_URL) {
+    console.log('[Admin API] Using VITE_API_BASE_URL from env:', import.meta.env.VITE_API_BASE_URL);
     return import.meta.env.VITE_API_BASE_URL;
   }
   
@@ -13,21 +14,29 @@ const getApiBaseUrl = () => {
     if (isProduction) {
       // Try api subdomain first, fallback to same domain
       const protocol = window.location.protocol;
+      let apiUrl;
       if (hostname.startsWith('www.')) {
-        return `${protocol}//api.${hostname.substring(4)}/api`;
+        apiUrl = `${protocol}//api.${hostname.substring(4)}/api`;
       } else if (!hostname.startsWith('api.')) {
-        return `${protocol}//api.${hostname}/api`;
+        apiUrl = `${protocol}//api.${hostname}/api`;
       } else {
-        return `${protocol}//${hostname}/api`;
+        apiUrl = `${protocol}//${hostname}/api`;
       }
+      console.log('[Admin API] Production detected. Hostname:', hostname, '→ API URL:', apiUrl);
+      return apiUrl;
+    } else {
+      console.log('[Admin API] Development mode. Hostname:', hostname);
     }
   }
   
   // Default to localhost for development
-  return 'http://localhost:5000/api';
+  const defaultUrl = 'http://localhost:5000/api';
+  console.log('[Admin API] Using default API URL:', defaultUrl);
+  return defaultUrl;
 };
 
 const API_BASE_URL = getApiBaseUrl();
+console.log('[Admin API] Final API_BASE_URL:', API_BASE_URL);
 
 // Helper function to get auth token
 const getAuthToken = () => {
@@ -68,8 +77,30 @@ const apiRequest = async (endpoint, options = {}) => {
     config.body = options.body;
   }
 
+  const fullUrl = `${API_BASE_URL}${endpoint}`;
+  const method = options.method || 'GET';
+  
+  console.log(`[Admin API] ${method} Request:`, {
+    endpoint,
+    fullUrl,
+    hasToken: !!token,
+    hasBody: !!options.body,
+    isFormData
+  });
+  
+  if (options.body && typeof options.body === 'object' && !isFormData) {
+    console.log('[Admin API] Request Body:', options.body);
+  }
+
   try {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
+    console.log('[Admin API] Sending request to:', fullUrl);
+    const response = await fetch(fullUrl, config);
+    console.log('[Admin API] Response received:', {
+      status: response.status,
+      statusText: response.statusText,
+      ok: response.ok,
+      url: response.url
+    });
 
     // Check if response is ok
     if (!response.ok) {
@@ -79,9 +110,21 @@ const apiRequest = async (endpoint, options = {}) => {
       try {
         errorData = await response.json();
         errorMessage = errorData.message || errorData.error || errorMessage;
-      } catch (e) {
+        console.error('[Admin API] Error Response:', {
+          status: response.status,
+          statusText: response.statusText,
+          errorData,
+          errorMessage
+        });
+      } catch (parseError) {
         // If response is not JSON, use status text
         errorMessage = response.statusText || errorMessage;
+        console.error('[Admin API] Error parsing response:', parseError);
+        console.error('[Admin API] Error Response (non-JSON):', {
+          status: response.status,
+          statusText: response.statusText,
+          errorMessage
+        });
       }
 
       const error = new Error(errorMessage);
@@ -98,17 +141,42 @@ const apiRequest = async (endpoint, options = {}) => {
     const contentType = response.headers.get('content-type');
     if (contentType && contentType.includes('application/json')) {
       const data = await response.json();
+      console.log('[Admin API] Success Response:', {
+        endpoint,
+        success: data.success,
+        hasData: !!data.data
+      });
       return data;
     } else {
       // Handle non-JSON responses
       const text = await response.text();
+      console.log('[Admin API] Success Response (non-JSON):', {
+        endpoint,
+        contentType,
+        textLength: text.length
+      });
       return { success: true, data: text };
     }
   } catch (error) {
     // Handle network errors
     if (error.name === 'TypeError' && error.message.includes('fetch')) {
+      console.error('[Admin API] Network Error:', {
+        endpoint,
+        fullUrl,
+        error: error.message,
+        errorName: error.name,
+        stack: error.stack
+      });
       throw new Error('Network error. Please check if the server is running.');
     }
+    console.error('[Admin API] Request Error:', {
+      endpoint,
+      fullUrl,
+      error: error.message,
+      errorName: error.name,
+      status: error.status,
+      stack: error.stack
+    });
     throw error;
   }
 };
