@@ -209,12 +209,18 @@ exports.login = asyncHandler(async (req, res) => {
     throw new ErrorResponse('Student not found. Please register first.', 404);
   }
 
-  if (!student.isPhoneVerified) {
-    throw new ErrorResponse('Phone number not verified. Please complete registration first.', 400);
-  }
-
   // Check if it's a test number
   const isTestNumber = otpService.isTestNumber(phone);
+
+  // For test numbers, auto-verify if not already verified
+  if (isTestNumber && !student.isPhoneVerified) {
+    console.log(`[TEST MODE] Auto-verifying test number: ${phone}`);
+    student.isPhoneVerified = true;
+    await student.save();
+  } else if (!isTestNumber && !student.isPhoneVerified) {
+    // For non-test numbers, require verification
+    throw new ErrorResponse('Phone number not verified. Please complete registration first.', 400);
+  }
 
   // Check resend cooldown (skip for test numbers)
   if (!isTestNumber) {
@@ -241,9 +247,9 @@ exports.login = asyncHandler(async (req, res) => {
 
   res.status(200).json({
     success: true,
-    message: isTestNumber
+    message: result.message || (isTestNumber
       ? 'OTP sent successfully (Test Mode - Use OTP: 123456)'
-      : 'OTP sent successfully to your phone number',
+      : 'OTP sent successfully to your phone number'),
     data: {
       phone: phone.replace(/\d(?=\d{4})/g, '*'),
       expiresIn: `${process.env.OTP_EXPIRY_MINUTES || 5} minutes`,

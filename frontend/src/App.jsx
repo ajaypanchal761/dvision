@@ -1,7 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 
 // Student Module Imports
-import StudentOnboarding from './modules/student/pages/Onboarding';
 import StudentLogin from './modules/student/pages/Login';
 import StudentRegistrationForm from './modules/student/pages/RegistrationForm';
 import StudentFinalOTP from './modules/student/pages/FinalOTP';
@@ -120,7 +119,6 @@ function App() {
     <BrowserRouter>
       <Routes>
         {/* Student Routes - Root paths */}
-        <Route path="/onboarding" element={<StudentOnboarding />} />
         <Route path="/login" element={<StudentLogin />} />
         <Route path="/registration" element={<StudentRegistrationForm />} />
         <Route path="/final-otp" element={<StudentFinalOTP />} />
@@ -895,9 +893,9 @@ function App() {
         <Route path={TeacherRoutes.QUIZ_RESULTS} element={<TeacherQuizResults />} />
         <Route path="/teacher/content/:type" element={<TeacherContentView />} />
 
-        {/* Root redirect - default to student onboarding */}
-        <Route path="/" element={<Navigate to="/onboarding" replace />} />
-        <Route path="*" element={<Navigate to="/onboarding" replace />} />
+        {/* Root redirect - default to login */}
+        <Route path="/" element={<Navigate to="/login" replace />} />
+        <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     </BrowserRouter>
   );

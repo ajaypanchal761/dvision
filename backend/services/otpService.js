@@ -30,10 +30,13 @@ class OTPService {
     this.testOTP = '123456';
     
     // Custom OTP mapping for specific phone numbers
+    // Format: [phone_format, otp]
+    // Note: The verification logic normalizes phone numbers and checks both full number and last 10 digits
     this.customOTPs = new Map([
-      ['7610416911', '110211'],
-      ['917610416911', '110211'],
-      ['+917610416911', '110211']
+      // Student number 7610416911 - Default OTP: 110211
+      ['7610416911', '110211'],        // 10 digits format
+      ['917610416911', '110211'],      // With country code 91
+      ['+917610416911', '110211']      // With +91 prefix
     ]);
     
     // In-memory storage as fallback when Redis is not available
