@@ -2,8 +2,11 @@
 const getApiBaseUrl = () => {
   // If explicitly set via environment variable, use that
   if (import.meta.env.VITE_API_BASE_URL) {
-    console.log('[API] Using VITE_API_BASE_URL from env:', import.meta.env.VITE_API_BASE_URL);
-    return import.meta.env.VITE_API_BASE_URL;
+    const envUrl = import.meta.env.VITE_API_BASE_URL;
+    // Remove trailing slash if present
+    const cleanUrl = envUrl.replace(/\/$/, '');
+    console.log('[API] Using VITE_API_BASE_URL from env:', cleanUrl);
+    return cleanUrl;
   }
   
   // Auto-detect production environment
