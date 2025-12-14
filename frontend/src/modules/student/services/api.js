@@ -1,5 +1,33 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
-// const API_BASE_URL = "https://pg0n1sk4-5000.inc1.devtunnels.ms/api"
+// Auto-detect API base URL based on environment
+const getApiBaseUrl = () => {
+  // If explicitly set via environment variable, use that
+  if (import.meta.env.VITE_API_BASE_URL) {
+    return import.meta.env.VITE_API_BASE_URL;
+  }
+  
+  // Auto-detect production environment
+  if (typeof window !== 'undefined') {
+    const hostname = window.location.hostname;
+    const isProduction = hostname.includes('dvisionacademy.com');
+    
+    if (isProduction) {
+      // Try api subdomain first, fallback to same domain
+      const protocol = window.location.protocol;
+      if (hostname.startsWith('www.')) {
+        return `${protocol}//api.${hostname.substring(4)}/api`;
+      } else if (!hostname.startsWith('api.')) {
+        return `${protocol}//api.${hostname}/api`;
+      } else {
+        return `${protocol}//${hostname}/api`;
+      }
+    }
+  }
+  
+  // Default to localhost for development
+  return 'http://localhost:5000/api';
+};
+
+const API_BASE_URL = getApiBaseUrl();
 
 // Helper function to get auth token
 const getAuthToken = () => {

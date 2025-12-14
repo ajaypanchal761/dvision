@@ -6,6 +6,28 @@ import { ROUTES } from '../constants/routes';
 import Image from '../components/common/Image';
 import BottomNav from '../components/common/BottomNav';
 
+// Helper function to get API base URL
+const getApiBaseUrl = () => {
+  if (import.meta.env.VITE_API_BASE_URL) {
+    return import.meta.env.VITE_API_BASE_URL.replace('/api', '');
+  }
+  if (typeof window !== 'undefined') {
+    const hostname = window.location.hostname;
+    const isProduction = hostname.includes('dvisionacademy.com');
+    if (isProduction) {
+      const protocol = window.location.protocol;
+      if (hostname.startsWith('www.')) {
+        return `${protocol}//api.${hostname.substring(4)}`;
+      } else if (!hostname.startsWith('api.')) {
+        return `${protocol}//api.${hostname}`;
+      } else {
+        return `${protocol}//${hostname}`;
+      }
+    }
+  }
+  return 'http://localhost:5000';
+};
+
 /**
  * Course Details Page
  * Shows detailed course information with chapters and PDFs
@@ -44,7 +66,7 @@ const CourseDetails = () => {
 
   const handlePdfView = (pdfUrl) => {
     if (pdfUrl) {
-      const fullUrl = pdfUrl.startsWith('http') ? pdfUrl : `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'}${pdfUrl}`;
+      const fullUrl = pdfUrl.startsWith('http') ? pdfUrl : `${getApiBaseUrl()}${pdfUrl}`;
       window.open(fullUrl, '_blank');
     }
   };

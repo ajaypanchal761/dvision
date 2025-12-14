@@ -19,7 +19,29 @@ import AgoraRTC from 'agora-rtc-sdk-ng';
 import { io } from 'socket.io-client';
 import { liveClassAPI } from '../services/api';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+// Auto-detect API base URL for socket connections
+const getApiBaseUrl = () => {
+  if (import.meta.env.VITE_API_BASE_URL) {
+    return import.meta.env.VITE_API_BASE_URL.replace('/api', '');
+  }
+  if (typeof window !== 'undefined') {
+    const hostname = window.location.hostname;
+    const isProduction = hostname.includes('dvisionacademy.com');
+    if (isProduction) {
+      const protocol = window.location.protocol;
+      if (hostname.startsWith('www.')) {
+        return `${protocol}//api.${hostname.substring(4)}`;
+      } else if (!hostname.startsWith('api.')) {
+        return `${protocol}//api.${hostname}`;
+      } else {
+        return `${protocol}//${hostname}`;
+      }
+    }
+  }
+  return 'http://localhost:5000';
+};
+
+const API_BASE_URL = getApiBaseUrl();
 // Socket.io connection URL (should be the base URL without /api)
 // Parse the URL to get just the origin (protocol + host + port)
 const getSocketUrl = () => {
