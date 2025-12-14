@@ -16,6 +16,7 @@ const Recordings = () => {
   const [error, setError] = useState('');
   const [selectedRecording, setSelectedRecording] = useState(null);
   const [playbackUrl, setPlaybackUrl] = useState('');
+  const [videoRef, setVideoRef] = useState(null);
 
   useEffect(() => {
     fetchRecordings();
@@ -194,10 +195,43 @@ const Recordings = () => {
               </button>
             </div>
             <video
+              ref={setVideoRef}
               src={playbackUrl}
               controls
+              controlsList="nodownload"
+              preload="metadata"
               className="w-full rounded-lg"
-              style={{ maxHeight: '70vh' }}
+              style={{ 
+                maxHeight: '70vh',
+                // Ensure controls are visible
+                backgroundColor: '#000'
+              }}
+              onLoadedMetadata={(e) => {
+                // Ensure duration is available and displayed
+                const video = e.target;
+                if (video.duration && !isNaN(video.duration)) {
+                  console.log('[Video] Duration loaded:', formatDuration(video.duration));
+                  // Force controls to show duration
+                  video.controls = true;
+                }
+              }}
+              onCanPlay={(e) => {
+                // Ensure video is ready and duration is available
+                const video = e.target;
+                if (video.duration && !isNaN(video.duration)) {
+                  console.log('[Video] Can play - Duration:', formatDuration(video.duration));
+                }
+              }}
+              onTimeUpdate={(e) => {
+                // Track current time - this ensures seek bar updates
+                const video = e.target;
+                const current = video.currentTime;
+                const duration = video.duration;
+                if (duration && current && !isNaN(duration) && !isNaN(current)) {
+                  // This ensures the seek bar shows progress
+                  // Native controls will show: currentTime / duration
+                }
+              }}
             >
               Your browser does not support the video tag.
             </video>

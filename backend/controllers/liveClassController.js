@@ -815,6 +815,22 @@ exports.endLiveClass = asyncHandler(async (req, res) => {
     // Process recording asynchronously without blocking
     (async () => {
       try {
+      // Verify recording was actually started before trying to stop
+      if (!liveClass.recording?.resourceId || !liveClass.recording?.sid) {
+        console.warn('[LiveClass] Recording not started, skipping stop', {
+          liveClassId: liveClass._id.toString(),
+          hasResourceId: !!liveClass.recording?.resourceId,
+          hasSid: !!liveClass.recording?.sid
+        });
+        liveClass.recording = {
+          ...liveClass.recording,
+          status: 'failed',
+          error: 'Recording was not started successfully'
+        };
+        await liveClass.save();
+        return; // Exit async function
+      }
+      
       // Use the same UID that started the recording (required by Agora stop API)
       const recorderUid = liveClass.recording.recorderUid || parseInt(liveClass.teacherId.toString().slice(-8), 16) || 0;
 
@@ -850,21 +866,66 @@ exports.endLiveClass = asyncHandler(async (req, res) => {
       // Extract file list; if missing, try querying a few times (handles Agora code 65/request not completed)
       let fileList = stopRes?.fileList || stopRes?.serverResponse?.fileList;
       if (!fileList) {
+        console.log('[Recording] No fileList in stop response, querying Agora...');
         for (let attempt = 1; attempt <= 5; attempt++) {
           try {
             const queryRes = await agoraRecordingService.query(
               liveClass.recording.resourceId,
               liveClass.recording.sid
             );
+            
+            // Check recording status
+            const status = queryRes?.serverResponse?.status;
+            console.log('[Recording] Query response status:', status, { attempt });
+            
+            // Status: 0=idle, 1=recording, 2=stopped, 3=error
+            if (status === 3) {
+              console.error('[Recording] Recording status is error');
+              throw new Error('Recording status is error');
+            }
+            
+            // If still recording, wait longer
+            if (status === 1) {
+              console.log('[Recording] Still recording, waiting...');
+              await new Promise(r => setTimeout(r, 5000));
+              continue;
+            }
+            
             fileList = queryRes?.fileList || queryRes?.serverResponse?.fileList;
             if (fileList) {
               console.log('[Recording] Retrieved fileList via query', { attempt, fileList });
               break;
+            } else {
+              console.log('[Recording] No fileList in query response, waiting...', { attempt });
+              await new Promise(r => setTimeout(r, 5000));
             }
           } catch (qErr) {
-            console.warn('[Recording] Query after missing fileList failed', { attempt, error: qErr?.message || qErr });
+            // If 404, recording doesn't exist
+            if (qErr?.response?.status === 404) {
+              console.error('[Recording] Query returned 404 - recording session not found', {
+                attempt,
+                resourceId: liveClass.recording.resourceId,
+                sid: liveClass.recording.sid,
+                error: qErr?.message || qErr
+              });
+              // If it's the last attempt, mark as failed
+              if (attempt === 5) {
+                liveClass.recording = {
+                  ...liveClass.recording,
+                  status: 'failed',
+                  error: 'Recording session not found. Recording may not have been started successfully.'
+                };
+                await liveClass.save();
+                console.warn('[LiveClass] Recording failed: session not found', { liveClassId: liveClass._id.toString() });
+                return; // Exit async function
+              }
+              // Wait longer before retrying 404
+              await new Promise(r => setTimeout(r, 10000));
+            } else {
+              console.warn('[Recording] Query after missing fileList failed', { attempt, error: qErr?.message || qErr });
+              await new Promise(r => setTimeout(r, 5000));
+            }
           }
-          await new Promise(r => setTimeout(r, 3000));
         }
       }
 
@@ -873,7 +934,7 @@ exports.endLiveClass = asyncHandler(async (req, res) => {
         liveClass.recording = {
           ...liveClass.recording,
           status: 'failed',
-          error: stopRes?.reason || 'No recording file returned from Agora'
+          error: stopRes?.reason || 'No recording file returned from Agora after multiple queries'
         };
         await liveClass.save();
         console.warn('[LiveClass] Recording failed: no fileUrl', { liveClassId: liveClass._id.toString(), stopRes });

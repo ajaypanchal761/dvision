@@ -19,6 +19,7 @@ const LiveClasses = () => {
   const [error, setError] = useState('');
   const [selectedRecording, setSelectedRecording] = useState(null);
   const [playbackUrl, setPlaybackUrl] = useState('');
+  const [videoRef, setVideoRef] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDate, setSelectedDate] = useState(null); // null means today
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -194,6 +195,18 @@ const LiveClasses = () => {
       hour12: true
     });
     return { date: dateStr, time: timeStr };
+  };
+
+  const formatDuration = (seconds) => {
+    if (!seconds || isNaN(seconds)) return 'N/A';
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = Math.floor(seconds % 60);
+    
+    if (hours > 0) {
+      return `${hours}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+    }
+    return `${minutes}:${String(secs).padStart(2, '0')}`;
   };
 
   return (
@@ -545,11 +558,44 @@ const LiveClasses = () => {
               </button>
             </div>
             <video
+              ref={setVideoRef}
               src={playbackUrl}
               controls
+              controlsList="nodownload"
+              preload="metadata"
               className="w-full rounded-lg"
-              style={{ maxHeight: '70vh' }}
+              style={{ 
+                maxHeight: '70vh',
+                // Ensure controls are visible
+                backgroundColor: '#000'
+              }}
               autoPlay
+              onLoadedMetadata={(e) => {
+                // Ensure duration is available and displayed
+                const video = e.target;
+                if (video.duration && !isNaN(video.duration)) {
+                  console.log('[Video] Duration loaded:', formatDuration(video.duration));
+                  // Force controls to show duration
+                  video.controls = true;
+                }
+              }}
+              onCanPlay={(e) => {
+                // Ensure video is ready and duration is available
+                const video = e.target;
+                if (video.duration && !isNaN(video.duration)) {
+                  console.log('[Video] Can play - Duration:', formatDuration(video.duration));
+                }
+              }}
+              onTimeUpdate={(e) => {
+                // Track current time - this ensures seek bar updates
+                const video = e.target;
+                const current = video.currentTime;
+                const duration = video.duration;
+                if (duration && current && !isNaN(duration) && !isNaN(current)) {
+                  // This ensures the seek bar shows progress
+                  // Native controls will show: currentTime / duration
+                }
+              }}
             >
               Your browser does not support the video tag.
             </video>

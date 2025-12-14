@@ -183,32 +183,92 @@ class AgoraRecordingService {
   async downloadRecordingWithRetry({ resourceId, sid, fileName, destPath, maxAttempts = 5, delayMs = 3000 }) {
     let attempt = 0;
     let lastError = null;
+    let queryStatus = null;
+    
     while (attempt < maxAttempts) {
       attempt += 1;
+      
+      // First, check recording status via query
       try {
-        // First try download directly
+        queryStatus = await this.query(resourceId, sid);
+        const status = queryStatus?.serverResponse?.status;
+        
+        // Status: 0=idle, 1=recording, 2=stopped, 3=error
+        if (status === 3) {
+          throw new Error('Recording status is error. Recording may have failed.');
+        }
+        
+        // If status is 1 (still recording), wait longer
+        if (status === 1) {
+          console.log(`[Recording] Still recording (status: ${status}), waiting longer...`);
+          await new Promise(r => setTimeout(r, delayMs * 2));
+          continue;
+        }
+        
+        // Check if fileList exists in query response
+        const fileList = queryStatus?.serverResponse?.fileList || queryStatus?.fileList;
+        if (!fileList || (Array.isArray(fileList) && fileList.length === 0)) {
+          console.log(`[Recording] No fileList in query response (attempt ${attempt}/${maxAttempts}), waiting...`);
+          if (attempt < maxAttempts) {
+            // Exponential backoff: increase delay with each attempt
+            const backoffDelay = delayMs * Math.pow(1.5, attempt - 1);
+            await new Promise(r => setTimeout(r, backoffDelay));
+            continue;
+          } else {
+            throw new Error('Recording fileList not available after all retries');
+          }
+        }
+        
+        console.log(`[Recording] Query successful, fileList found (attempt ${attempt}/${maxAttempts})`);
+      } catch (qErr) {
+        // If query returns 404, recording doesn't exist
+        if (qErr?.response?.status === 404) {
+          console.warn(`[Recording] Query returned 404 - recording may not exist (attempt ${attempt}/${maxAttempts})`);
+          if (attempt < maxAttempts) {
+            // Exponential backoff for 404s
+            const backoffDelay = delayMs * Math.pow(2, attempt - 1);
+            console.log(`[Recording] Retry query attempt ${attempt}/${maxAttempts} after ${backoffDelay}ms delay`);
+            await new Promise(r => setTimeout(r, backoffDelay));
+            continue;
+          } else {
+            throw new Error('Recording not found after all retries. The recording may not have been created successfully.');
+          }
+        }
+        // For other query errors, log and continue to try download
+        console.warn('[Recording] Query error (non-404):', qErr?.message || qErr);
+      }
+      
+      // Try to download the file
+      try {
         await this.downloadRecordingFile(resourceId, sid, fileName, destPath);
+        console.log(`[Recording] Download successful on attempt ${attempt}`);
         return destPath;
       } catch (err) {
         lastError = err;
-        // If 404, try query + wait, then retry
+        
+        // If 404, wait and retry
         if (err?.response?.status === 404) {
-          try {
-            await this.query(resourceId, sid);
-          } catch (qErr) {
-            console.warn('[Recording] Query after 404 failed', qErr?.message || qErr);
-          }
+          console.log(`[Recording] Download 404 (attempt ${attempt}/${maxAttempts}), retrying...`);
           if (attempt < maxAttempts) {
-            console.log(`[Recording] Retry download attempt ${attempt}/${maxAttempts} after delay`);
-            await new Promise(r => setTimeout(r, delayMs));
+            // Exponential backoff
+            const backoffDelay = delayMs * Math.pow(1.5, attempt - 1);
+            await new Promise(r => setTimeout(r, backoffDelay));
             continue;
           }
         }
-        // For other errors, break
+        
+        // For other errors, break immediately
+        console.error('[Recording] Download error (non-404):', err?.message || err);
         break;
       }
     }
-    throw lastError || new Error('Failed to download recording');
+    
+    // If we exhausted all attempts, throw the last error
+    const errorMsg = lastError?.response?.status === 404
+      ? `Recording file not available after ${maxAttempts} attempts. The recording may still be processing or may have failed.`
+      : lastError?.message || 'Failed to download recording';
+    
+    throw new Error(errorMsg);
   }
 }
 
