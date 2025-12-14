@@ -40,13 +40,27 @@ export const saveFcmTokenToBackend = async (fcmToken) => {
       return;
     }
 
+    // Only save if we have a valid FCM token
+    if (!fcmToken) {
+      console.warn('No FCM token provided');
+      return;
+    }
+
     await studentAPI.updateFcmToken(fcmToken);
     console.log('FCM token saved to backend');
 
     // Clear pending token if exists
     localStorage.removeItem('pending_fcm_token');
   } catch (error) {
-    console.error('Error saving FCM token to backend:', error);
+    // Don't show error to user - FCM token is not critical
+    // Log silently and continue
+    if (error.message && error.message.includes('Student not found')) {
+      console.warn('Student not found - user may need to login again. FCM token will be saved after login.');
+      // Store token temporarily
+      localStorage.setItem('pending_fcm_token', fcmToken);
+    } else {
+      console.error('Error saving FCM token to backend:', error);
+    }
   }
 };
 

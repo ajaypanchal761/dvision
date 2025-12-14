@@ -41,7 +41,32 @@ router.get('/teacher/live-classes/assigned-options', protect, authorize('teacher
 router.post('/teacher/live-classes', protect, authorize('teacher'), createLiveClass);
 router.put('/teacher/live-classes/:id/start', protect, authorize('teacher'), startLiveClass);
 router.put('/teacher/live-classes/:id/end', protect, authorize('teacher'), endLiveClass);
-router.post('/teacher/live-classes/:id/upload-recording', protect, authorize('teacher'), uploadRecordingMiddleware, uploadRecording);
+// Upload recording route with error handling
+router.post('/teacher/live-classes/:id/upload-recording', protect, authorize('teacher'), (req, res, next) => {
+  uploadRecordingMiddleware(req, res, (err) => {
+    if (err) {
+      // Handle multer errors
+      if (err instanceof multer.MulterError) {
+        if (err.code === 'LIMIT_FILE_SIZE') {
+          return res.status(400).json({
+            success: false,
+            message: `File too large. Maximum size is 500MB. Your file is ${(req.file?.size || 0) / (1024 * 1024)}MB.`
+          });
+        }
+        return res.status(400).json({
+          success: false,
+          message: `Upload error: ${err.message}`
+        });
+      }
+      // Handle other errors
+      return res.status(400).json({
+        success: false,
+        message: err.message || 'File upload error'
+      });
+    }
+    next();
+  });
+}, uploadRecording);
 
 // Admin routes
 router.get('/admin/live-classes', protect, authorize('admin'), getAllLiveClasses);

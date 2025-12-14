@@ -37,6 +37,17 @@ const errorHandler = (err, req, res, next) => {
     error = new ErrorResponse(message, 401);
   }
 
+  // Multer errors (file upload)
+  if (err.name === 'MulterError') {
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      const message = `File too large. Maximum size is ${err.limit / (1024 * 1024)}MB.`;
+      error = new ErrorResponse(message, 400);
+    } else {
+      const message = `File upload error: ${err.message}`;
+      error = new ErrorResponse(message, 400);
+    }
+  }
+
   res.status(error.statusCode || 500).json({
     success: false,
     message: error.message || 'Server Error',

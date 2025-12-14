@@ -27,25 +27,41 @@ const Recordings = () => {
       setError('');
       const response = await liveClassAPI.getRecordings();
       if (response.success && response.data?.recordings) {
+        // Recordings already have playbackUrl from backend
         setRecordings(response.data.recordings);
+        console.log('[Recordings] Loaded recordings:', response.data.recordings.length);
+      } else {
+        setRecordings([]);
       }
     } catch (err) {
       console.error('Error fetching recordings:', err);
       setError(err.message || 'Failed to load recordings');
+      setRecordings([]);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handlePlayRecording = async (recordingId) => {
+  const handlePlayRecording = async (recording) => {
     try {
-      const response = await liveClassAPI.getRecording(recordingId);
-      if (response.success && response.data?.recording) {
-        const recording = response.data.recording;
+      // Check if recording already has playbackUrl from the list
+      if (recording.playbackUrl) {
         setSelectedRecording(recording);
-        setPlaybackUrl(recording.playbackUrl || recording.s3Url);
+        setPlaybackUrl(recording.playbackUrl);
+        return;
+      }
+      
+      // If not, fetch the recording to get presigned URL
+      const response = await liveClassAPI.getRecording(recording._id);
+      if (response.success && response.data?.recording) {
+        const recordingData = response.data.recording;
+        setSelectedRecording(recordingData);
+        setPlaybackUrl(recordingData.playbackUrl || recordingData.s3Url);
+      } else {
+        alert('Recording is not available. Please try again later.');
       }
     } catch (err) {
+      console.error('Error loading recording:', err);
       alert(err.message || 'Failed to load recording');
     }
   };
@@ -136,7 +152,7 @@ const Recordings = () => {
                     </div>
                   </div>
                   <button
-                    onClick={() => handlePlayRecording(recording._id)}
+                    onClick={() => handlePlayRecording(recording)}
                     className="bg-[var(--app-dark-blue)] text-white font-bold px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg sm:rounded-xl hover:bg-[var(--app-dark-blue)]/90 transition-colors flex items-center gap-1.5 shadow-md ml-2 sm:ml-3 text-xs sm:text-sm"
                   >
                     <FiPlay className="text-xs" />

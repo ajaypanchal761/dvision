@@ -913,12 +913,11 @@ exports.updateFcmToken = asyncHandler(async (req, res) => {
     throw new ErrorResponse('Student not authenticated', 401);
   }
   
-  const student = await Student.findById(req.user._id);
+  // Use req.user directly since it's already the Student document from auth middleware
+  // No need to query again - this avoids "Student not found" errors
+  const student = req.user;
 
-  if (!student) {
-    throw new ErrorResponse('Student not found', 404);
-  }
-
+  // Update FCM token
   student.fcmToken = fcmToken;
   await student.save();
 

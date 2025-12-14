@@ -62,8 +62,10 @@ app.use(cors({
 app.options('*', cors());
 
 // ===== BODY PARSER =====
+// Note: For file uploads, multer handles the body parsing, but we still need these for other routes
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
 // ===== STATIC FILES =====
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
@@ -105,6 +107,11 @@ require('./services/subscriptionExpiryScheduler').initializeSubscriptionExpirySc
 const PORT = process.env.PORT || 5000;
 const server = http.createServer(app);
 
+// Increase server timeout for large file uploads (30 minutes)
+server.timeout = 30 * 60 * 1000; // 30 minutes in milliseconds
+server.keepAliveTimeout = 30 * 60 * 1000; // 30 minutes
+server.headersTimeout = 31 * 60 * 1000; // 31 minutes (slightly more than keepAliveTimeout)
+
 const { initializeSocket } = require('./config/socket');
 const io = initializeSocket(server);
 app.set('io', io);
@@ -112,6 +119,8 @@ app.set('io', io);
 // 🔥 VERY IMPORTANT FOR CONTABO
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`📡 API available at http://localhost:${PORT}/api`);
+  console.log(`❤️  Health check at http://localhost:${PORT}/health`);
 });
 
 module.exports = { app, server, io };

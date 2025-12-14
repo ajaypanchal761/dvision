@@ -1452,11 +1452,32 @@ exports.getStudentRecordings = asyncHandler(async (req, res) => {
     .populate('timetableId', 'dayOfWeek startTime endTime topic')
     .sort({ createdAt: -1 });
 
+  // Generate presigned URLs for all recordings
+  const recordingsWithUrls = await Promise.all(recordings.map(async (recording) => {
+    let playbackUrl = recording.s3Url || recording.localPath || null;
+    
+    // If S3 is configured and we have s3Key, generate presigned URL
+    if (s3Service.isConfigured() && recording.s3Key) {
+      try {
+        playbackUrl = await s3Service.getPresignedUrl(recording.s3Key, 3600); // 1 hour expiry
+      } catch (error) {
+        console.error('Error generating presigned URL for recording:', error);
+        // Fallback to direct URL
+        playbackUrl = recording.s3Url || recording.localPath || null;
+      }
+    }
+    
+    return {
+      ...recording.toObject(),
+      playbackUrl: playbackUrl
+    };
+  }));
+
   res.status(200).json({
     success: true,
-    count: recordings.length,
+    count: recordingsWithUrls.length,
     data: {
-      recordings
+      recordings: recordingsWithUrls
     }
   });
 });

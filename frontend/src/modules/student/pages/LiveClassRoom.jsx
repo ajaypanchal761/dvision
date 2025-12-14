@@ -104,6 +104,24 @@ const LiveClassRoom = () => {
     };
   }, [id]);
 
+  // Periodic check to clear false reconnecting states
+  useEffect(() => {
+    const checkConnection = () => {
+      // If both Agora and Socket are connected, clear reconnecting state
+      if (clientRef.current && clientRef.current.connectionState === 'CONNECTED' &&
+          socketRef.current && socketRef.current.connected &&
+          connectionState === 'connected') {
+        if (isReconnecting) {
+          console.log('[Connection Check] Clearing false reconnecting state - both connections are stable');
+          setIsReconnecting(false);
+        }
+      }
+    };
+    
+    const interval = setInterval(checkConnection, 5000); // Check every 5 seconds
+    return () => clearInterval(interval);
+  }, [isReconnecting, connectionState]);
+
   // Monitor remote users and ensure teacher video is played
   useEffect(() => {
     const remoteUsers = Object.values(remoteUsersRef.current);
@@ -169,27 +187,63 @@ const LiveClassRoom = () => {
       console.log('Student socket connected');
       setConnectionState('connected');
       setIsReconnecting(false);
+      setWasConnected(true); // Mark that socket is connected
       // Join room immediately after connection
       socket.emit('join-live-class', { liveClassId: id });
       console.log('Student joined live class room:', id);
     });
 
-    socket.on('disconnect', () => {
-      console.log('Socket disconnected');
+    socket.on('disconnect', (reason) => {
+      console.log('Socket disconnected, reason:', reason);
       setConnectionState('disconnected');
-      setIsReconnecting(true);
+      // Only show reconnecting if we were previously connected
+      // Socket.io can disconnect for various reasons (transport close, ping timeout, etc.)
+      // Only show reconnecting for actual connection loss, not for normal disconnects
+      if (wasConnected && reason !== 'io client disconnect') {
+        // Only show reconnecting for unexpected disconnects
+        setIsReconnecting(true);
+      } else {
+        setIsReconnecting(false);
+      }
     });
 
     socket.on('connect_error', (error) => {
       console.error('Socket connection error:', error);
-      setIsReconnecting(true);
+      // Only show reconnecting if we were previously connected
+      if (wasConnected) {
+        setIsReconnecting(true);
+      } else {
+        setIsReconnecting(false);
+      }
     });
 
-    socket.on('reconnect', () => {
-      console.log('Student socket reconnected');
+    socket.on('reconnect', (attemptNumber) => {
+      console.log('Student socket reconnected after', attemptNumber, 'attempts');
       setIsReconnecting(false);
+      setWasConnected(true);
       socket.emit('join-live-class', { liveClassId: id });
       console.log('Student rejoined live class room:', id);
+    });
+
+    socket.on('reconnect_attempt', (attemptNumber) => {
+      console.log('Socket reconnect attempt:', attemptNumber);
+      // Only show reconnecting if we were previously connected
+      if (wasConnected) {
+        setIsReconnecting(true);
+      }
+    });
+
+    socket.on('reconnect_error', (error) => {
+      console.error('Socket reconnect error:', error);
+      // Keep reconnecting state if we were connected
+      if (wasConnected) {
+        setIsReconnecting(true);
+      }
+    });
+
+    socket.on('reconnect_failed', () => {
+      console.error('Socket reconnect failed');
+      setIsReconnecting(false); // Stop showing reconnecting after max attempts
     });
 
     // Chat events - ensure this listener is set up
@@ -514,6 +568,11 @@ const LiveClassRoom = () => {
       setConnectionState('connected');
       setWasConnected(true); // Mark that we've successfully connected
       setIsReconnecting(false); // Ensure reconnecting is false on successful join
+      
+      // Also ensure socket reconnecting is false if socket is connected
+      if (socketRef.current && socketRef.current.connected) {
+        setIsReconnecting(false);
+      }
 
       // Subscribe to existing remote users (teacher might already be in the channel)
       const remoteUsers = client.remoteUsers;
@@ -780,6 +839,10 @@ const LiveClassRoom = () => {
       setIsReconnecting(false);
       setConnectionState('connected');
       setWasConnected(true); // Mark that we've been connected
+      // Also ensure socket reconnecting is false when Agora is connected
+      if (socketRef.current && socketRef.current.connected) {
+        setIsReconnecting(false);
+      }
     } else if (curState === 'DISCONNECTED') {
       // Only show reconnecting if we were previously connected (not initial state)
       if (wasConnected && (revState === 'CONNECTED' || revState === 'CONNECTING')) {
