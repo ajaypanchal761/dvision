@@ -167,25 +167,43 @@ const apiRequest = async (endpoint, options = {}, tokenType = 'student') => {
       return { success: true, data: text };
     }
   } catch (error) {
-    // Handle network errors
-    if (error.name === 'TypeError' && error.message.includes('fetch')) {
-      console.error('[API] Network Error:', {
-        endpoint,
-        fullUrl,
-        error: error.message,
-        errorName: error.name,
-        stack: error.stack
-      });
-      throw new Error('Network error. Please check if the server is running.');
-    }
-    console.error('[API] Request Error:', {
+    // Handle network errors with detailed logging
+    const errorDetails = {
       endpoint,
       fullUrl,
-      error: error.message,
+      errorMessage: error.message,
       errorName: error.name,
+      errorType: error.constructor.name,
       status: error.status,
-      stack: error.stack
-    });
+      apiBaseUrl: API_BASE_URL,
+      currentHostname: typeof window !== 'undefined' ? window.location.hostname : 'N/A',
+      currentProtocol: typeof window !== 'undefined' ? window.location.protocol : 'N/A',
+      timestamp: new Date().toISOString()
+    };
+
+    // Check for specific error types
+    if (error.name === 'TypeError' && (error.message.includes('fetch') || error.message.includes('Failed to fetch'))) {
+      console.error('[API] Network Error - Failed to connect:', errorDetails);
+      
+      // Provide more specific error message
+      let errorMsg = 'Network error. ';
+      if (fullUrl.includes('localhost')) {
+        errorMsg += 'Backend server is not running on localhost:5000. ';
+      } else if (fullUrl.includes('api.dvisionacademy.com')) {
+        errorMsg += 'Cannot connect to production API. Please check if https://api.dvisionacademy.com is accessible. ';
+      }
+      errorMsg += `Trying to connect to: ${fullUrl}`;
+      
+      throw new Error(errorMsg);
+    }
+    
+    // CORS or other network errors
+    if (error.message.includes('CORS') || error.message.includes('blocked')) {
+      console.error('[API] CORS Error:', errorDetails);
+      throw new Error('CORS error. Please check backend CORS configuration.');
+    }
+    
+    console.error('[API] Request Error:', errorDetails);
     throw error;
   }
 };

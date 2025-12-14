@@ -73,10 +73,21 @@ const Login = () => {
       console.error('[Login] Error occurred:', {
         message: error.message,
         name: error.name,
+        errorType: error.constructor?.name,
+        status: error.status,
         stack: error.stack,
-        status: error.status
+        timestamp: new Date().toISOString()
       });
-      setError(error.message || 'Something went wrong. Please try again.');
+      
+      // Show user-friendly error message
+      let errorMessage = error.message || 'Something went wrong. Please try again.';
+      
+      // Add helpful hints for common errors
+      if (error.message.includes('Network error') || error.message.includes('Failed to fetch')) {
+        errorMessage += ' Please check your internet connection and ensure the backend server is running.';
+      }
+      
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
       console.log('[Login] Login process completed');
