@@ -282,7 +282,7 @@ exports.getStudentLiveClasses = asyncHandler(async (req, res) => {
 
   // Determine status for each class and format recording info
   const nowTime = new Date();
-  const classesWithStatus = liveClasses.map(liveClass => {
+  const classesWithStatus = await Promise.all(liveClasses.map(async (liveClass) => {
     const scheduledTime = new Date(liveClass.scheduledStartTime);
     // Calculate end time: use endTime if available, otherwise calculate from scheduledStartTime + duration
     let endTime = null;
@@ -311,19 +311,42 @@ exports.getStudentLiveClasses = asyncHandler(async (req, res) => {
       status = 'scheduled';
     }
 
-    // Format recording info
-    const recording = liveClass.recording ? {
-      ...liveClass.recording.toObject ? liveClass.recording.toObject() : liveClass.recording,
-      isAvailable: liveClass.recording.status === 'completed' && (liveClass.recording.s3Url || liveClass.recording.localPath),
-      playbackUrl: liveClass.recording.s3Url || liveClass.recording.localPath || null
-    } : null;
+    // Format recording info - also check Recording model for presigned URL
+    let recording = null;
+    if (liveClass.recording && liveClass.recording.status === 'completed') {
+      // Try to find Recording document for this live class to get presigned URL
+      let playbackUrl = liveClass.recording.s3Url || liveClass.recording.localPath || null;
+      
+      // If S3 is configured and we have s3Key, generate presigned URL
+      if (s3Service.isConfigured() && liveClass.recording.s3Key) {
+        try {
+          playbackUrl = await s3Service.getPresignedUrl(liveClass.recording.s3Key, 3600); // 1 hour expiry
+        } catch (error) {
+          console.error('Error generating presigned URL for live class recording:', error);
+          // Fallback to direct URL
+          playbackUrl = liveClass.recording.s3Url || liveClass.recording.localPath || null;
+        }
+      }
+      
+      recording = {
+        ...liveClass.recording.toObject ? liveClass.recording.toObject() : liveClass.recording,
+        isAvailable: true,
+        playbackUrl: playbackUrl
+      };
+    } else if (liveClass.recording) {
+      recording = {
+        ...liveClass.recording.toObject ? liveClass.recording.toObject() : liveClass.recording,
+        isAvailable: false,
+        playbackUrl: null
+      };
+    }
 
     return {
       ...liveClass.toObject(),
       computedStatus: status,
       recording: recording
     };
-  });
+  }));
 
   res.status(200).json({
     success: true,
@@ -763,14 +786,35 @@ exports.endLiveClass = asyncHandler(async (req, res) => {
     durationMinutes: duration
   });
 
-  // Stop cloud recording and process file (best-effort)
+  // Emit socket event immediately to notify all participants that class has ended
+  const io = req.app.get('io');
+  if (io) {
+    io.to(`live-class-${liveClass._id}`).emit('class-ended', {
+      liveClassId: liveClass._id,
+      message: 'Class has ended'
+    });
+    console.log('[LiveClass] Class ended event emitted immediately');
+  }
+
+  // Send response immediately - don't wait for recording processing
+  res.status(200).json({
+    success: true,
+    data: {
+      liveClass
+    }
+  });
+
+  // Stop cloud recording and process file (best-effort) - do this in background
+  // Don't block the response for recording processing
   if (
     liveClass.isRecordingEnabled &&
     liveClass.recording &&
     liveClass.recording.resourceId &&
     liveClass.recording.sid
   ) {
-    try {
+    // Process recording asynchronously without blocking
+    (async () => {
+      try {
       // Use the same UID that started the recording (required by Agora stop API)
       const recorderUid = liveClass.recording.recorderUid || parseInt(liveClass.teacherId.toString().slice(-8), 16) || 0;
 
@@ -800,10 +844,7 @@ exports.endLiveClass = asyncHandler(async (req, res) => {
           liveClassId: liveClass._id.toString(),
           stopRes
         });
-        return res.status(200).json({
-          success: true,
-          data: { liveClass }
-        });
+        return; // Exit async function, response already sent
       }
 
       // Extract file list; if missing, try querying a few times (handles Agora code 65/request not completed)
@@ -836,10 +877,7 @@ exports.endLiveClass = asyncHandler(async (req, res) => {
         };
         await liveClass.save();
         console.warn('[LiveClass] Recording failed: no fileUrl', { liveClassId: liveClass._id.toString(), stopRes });
-        return res.status(200).json({
-          success: true,
-          data: { liveClass }
-        });
+        return; // Exit async function, response already sent
       }
       // fileList can be a string (comma-separated or single name) or array of file objects
       if (typeof fileList === 'string') {
@@ -999,32 +1037,17 @@ exports.endLiveClass = asyncHandler(async (req, res) => {
         await liveClass.save();
         console.warn('[LiveClass] Recording failed: no fileUrl', { liveClassId: liveClass._id.toString(), stopRes });
       }
-    } catch (stopErr) {
-      console.error('Failed to stop/process recording:', stopErr);
-      liveClass.recording = {
-        ...liveClass.recording,
-        status: 'failed',
-        error: stopErr.message || 'Failed to stop recording'
-      };
-      await liveClass.save();
-    }
+      } catch (stopErr) {
+        console.error('Failed to stop/process recording:', stopErr);
+        liveClass.recording = {
+          ...liveClass.recording,
+          status: 'failed',
+          error: stopErr.message || 'Failed to stop recording'
+        };
+        await liveClass.save();
+      }
+    })(); // End of async IIFE - process recording in background
   }
-
-  // Emit socket event to notify all participants that class has ended
-  const io = req.app.get('io');
-  if (io) {
-    io.to(`live-class-${liveClass._id}`).emit('class-ended', {
-      liveClassId: liveClass._id,
-      message: 'Class has ended'
-    });
-  }
-
-  res.status(200).json({
-    success: true,
-    data: {
-      liveClass
-    }
-  });
 });
 
 // @desc    Send chat message
@@ -1183,10 +1206,45 @@ exports.getLiveClass = asyncHandler(async (req, res) => {
     throw new ErrorResponse('Live class not found', 404);
   }
 
+  // Format recording info with presigned URL if available
+  let recordingInfo = null;
+  if (liveClass.recording && liveClass.recording.status === 'completed') {
+    let playbackUrl = liveClass.recording.s3Url || liveClass.recording.localPath || null;
+    
+    // If S3 is configured and we have s3Key, generate presigned URL
+    if (s3Service.isConfigured() && liveClass.recording.s3Key) {
+      try {
+        playbackUrl = await s3Service.getPresignedUrl(liveClass.recording.s3Key, 3600); // 1 hour expiry
+      } catch (error) {
+        console.error('Error generating presigned URL for live class recording:', error);
+        // Fallback to direct URL
+        playbackUrl = liveClass.recording.s3Url || liveClass.recording.localPath || null;
+      }
+    }
+    
+    recordingInfo = {
+      ...liveClass.recording.toObject ? liveClass.recording.toObject() : liveClass.recording,
+      isAvailable: true,
+      playbackUrl: playbackUrl
+    };
+  } else if (liveClass.recording) {
+    recordingInfo = {
+      ...liveClass.recording.toObject ? liveClass.recording.toObject() : liveClass.recording,
+      isAvailable: false,
+      playbackUrl: null
+    };
+  }
+
+  // Convert to object and update recording
+  const liveClassObj = liveClass.toObject();
+  if (recordingInfo) {
+    liveClassObj.recording = recordingInfo;
+  }
+
   res.status(200).json({
     success: true,
     data: {
-      liveClass
+      liveClass: liveClassObj
     }
   });
 });

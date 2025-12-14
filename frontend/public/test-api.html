@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Connection Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-box {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .result {
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        h1 {
+            color: #333;
+        }
+        .status {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 3px;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+        .status.ok {
+            background: #28a745;
+            color: white;
+        }
+        .status.fail {
+            background: #dc3545;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔍 API Connection Diagnostic Tool</h1>
+    
+    <div class="test-box">
+        <h2>Test 1: Backend Health Check</h2>
+        <p>Tests if the API server is reachable</p>
+        <button onclick="testHealth()">Test /health</button>
+        <div id="health-result"></div>
+    </div>
+
+    <div class="test-box">
+        <h2>Test 2: Student Login Endpoint</h2>
+        <p>Tests the actual login endpoint (will fail with 400, but should connect)</p>
+        <button onclick="testLogin()">Test /api/student/login</button>
+        <div id="login-result"></div>
+    </div>
+
+    <div class="test-box">
+        <h2>Test 3: CORS Preflight</h2>
+        <p>Tests if CORS is properly configured</p>
+        <button onclick="testCORS()">Test OPTIONS Request</button>
+        <div id="cors-result"></div>
+    </div>
+
+    <div class="test-box">
+        <h2>Test 4: DNS Resolution</h2>
+        <p>Shows current API URL being used</p>
+        <button onclick="testDNS()">Check DNS</button>
+        <div id="dns-result"></div>
+    </div>
+
+    <div class="test-box">
+        <h2>Test 5: Full Connection Test</h2>
+        <p>Runs all tests and shows summary</p>
+        <button onclick="runAllTests()">Run All Tests</button>
+        <div id="all-results"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'https://api.dvisionacademy.com/api';
+        
+        function showResult(elementId, data, isError = false) {
+            const element = document.getElementById(elementId);
+            const className = isError ? 'error' : 'success';
+            element.innerHTML = `<div class="result ${className}">${JSON.stringify(data, null, 2)}</div>`;
+        }
+
+        async function testHealth() {
+            try {
+                const startTime = Date.now();
+                const response = await fetch(`${API_BASE.replace('/api', '')}/health`, {
+                    method: 'GET',
+                    credentials: 'include'
+                });
+                const endTime = Date.now();
+                const data = await response.json();
+                
+                showResult('health-result', {
+                    status: response.status,
+                    statusText: response.statusText,
+                    responseTime: `${endTime - startTime}ms`,
+                    data: data,
+                    headers: Object.fromEntries(response.headers.entries())
+                }, !response.ok);
+            } catch (error) {
+                showResult('health-result', {
+                    error: error.message,
+                    name: error.name,
+                    type: 'Network Error',
+                    details: 'Cannot reach server. Check: DNS, SSL, Nginx config'
+                }, true);
+            }
+        }
+
+        async function testLogin() {
+            try {
+                const startTime = Date.now();
+                const response = await fetch(`${API_BASE}/student/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({ phone: '7610416911' })
+                });
+                const endTime = Date.now();
+                const text = await response.text();
+                let data;
+                try {
+                    data = JSON.parse(text);
+                } catch {
+                    data = text;
+                }
+                
+                showResult('login-result', {
+                    status: response.status,
+                    statusText: response.statusText,
+                    responseTime: `${endTime - startTime}ms`,
+                    data: data,
+                    note: response.status === 400 ? '✅ Connected! (400 is expected without valid data)' : ''
+                }, response.status >= 500);
+            } catch (error) {
+                showResult('login-result', {
+                    error: error.message,
+                    name: error.name,
+                    type: 'Network Error',
+                    details: 'Cannot reach server. Check: DNS, SSL, Nginx config'
+                }, true);
+            }
+        }
+
+        async function testCORS() {
+            try {
+                const response = await fetch(`${API_BASE}/student/login`, {
+                    method: 'OPTIONS',
+                    headers: {
+                        'Origin': window.location.origin,
+                        'Access-Control-Request-Method': 'POST',
+                        'Access-Control-Request-Headers': 'Content-Type'
+                    },
+                    credentials: 'include'
+                });
+                
+                showResult('cors-result', {
+                    status: response.status,
+                    corsHeaders: {
+                        'Access-Control-Allow-Origin': response.headers.get('Access-Control-Allow-Origin'),
+                        'Access-Control-Allow-Methods': response.headers.get('Access-Control-Allow-Methods'),
+                        'Access-Control-Allow-Credentials': response.headers.get('Access-Control-Allow-Credentials')
+                    },
+                    allHeaders: Object.fromEntries(response.headers.entries())
+                }, !response.ok);
+            } catch (error) {
+                showResult('cors-result', {
+                    error: error.message,
+                    name: error.name,
+                    type: 'CORS/Network Error'
+                }, true);
+            }
+        }
+
+        function testDNS() {
+            const info = {
+                currentOrigin: window.location.origin,
+                apiBaseUrl: API_BASE,
+                testUrls: {
+                    health: `${API_BASE.replace('/api', '')}/health`,
+                    login: `${API_BASE}/student/login`
+                },
+                browserInfo: {
+                    userAgent: navigator.userAgent,
+                    platform: navigator.platform
+                }
+            };
+            
+            showResult('dns-result', info, false);
+        }
+
+        async function runAllTests() {
+            const results = {
+                timestamp: new Date().toISOString(),
+                tests: {}
+            };
+
+            // Test 1: Health
+            try {
+                const hResponse = await fetch(`${API_BASE.replace('/api', '')}/health`);
+                results.tests.health = {
+                    status: hResponse.status,
+                    ok: hResponse.ok,
+                    connected: true
+                };
+            } catch (error) {
+                results.tests.health = {
+                    connected: false,
+                    error: error.message
+                };
+            }
+
+            // Test 2: Login
+            try {
+                const lResponse = await fetch(`${API_BASE}/student/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ phone: 'test' })
+                });
+                results.tests.login = {
+                    status: lResponse.status,
+                    ok: lResponse.ok,
+                    connected: true
+                };
+            } catch (error) {
+                results.tests.login = {
+                    connected: false,
+                    error: error.message
+                };
+            }
+
+            // Summary
+            const allConnected = Object.values(results.tests).every(t => t.connected);
+            results.summary = {
+                allTestsPassed: allConnected,
+                recommendation: allConnected 
+                    ? '✅ All tests passed! API is accessible.'
+                    : '❌ Connection failed. Check VPS: Nginx config, SSL, DNS'
+            };
+
+            showResult('all-results', results, !allConnected);
+        }
+    </script>
+</body>
+</html>
+

@@ -141,7 +141,7 @@ const LiveClasses = () => {
 
   const handlePlayRecording = async (liveClass) => {
     try {
-      // Check if recording is available
+      // Check if recording is available in the live class data
       if (liveClass.recording?.isAvailable && liveClass.recording?.playbackUrl) {
         setSelectedRecording({
           _id: liveClass._id,
@@ -150,8 +150,13 @@ const LiveClasses = () => {
           playbackUrl: liveClass.recording.playbackUrl
         });
         setPlaybackUrl(liveClass.recording.playbackUrl);
-      } else {
-        // Try to fetch recording details
+        return;
+      }
+      
+      // Try to fetch recording from Recording model using liveClassId
+      // First, try to get recording by finding it via liveClassId
+      try {
+        // Get the Recording document for this live class
         const response = await liveClassAPI.getLiveClass(liveClass._id);
         if (response.success && response.data?.liveClass?.recording?.isAvailable) {
           const recording = response.data.liveClass.recording;
@@ -162,10 +167,14 @@ const LiveClasses = () => {
             playbackUrl: recording.playbackUrl
           });
           setPlaybackUrl(recording.playbackUrl);
-        } else {
-          alert('Recording is not available yet. Please check back later.');
+          return;
         }
+      } catch (fetchErr) {
+        console.warn('Error fetching recording from live class:', fetchErr);
       }
+      
+      // If still not available, show message
+      alert('Recording is not available yet. Please check back later.');
     } catch (err) {
       console.error('Error loading recording:', err);
       alert(err.message || 'Failed to load recording');

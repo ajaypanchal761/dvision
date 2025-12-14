@@ -2,9 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiChevronDown } from 'react-icons/fi';
 import { ROUTES } from '../constants/routes';
-import logoImage from '../assets/logo.png';
 import Image from '../components/common/Image';
 import { teacherAPI } from '../services/api';
+
 
 /**
  * Login Page - OTP Based
@@ -145,7 +145,7 @@ const Login = () => {
               {/* Glow effect behind logo */}
               <div className="absolute inset-0 bg-[var(--app-dark-blue)]/20 rounded-full blur-2xl scale-150"></div>
               <Image
-                src={logoImage}
+                src="/dvisionteacher.png"
                 alt="D'Vision Academy Logo"
                 className="h-20 sm:h-24 md:h-28 lg:h-32 w-auto object-contain relative z-10"
               />

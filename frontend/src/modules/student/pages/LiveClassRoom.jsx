@@ -82,6 +82,7 @@ const LiveClassRoom = () => {
   
   // Connection state
   const [connectionState, setConnectionState] = useState('disconnected');
+  const [wasConnected, setWasConnected] = useState(false); // Track if we were ever connected
 
   // Initialize class
   useEffect(() => {
@@ -428,6 +429,8 @@ const LiveClassRoom = () => {
       setIsLoading(true);
       setError('');
       setConnectionState('connecting');
+      setIsReconnecting(false); // Don't show reconnecting on initial join
+      setWasConnected(false); // Reset connection flag
 
       // Get live class details and join token
       const response = await liveClassAPI.joinLiveClass(id);
@@ -509,6 +512,8 @@ const LiveClassRoom = () => {
       // Join channel
       await client.join(appId, channelName, token, uid);
       setConnectionState('connected');
+      setWasConnected(true); // Mark that we've successfully connected
+      setIsReconnecting(false); // Ensure reconnecting is false on successful join
 
       // Subscribe to existing remote users (teacher might already be in the channel)
       const remoteUsers = client.remoteUsers;
@@ -760,15 +765,32 @@ const LiveClassRoom = () => {
 
   // Handle connection state change
   const handleConnectionStateChange = (curState, revState) => {
-    console.log('Connection state:', curState, revState);
+    console.log('Connection state:', curState, 'Previous:', revState, 'Was connected:', wasConnected);
+    
     if (curState === 'CONNECTING') {
-      setIsReconnecting(true);
+      // Only show reconnecting if we were previously connected (not initial connection)
+      if (wasConnected && (revState === 'CONNECTED' || revState === 'RECONNECTING' || revState === 'DISCONNECTED')) {
+        setIsReconnecting(true);
+      } else {
+        // Initial connection - don't show reconnecting
+        setIsReconnecting(false);
+      }
+      setConnectionState('connecting');
     } else if (curState === 'CONNECTED') {
       setIsReconnecting(false);
+      setConnectionState('connected');
+      setWasConnected(true); // Mark that we've been connected
     } else if (curState === 'DISCONNECTED') {
-      setIsReconnecting(true);
-      // Attempt reconnection by reinitializing
-      if (clientRef.current && liveClass) {
+      // Only show reconnecting if we were previously connected (not initial state)
+      if (wasConnected && (revState === 'CONNECTED' || revState === 'CONNECTING')) {
+        setIsReconnecting(true);
+      } else {
+        setIsReconnecting(false);
+      }
+      setConnectionState('disconnected');
+      
+      // Only attempt reconnection if we were previously connected
+      if (wasConnected && clientRef.current && liveClass) {
         setTimeout(async () => {
           try {
             // Get new token and rejoin
@@ -785,6 +807,14 @@ const LiveClassRoom = () => {
           }
         }, 2000);
       }
+    } else if (curState === 'RECONNECTING') {
+      // Only show reconnecting if we were previously connected
+      if (wasConnected) {
+        setIsReconnecting(true);
+      } else {
+        setIsReconnecting(false);
+      }
+      setConnectionState('connecting');
     }
   };
 

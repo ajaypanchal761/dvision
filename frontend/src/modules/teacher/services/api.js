@@ -69,9 +69,11 @@ const apiRequest = async (endpoint, options = {}) => {
     config.body = options.body;
   }
 
+  // Define fullUrl before try block to ensure it's available in catch
+  const fullUrl = `${API_BASE_URL}${endpoint}`;
+  const method = options.method || 'GET';
+
   try {
-    const fullUrl = `${API_BASE_URL}${endpoint}`;
-    const method = options.method || 'GET';
     
     console.log(`[Teacher API] ${method} Request:`, {
       endpoint,

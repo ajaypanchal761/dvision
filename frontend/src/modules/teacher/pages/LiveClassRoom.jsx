@@ -1457,30 +1457,49 @@ const LiveClassRoom = () => {
   const handleEndClass = async () => {
     if (window.confirm('Are you sure you want to end this class? All students will be disconnected.')) {
       try {
-        // Stop recording first if it's active
+        // Check if class is already ended
+        if (liveClass?.status === 'ended') {
+          console.log('[End Class] Class is already ended, cleaning up...');
+          cleanup();
+          navigate('/teacher/live-classes');
+          return;
+        }
+
+        // Stop recording first if it's active (don't wait for upload to complete)
         if (isRecording && mediaRecorderRef.current) {
           console.log('[End Class] Stopping recording before ending class...');
           try {
-            const uploadResult = await stopLocalRecording();
-            if (uploadResult && uploadResult.s3Url) {
-              console.log('[End Class] ✅ Recording stopped and uploaded successfully:', uploadResult.s3Url);
-              alert('Recording uploaded successfully! Students will be able to view it shortly.');
-            } else {
-              console.warn('[End Class] Recording stopped but upload result is empty');
-              alert('Recording stopped but upload may have failed. Please check recordings.');
-            }
+            // Stop recording but don't wait for upload - do it in background
+            stopLocalRecording().then((uploadResult) => {
+              if (uploadResult && uploadResult.s3Url) {
+                console.log('[End Class] ✅ Recording uploaded successfully:', uploadResult.s3Url);
+              } else {
+                console.warn('[End Class] Recording stopped but upload result is empty');
+              }
+            }).catch((recordingError) => {
+              console.error('[End Class] Error stopping/uploading recording:', recordingError);
+            });
           } catch (recordingError) {
-            console.error('[End Class] Error stopping/uploading recording:', recordingError);
-            // Continue with ending class even if recording upload fails
-            alert('Class ended, but recording upload failed. Please try uploading manually.');
+            console.error('[End Class] Error stopping recording:', recordingError);
+            // Continue with ending class even if recording stop fails
           }
         }
 
+        // End class immediately
         await liveClassAPI.endLiveClass(id);
+        
+        // Cleanup and navigate immediately
         cleanup();
         navigate('/teacher/live-classes');
       } catch (err) {
-        alert(err.message || 'Failed to end class');
+        // If class is already ended, just navigate
+        if (err.message && err.message.includes('already ended')) {
+          console.log('[End Class] Class was already ended, cleaning up...');
+          cleanup();
+          navigate('/teacher/live-classes');
+        } else {
+          alert(err.message || 'Failed to end class');
+        }
       }
     }
   };

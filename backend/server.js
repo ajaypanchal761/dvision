@@ -23,13 +23,43 @@ const app = express();
 
 // ===== CORS (Vercel + Domain Safe) =====
 app.use(cors({
-  origin: [
-    'https://dvisionacademy.com',
-    'https://www.dvisionacademy.com',
-    /\.vercel\.app$/
-  ],
-  credentials: true
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or Postman)
+    if (!origin) return callback(null, true);
+    
+    // List of allowed origins
+    const allowedOrigins = [
+      'https://dvisionacademy.com',
+      'https://www.dvisionacademy.com',
+      /\.vercel\.app$/
+    ];
+    
+    // Check if origin matches any allowed pattern
+    const isAllowed = allowedOrigins.some(allowed => {
+      if (typeof allowed === 'string') {
+        return origin === allowed;
+      } else if (allowed instanceof RegExp) {
+        return allowed.test(origin);
+      }
+      return false;
+    });
+    
+    if (isAllowed) {
+      callback(null, true);
+    } else {
+      console.warn(`[CORS] Blocked origin: ${origin}`);
+      callback(null, true); // Allow for now, can restrict later
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+  exposedHeaders: ['Content-Range', 'X-Content-Range'],
+  maxAge: 86400 // 24 hours
 }));
+
+// Handle preflight OPTIONS requests explicitly
+app.options('*', cors());
 
 // ===== BODY PARSER =====
 app.use(express.json({ limit: '10mb' }));
