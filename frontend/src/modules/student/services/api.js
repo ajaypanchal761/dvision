@@ -124,6 +124,14 @@ const apiRequest = async (endpoint, options = {}) => {
         error.data = errorData.data || errorData;
         error.errors = errorData.data?.errors || errorData.errors;
       }
+      
+      // Log 401 errors specifically for debugging
+      if (response.status === 401) {
+        console.error('[API] 401 Unauthorized - Token may be invalid or expired');
+        console.error('[API] Endpoint:', endpoint);
+        console.error('[API] Error Data:', errorData);
+      }
+      
       throw error;
     }
 
@@ -491,7 +499,7 @@ export const timetableAPI = {
 };
 
 export const paymentAPI = {
-  // Create Razorpay order
+  // Create Cashfree order
   createOrder: async (planId) => {
     return apiRequest('/payment/create-order', {
       method: 'POST',
@@ -499,13 +507,15 @@ export const paymentAPI = {
     });
   },
   // Verify payment
-  verifyPayment: async (razorpayOrderId, razorpayPaymentId, razorpaySignature) => {
+  verifyPayment: async (orderId, referenceId, paymentSignature, txStatus, orderAmount) => {
     return apiRequest('/payment/verify-payment', {
       method: 'POST',
       body: {
-        razorpayOrderId,
-        razorpayPaymentId,
-        razorpaySignature
+        orderId,
+        referenceId,
+        paymentSignature,
+        txStatus,
+        orderAmount
       },
     });
   },

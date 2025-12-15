@@ -110,9 +110,9 @@ const SubscriptionPlans = () => {
       setProcessingPlanId(plan._id);
       setError('');
 
-      // Check if Razorpay is loaded
-      if (!window.Razorpay) {
-        console.error('Razorpay script not loaded');
+      // Check if Cashfree is loaded
+      if (!window.Cashfree) {
+        console.error('Cashfree script not loaded');
         throw new Error('Payment gateway not available. Please refresh the page.');
       }
 
@@ -168,15 +168,26 @@ const SubscriptionPlans = () => {
         return;
       }
 
-      console.log('Step 1: Creating Razorpay order for plan:', plan._id);
-      // Create Razorpay order
+      console.log('Step 1: Creating Cashfree order for plan:', plan._id);
+      // Create Cashfree order
       let orderResponse;
       try {
         orderResponse = await paymentAPI.createOrder(plan._id);
         console.log('Order Response:', orderResponse);
       } catch (apiError) {
+        console.error('=== API ERROR DETAILS ===');
         console.error('API Error:', apiError);
-        throw new Error(apiError.message || 'Failed to create payment order. Please try again.');
+        console.error('Error Status:', apiError.status);
+        console.error('Error Message:', apiError.message);
+        console.error('Error Data:', apiError.data);
+        
+        // Don't clear token or redirect on payment errors - just show error
+        // Only throw error to show to user, don't let it propagate to cause auth issues
+        const errorMessage = apiError.message || 'Failed to create payment order. Please try again.';
+        setError(errorMessage);
+        setProcessingPlanId(null);
+        alert(errorMessage);
+        return; // Exit early, don't continue with payment flow
       }
       
       if (!orderResponse) {
@@ -194,76 +205,89 @@ const SubscriptionPlans = () => {
         throw new Error('Invalid response from server');
       }
 
-      const { orderId, amount, currency, key } = orderResponse.data;
+      const { orderId, paymentSessionId, amount, currency, clientId } = orderResponse.data;
       
-      if (!orderId || !amount || !key) {
-        console.error('Missing required payment data:', { orderId, amount, key });
+      if (!orderId || !paymentSessionId || !amount || !clientId) {
+        console.error('Missing required payment data:', { orderId, paymentSessionId, amount, clientId });
         throw new Error('Invalid payment data received');
       }
 
-      console.log('Step 2: Initializing Razorpay checkout...', { orderId, amount, currency, key });
+      console.log('Step 2: Checking Cashfree SDK availability...');
+      
+      // Check if Cashfree SDK is loaded (check both lowercase and uppercase like vintagebeauty)
+      if (!window.Cashfree && !window.cashfree) {
+        const errorMsg = 'Cashfree payment gateway is not available. Please refresh the page and try again.';
+        console.error(errorMsg);
+        setError(errorMsg);
+        setProcessingPlanId(null);
+        alert(errorMsg);
+        return;
+      }
 
-      // Initialize Razorpay checkout
-      const options = {
-        key: key,
-        amount: amount,
-        currency: currency,
-        name: 'Dvision Academy',
-        description: `Subscription: ${plan.name}`,
-        order_id: orderId,
-        handler: async function (response) {
-          console.log('Payment handler called:', response);
-          try {
-            // Verify payment
-            console.log('Step 3: Verifying payment...');
-            const verifyResponse = await paymentAPI.verifyPayment(
-              response.razorpay_order_id,
-              response.razorpay_payment_id,
-              response.razorpay_signature
-            );
+      console.log('Step 3: Initializing Cashfree checkout...', { orderId, paymentSessionId, amount, currency, clientId });
 
-            console.log('Verify Response:', verifyResponse);
+      // Store payment flag BEFORE initializing checkout (like vintagebeauty)
+      localStorage.setItem('payment_in_progress', 'true');
+      localStorage.setItem('payment_order_id', orderId);
+      localStorage.setItem('payment_timestamp', Date.now().toString());
+      console.log('Payment flags set in localStorage');
 
-            if (verifyResponse.success) {
-              // Refresh user data to get updated subscription
-              console.log('Step 4: Refreshing user data...');
-              await getCurrentUser();
-              
-              // Show success message
-              alert('Payment successful! Your subscription has been activated.');
-              
-              // Navigate to dashboard
-              navigate(ROUTES.DASHBOARD);
-            } else {
-              throw new Error(verifyResponse.message || 'Payment verification failed');
-            }
-          } catch (error) {
-            console.error('Payment verification error:', error);
-            alert(error.message || 'Payment verification failed. Please contact support.');
-          } finally {
+      try {
+        // Initialize Cashfree checkout - use new keyword like vintagebeauty
+        const CashfreeSDK = window.Cashfree || window.cashfree;
+        const cashfree = new CashfreeSDK({
+          mode: process.env.NODE_ENV === 'production' ? 'production' : 'sandbox'
+        });
+
+        const checkoutOptions = {
+          paymentSessionId: paymentSessionId,
+          redirectTarget: '_self'
+        };
+
+        console.log('Step 4: Opening Cashfree checkout...');
+      
+        // Open Cashfree checkout - following vintagebeauty's approach
+        // Cashfree automatically handles redirect, we don't need to manually redirect
+        cashfree.checkout(checkoutOptions).then((result) => {
+          console.log('Cashfree checkout result:', result);
+          
+          if (result.error) {
+            console.error('Cashfree checkout error:', result.error);
+            // Clear payment flag on error
+            localStorage.removeItem('payment_in_progress');
+            localStorage.removeItem('payment_order_id');
+            localStorage.removeItem('payment_timestamp');
+            setError(result.error.message || 'Payment failed');
             setProcessingPlanId(null);
+            alert(result.error.message || 'Payment failed. Please try again.');
+            return;
           }
-        },
-        prefill: {
-          name: user?.name || '',
-          email: user?.email || '',
-          contact: user?.phone || ''
-        },
-        theme: {
-          color: '#FF6B35'
-        },
-        modal: {
-          ondismiss: function() {
-            console.log('Razorpay modal dismissed');
-            setProcessingPlanId(null);
-          }
-        }
-      };
 
-      console.log('Step 3: Opening Razorpay checkout...');
-      const razorpay = new window.Razorpay(options);
-      razorpay.open();
-      console.log('Razorpay checkout opened');
+          // Cashfree will automatically redirect to payment page
+          // Payment verification will happen after redirect back to return URL
+          console.log('Cashfree payment initiated, redirecting...');
+          // Clear processing state - Cashfree handles the redirect automatically
+          setProcessingPlanId(null);
+        }).catch((error) => {
+          console.error('Cashfree checkout error:', error);
+          // Clear payment flag on error
+          localStorage.removeItem('payment_in_progress');
+          localStorage.removeItem('payment_order_id');
+          localStorage.removeItem('payment_timestamp');
+          setError(error.message || 'Payment failed');
+          setProcessingPlanId(null);
+          alert(error.message || 'Payment failed. Please try again.');
+        });
+      } catch (error) {
+        console.error('Error initializing Cashfree checkout:', error);
+        // Clear payment flag on error
+        localStorage.removeItem('payment_in_progress');
+        localStorage.removeItem('payment_order_id');
+        localStorage.removeItem('payment_timestamp');
+        setError(error.message || 'Failed to initialize payment gateway');
+        setProcessingPlanId(null);
+        alert(error.message || 'Failed to initialize payment gateway. Please try again.');
+      }
     } catch (error) {
       console.error('=== PAYMENT ERROR ===');
       console.error('Error:', error);

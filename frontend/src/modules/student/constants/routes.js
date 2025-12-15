@@ -14,5 +14,6 @@ export const ROUTES = {
   TEACHER_DETAILS: '/course/:courseId/teachers/:teacherIndex',
   SUBJECT_TOPICS: '/course/:courseId/subject/:subjectName',
   SUBSCRIPTION_PLANS: '/subscription-plans',
+  PAYMENT_RETURN: '/payment/return',
 };
 

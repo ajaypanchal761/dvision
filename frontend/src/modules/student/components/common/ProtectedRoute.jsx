@@ -32,6 +32,7 @@ const ProtectedRoute = ({ children }) => {
   const allowedPagesWithoutSubscription = [
     ROUTES.DASHBOARD,
     ROUTES.SUBSCRIPTION_PLANS,
+    ROUTES.PAYMENT_RETURN, // Payment return page - users need to access this to complete payment
     ROUTES.PROFILE,
     '/personal-information',
     '/change-password',

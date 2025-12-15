@@ -21,10 +21,73 @@ export const AuthProvider = ({ children }) => {
     const loadUser = async () => {
       const savedToken = localStorage.getItem('dvision_token');
       const savedUser = localStorage.getItem('dvision_user');
+      
+      // Check if we're in the middle of a payment flow
+      // Use localStorage instead of sessionStorage (persists across redirects)
+      const paymentInProgress = localStorage.getItem('payment_in_progress');
+      const paymentTimestamp = localStorage.getItem('payment_timestamp');
+      const isPaymentReturnPage = window.location.pathname.includes('/payment/return');
+      
+      // Check if payment flag is still valid (not older than 30 minutes)
+      const isPaymentFlagValid = paymentInProgress && paymentTimestamp && 
+        (Date.now() - parseInt(paymentTimestamp)) < 30 * 60 * 1000;
 
       if (savedToken && savedUser) {
         try {
-          // Verify token by fetching user data
+          // If payment is in progress or we're on payment return page, be more lenient with auth checks
+          if (isPaymentFlagValid || isPaymentReturnPage) {
+            console.log('Payment flow detected - using saved user data without verification', {
+              paymentInProgress: isPaymentFlagValid,
+              isPaymentReturnPage,
+              pathname: window.location.pathname
+            });
+            try {
+              const savedUserData = JSON.parse(savedUser);
+              setUser(savedUserData);
+              // Still try to verify in background, but don't block on errors
+              studentAPI.getMe().then(response => {
+                if (response.success) {
+                  setUser(response.data.student);
+                  localStorage.setItem('dvision_user', JSON.stringify(response.data.student));
+                }
+              }).catch(err => {
+                console.warn('Background auth verification failed during payment flow:', err);
+                // Don't clear token during payment flow - keep using saved user data
+              });
+            } catch (parseError) {
+              console.error('Error parsing saved user data:', parseError);
+            }
+            
+            // Initialize notifications
+            initializeNotifications();
+            setupForegroundMessageListener();
+            savePendingFcmToken();
+            setIsLoading(false);
+            return;
+          }
+          
+          // Normal auth verification (only if not in payment flow)
+          // Double-check payment flag hasn't been set during async operation
+          const paymentCheck = localStorage.getItem('payment_in_progress');
+          const paymentTimestampCheck = localStorage.getItem('payment_timestamp');
+          const isPaymentFlagStillValid = paymentCheck && paymentTimestampCheck && 
+            (Date.now() - parseInt(paymentTimestampCheck)) < 30 * 60 * 1000;
+          
+          if (isPaymentFlagStillValid) {
+            console.log('Payment flow detected during normal auth - skipping verification');
+            try {
+              const savedUserData = JSON.parse(savedUser);
+              setUser(savedUserData);
+            } catch (parseError) {
+              console.error('Error parsing saved user data:', parseError);
+            }
+            initializeNotifications();
+            setupForegroundMessageListener();
+            savePendingFcmToken();
+            setIsLoading(false);
+            return;
+          }
+          
           const response = await studentAPI.getMe();
           if (response.success) {
             setUser(response.data.student);
@@ -34,14 +97,50 @@ export const AuthProvider = ({ children }) => {
             setupForegroundMessageListener();
             savePendingFcmToken();
           } else {
-            // Token invalid, clear storage
-            localStorage.removeItem('dvision_token');
-            localStorage.removeItem('dvision_user');
+            // Token invalid, clear storage (only if not in payment flow)
+            if (!isPaymentFlagStillValid && !isPaymentReturnPage) {
+              localStorage.removeItem('dvision_token');
+              localStorage.removeItem('dvision_user');
+            } else {
+              console.log('Skipping token clear - payment flow active');
+              try {
+                const savedUserData = JSON.parse(savedUser);
+                setUser(savedUserData);
+              } catch (parseError) {
+                console.error('Error parsing saved user data:', parseError);
+              }
+            }
           }
         } catch (error) {
           console.error('Error loading user:', error);
-          localStorage.removeItem('dvision_token');
-          localStorage.removeItem('dvision_user');
+          // Only clear token if it's an authentication error (401)
+          // Don't clear on network errors or other issues
+          if (error.status === 401 || error.message?.includes('Unauthorized')) {
+            // Don't clear token if payment is in progress
+            if (!isPaymentFlagValid && !isPaymentReturnPage) {
+              console.log('Clearing token due to 401 error');
+              localStorage.removeItem('dvision_token');
+              localStorage.removeItem('dvision_user');
+            } else {
+              console.log('Skipping token clear during payment flow (401 error)');
+              // Use saved user data during payment flow
+              try {
+                const savedUserData = JSON.parse(savedUser);
+                setUser(savedUserData);
+              } catch (parseError) {
+                console.error('Error parsing saved user data:', parseError);
+              }
+            }
+          } else {
+            // For network errors, keep the token and use saved user data
+            // This prevents clearing auth during temporary network issues
+            try {
+              const savedUserData = JSON.parse(savedUser);
+              setUser(savedUserData);
+            } catch (parseError) {
+              console.error('Error parsing saved user data:', parseError);
+            }
+          }
         }
       } else {
         // Initialize notifications even if not logged in (for permission request)

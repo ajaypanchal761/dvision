@@ -40,7 +40,30 @@ const getApiBaseUrl = () => {
 };
 
 const API_BASE_URL = getApiBaseUrl();
-const SOCKET_URL = API_BASE_URL;
+
+// Socket.io connection URL (should be the base URL without /api), same logic as teacher panel
+const getSocketUrl = () => {
+  try {
+    let url = API_BASE_URL;
+    // Remove /api if present
+    url = url.replace('/api', '');
+    // Remove trailing slash
+    url = url.replace(/\/$/, '');
+
+    // If it's a full URL, parse it
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      const urlObj = new URL(url);
+      return `${urlObj.protocol}//${urlObj.host}`;
+    }
+    // Default fallback
+    return 'http://localhost:5000';
+  } catch (error) {
+    console.error('[Student Socket] Error parsing URL, using default:', error);
+    return 'http://localhost:5000';
+  }
+};
+
+const SOCKET_URL = getSocketUrl();
 
 /**
  * Live Class Room Component - Student Panel
@@ -130,9 +153,17 @@ const LiveClassRoom = () => {
       const teacherUser = remoteUsers[0];
       if (teacherUser.videoTrack && teacherVideoContainerRef.current) {
         console.log('Ensuring teacher video is played, UID:', teacherUser.uid);
-        teacherUser.videoTrack.play(teacherVideoContainerRef.current).catch(err => {
-          console.error('Error playing teacher video in useEffect:', err);
-        });
+        try {
+          const playPromise = teacherUser.videoTrack.play(teacherVideoContainerRef.current);
+          // In some browsers play() returns undefined (not a Promise), so guard before using catch
+          if (playPromise && typeof playPromise.catch === 'function') {
+            playPromise.catch(err => {
+              console.error('Error playing teacher video in useEffect:', err);
+            });
+          }
+        } catch (err) {
+          console.error('Error calling play on teacher video in useEffect:', err);
+        }
       }
     }
   }, [connectionState]);
@@ -704,6 +735,21 @@ const LiveClassRoom = () => {
   const handleUserPublished = async (user, mediaType) => {
     try {
       console.log('User published:', user.uid, 'MediaType:', mediaType);
+      
+      // If client is not ready or has been disconnected, don't try to subscribe
+      if (!clientRef.current) {
+        console.warn('Ignoring user-published event because Agora client is null');
+        return;
+      }
+      const agoraState = clientRef.current.connectionState;
+      if (agoraState && agoraState !== 'CONNECTED') {
+        console.warn(
+          'Ignoring user-published event because Agora client is not connected',
+          { agoraState }
+        );
+        return;
+      }
+
       await clientRef.current.subscribe(user, mediaType);
       
       if (mediaType === 'video') {

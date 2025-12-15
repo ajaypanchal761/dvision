@@ -27,6 +27,17 @@ app.use(cors({
     // Allow requests with no origin (like mobile apps or Postman)
     if (!origin) return callback(null, true);
     
+    // In development, allow localhost
+    if (process.env.NODE_ENV === 'development') {
+      const localhostPatterns = [
+        /^http:\/\/localhost:\d+$/,
+        /^http:\/\/127\.0\.0\.1:\d+$/
+      ];
+      if (localhostPatterns.some(pattern => pattern.test(origin))) {
+        return callback(null, true);
+      }
+    }
+    
     // List of allowed origins
     const allowedOrigins = [
       'https://dvisionacademy.com',

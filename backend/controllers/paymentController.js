@@ -1,4 +1,4 @@
-const razorpay = require('../config/razorpay');
+const cashfree = require('../config/cashfree');
 const Payment = require('../models/Payment');
 const Student = require('../models/Student');
 const SubscriptionPlan = require('../models/SubscriptionPlan');
@@ -8,7 +8,7 @@ const asyncHandler = require('../utils/asyncHandler');
 const ErrorResponse = require('../utils/errorResponse');
 const crypto = require('crypto');
 
-// @desc    Create Razorpay order for subscription
+// @desc    Create Cashfree order for subscription
 // @route   POST /api/payment/create-order
 // @access  Private (Student)
 exports.createOrder = asyncHandler(async (req, res, next) => {
@@ -292,55 +292,86 @@ exports.createOrder = asyncHandler(async (req, res, next) => {
     }
   }
 
-  // Check if Razorpay credentials are configured
-  if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
-    return next(new ErrorResponse('Razorpay credentials are not configured. Please contact administrator.', 500));
+  // Check if Cashfree credentials are configured
+  console.log('=== CHECKING CASHFREE CONFIG ===');
+  const cashfreeConfig = cashfree.getCashfreeConfig();
+  if (!cashfreeConfig) {
+    console.error('Cashfree config is null - credentials missing');
+    return next(new ErrorResponse('Cashfree credentials are not configured. Please contact administrator.', 500));
   }
+  console.log('Cashfree config found:', {
+    hasClientId: !!cashfreeConfig.clientId,
+    hasSecretKey: !!cashfreeConfig.secretKey,
+    environment: cashfreeConfig.environment,
+    baseURL: cashfreeConfig.baseURL
+  });
 
-  // Create Razorpay order
-  // Generate a short receipt (max 40 characters for Razorpay)
-  const timestamp = Date.now().toString().slice(-10); // Last 10 digits of timestamp
+  // Generate unique order ID for Cashfree
+  const timestamp = Date.now();
   const studentIdStr = studentId.toString();
-  const studentIdShort = studentIdStr.length > 8 ? studentIdStr.slice(-8) : studentIdStr; // Last 8 characters or full if shorter
-  let receipt = `sub${studentIdShort}${timestamp}`; // Format: sub + 8 chars + 10 digits = max 21 characters
-  
-  // Ensure receipt never exceeds 40 characters (Razorpay requirement)
-  if (receipt.length > 40) {
-    receipt = receipt.slice(0, 40);
-  }
-  
-  // Build notes for Razorpay
-  const notes = {
+  const studentIdShort = studentIdStr.length > 8 ? studentIdStr.slice(-8) : studentIdStr;
+  const orderId = `order_${studentIdShort}_${timestamp}`;
+
+  // Get return URL (frontend URL)
+  const returnUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+  const notifyUrl = `${process.env.BACKEND_URL || 'http://localhost:5000'}/api/payment/webhook`;
+
+  console.log('=== BUILDING ORDER DATA ===');
+  console.log('Order ID:', orderId);
+  console.log('Return URL:', returnUrl);
+  console.log('Plan Price:', plan.price);
+
+  // Build order data for Cashfree
+  const orderData = {
+    order_id: orderId,
+    order_amount: plan.price,
+    order_currency: 'INR',
+    order_note: `Subscription: ${plan.name}`,
+    customer_details: {
+      customer_id: studentId.toString(),
+      customer_name: student.name || 'Student',
+      customer_email: student.email || '',
+      customer_phone: student.phone || ''
+    },
+    order_meta: {
+      return_url: `${returnUrl}/payment/return?order_id={order_id}`,
+      notify_url: notifyUrl,
+      // Allowed values: cc,dc,ppc,ccc,emi,paypal,upi,nb,app,paylater,applepay
+      // Use a common combination: cards (cc,dc) + UPI + net-banking (nb)
+      payment_methods: 'cc,dc,upi,nb'
+    }
+  };
+
+  // Add metadata
+  orderData.order_meta.metadata = {
     studentId: studentId.toString(),
     planId: planId.toString(),
     planName: plan.name,
     duration: plan.duration,
     planType: plan.type || 'regular'
   };
-  
+
   // Add board/class info based on plan type
   if (plan.type === 'regular') {
-    notes.board = plan.board;
-    notes.classes = plan.classes?.join(', ') || '';
+    orderData.order_meta.metadata.board = plan.board;
+    orderData.order_meta.metadata.classes = plan.classes?.join(', ') || '';
   } else if (plan.type === 'preparation') {
-    notes.preparationClass = plan.classId?.toString() || '';
+    orderData.order_meta.metadata.preparationClass = plan.classId?.toString() || '';
   }
 
-  const options = {
-    amount: Math.round(plan.price * 100), // Convert to paise
-    currency: 'INR',
-    receipt: receipt,
-    notes: notes
-  };
+  console.log('=== CALLING CASHFREE API ===');
+  console.log('Order Data:', JSON.stringify(orderData, null, 2));
 
   try {
-    const razorpayOrder = await razorpay.orders.create(options);
+    const cashfreeOrder = await cashfree.createOrder(orderData);
+    console.log('=== CASHFREE ORDER CREATED ===');
+    console.log('Cashfree Order Response:', JSON.stringify(cashfreeOrder, null, 2));
 
     // Create payment record
     const payment = await Payment.create({
       studentId,
       subscriptionPlanId: planId,
-      razorpayOrderId: razorpayOrder.id,
+      cashfreeOrderId: cashfreeOrder.order_id || orderId,
       amount: plan.price,
       currency: 'INR',
       status: 'pending'
@@ -349,22 +380,23 @@ exports.createOrder = asyncHandler(async (req, res, next) => {
     res.status(200).json({
       success: true,
       data: {
-        orderId: razorpayOrder.id,
-        amount: razorpayOrder.amount,
-        currency: razorpayOrder.currency,
-        key: process.env.RAZORPAY_KEY_ID,
+        orderId: cashfreeOrder.order_id || orderId,
+        paymentSessionId: cashfreeOrder.payment_session_id,
+        amount: cashfreeOrder.order_amount || plan.price,
+        currency: cashfreeOrder.order_currency || 'INR',
+        clientId: cashfreeConfig.clientId,
         paymentId: payment._id
       }
     });
   } catch (error) {
-    console.error('Razorpay order creation error:', error);
+    console.error('Cashfree order creation error:', error);
     // Return more detailed error message
-    const errorMessage = error.error?.description || error.message || 'Failed to create payment order';
+    const errorMessage = error.response?.data?.message || error.message || 'Failed to create payment order';
     return next(new ErrorResponse(errorMessage, 500));
   }
 });
 
-// @desc    Verify Razorpay payment and activate subscription
+// @desc    Verify Cashfree payment and activate subscription
 // @route   POST /api/payment/verify-payment
 // @access  Private (Student)
 exports.verifyPayment = asyncHandler(async (req, res, next) => {
@@ -373,16 +405,16 @@ exports.verifyPayment = asyncHandler(async (req, res, next) => {
     return next(new ErrorResponse('Only students can verify payments', 403));
   }
 
-  const { razorpayOrderId, razorpayPaymentId, razorpaySignature } = req.body;
+  const { orderId, referenceId, paymentSignature, txStatus, orderAmount } = req.body;
   const studentId = req.user._id;
 
-  if (!razorpayOrderId || !razorpayPaymentId || !razorpaySignature) {
-    return next(new ErrorResponse('Please provide all payment details', 400));
+  if (!orderId) {
+    return next(new ErrorResponse('Please provide order ID', 400));
   }
 
   // Find payment record
   const payment = await Payment.findOne({
-    razorpayOrderId,
+    cashfreeOrderId: orderId,
     studentId
   });
 
@@ -394,27 +426,34 @@ exports.verifyPayment = asyncHandler(async (req, res, next) => {
     return next(new ErrorResponse('Payment already verified', 400));
   }
 
-  // Verify signature
-  const text = `${razorpayOrderId}|${razorpayPaymentId}`;
-  const generatedSignature = crypto
-    .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
-    .update(text)
-    .digest('hex');
-
-  if (generatedSignature !== razorpaySignature) {
-    payment.status = 'failed';
-    await payment.save();
-    return next(new ErrorResponse('Payment verification failed', 400));
-  }
-
-  // Verify payment with Razorpay
+  // Verify payment with Cashfree API (most reliable method)
   try {
-    const razorpayPayment = await razorpay.payments.fetch(razorpayPaymentId);
+    const orderDetails = await cashfree.getOrderDetails(orderId);
     
-    if (razorpayPayment.status !== 'captured') {
+    console.log('Cashfree order details:', orderDetails);
+    
+    // Check if payment is successful
+    if (orderDetails.order_status !== 'PAID') {
       payment.status = 'failed';
       await payment.save();
-      return next(new ErrorResponse('Payment not captured', 400));
+      return next(new ErrorResponse(`Payment not completed. Status: ${orderDetails.order_status}`, 400));
+    }
+
+    // If signature is provided, verify it (optional - Cashfree API status is source of truth)
+    if (referenceId && paymentSignature && txStatus) {
+      const amount = orderAmount || payment.amount;
+      const isValidSignature = cashfree.verifyPaymentSignature(
+        orderId,
+        amount,
+        referenceId,
+        txStatus,
+        paymentSignature
+      );
+
+      if (!isValidSignature) {
+        console.warn('Payment signature verification failed, but order is PAID. Proceeding with verification.');
+        // Don't fail if signature doesn't match but order is PAID - Cashfree API is source of truth
+      }
     }
 
     // Get subscription plan
@@ -442,8 +481,16 @@ exports.verifyPayment = asyncHandler(async (req, res, next) => {
     }
 
     // Update payment record
-    payment.razorpayPaymentId = razorpayPaymentId;
-    payment.razorpaySignature = razorpaySignature;
+    if (referenceId) {
+      payment.cashfreePaymentId = referenceId;
+    }
+    if (paymentSignature) {
+      payment.cashfreeSignature = paymentSignature;
+    }
+    // Get payment reference from order details if not provided
+    if (!payment.cashfreePaymentId && orderDetails.payment_details?.payment_id) {
+      payment.cashfreePaymentId = orderDetails.payment_details.payment_id;
+    }
     payment.status = 'completed';
     payment.subscriptionStartDate = startDate;
     payment.subscriptionEndDate = endDate;
@@ -501,10 +548,11 @@ exports.verifyPayment = asyncHandler(async (req, res, next) => {
       }
     });
   } catch (error) {
-    console.error('Razorpay payment verification error:', error);
+    console.error('Cashfree payment verification error:', error);
     payment.status = 'failed';
     await payment.save();
-    return next(new ErrorResponse('Payment verification failed', 500));
+    const errorMessage = error.response?.data?.message || error.message || 'Payment verification failed';
+    return next(new ErrorResponse(errorMessage, 500));
   }
 });
 
@@ -593,8 +641,8 @@ exports.getAllPayments = asyncHandler(async (req, res, next) => {
     amount: payment.amount,
     currency: payment.currency,
     status: payment.status,
-    razorpayOrderId: payment.razorpayOrderId,
-    razorpayPaymentId: payment.razorpayPaymentId,
+    cashfreeOrderId: payment.cashfreeOrderId,
+    cashfreePaymentId: payment.cashfreePaymentId,
     subscriptionStartDate: payment.subscriptionStartDate,
     subscriptionEndDate: payment.subscriptionEndDate,
     createdAt: payment.createdAt,

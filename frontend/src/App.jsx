@@ -32,6 +32,7 @@ import StudentDeleteAccount from './modules/student/pages/DeleteAccount';
 import StudentTeacherDetails from './modules/student/pages/TeacherDetails';
 import StudentSubjectTopics from './modules/student/pages/SubjectTopics';
 import StudentContentView from './modules/student/pages/ContentView';
+import StudentPaymentReturn from './modules/student/pages/PaymentReturn';
 import StudentProtectedRoute from './modules/student/components/common/ProtectedRoute';
 import { ROUTES as StudentRoutes } from './modules/student/constants/routes';
 
@@ -122,229 +123,237 @@ function App() {
         <Route path="/login" element={<StudentLogin />} />
         <Route path="/registration" element={<StudentRegistrationForm />} />
         <Route path="/final-otp" element={<StudentFinalOTP />} />
-        <Route 
-          path="/dashboard" 
+        <Route
+          path="/dashboard"
           element={
             <StudentProtectedRoute>
               <StudentDashboard />
             </StudentProtectedRoute>
-          } 
+          }
         />
-        <Route 
-          path="/course/:id" 
+        <Route
+          path="/course/:id"
           element={
             <StudentProtectedRoute>
               <StudentCourseDetails />
             </StudentProtectedRoute>
-          } 
+          }
         />
-        <Route 
-          path="/course/:courseId/teachers/:teacherIndex" 
+        <Route
+          path="/course/:courseId/teachers/:teacherIndex"
           element={
             <StudentProtectedRoute>
               <StudentTeacherDetails />
             </StudentProtectedRoute>
-          } 
+          }
         />
-        <Route 
-          path="/course/:courseId/subject/:subjectName" 
+        <Route
+          path="/course/:courseId/subject/:subjectName"
           element={
             <StudentProtectedRoute>
               <StudentSubjectTopics />
             </StudentProtectedRoute>
-          } 
+          }
         />
-        <Route 
-          path="/notifications" 
+        <Route
+          path="/notifications"
           element={
             <StudentProtectedRoute>
               <StudentNotifications />
             </StudentProtectedRoute>
-          } 
+          }
         />
-        <Route 
-          path="/my-courses" 
+        <Route
+          path="/my-courses"
           element={
             <StudentProtectedRoute>
               <StudentMyCourses />
             </StudentProtectedRoute>
-          } 
+          }
         />
-        <Route 
-          path="/subscription-history" 
+        <Route
+          path="/subscription-history"
           element={
             <StudentProtectedRoute>
               <StudentSubscriptionHistory />
             </StudentProtectedRoute>
-          } 
+          }
         />
-        <Route 
-          path="/subscription-plans" 
+        <Route
+          path="/subscription-plans"
           element={
             <StudentProtectedRoute>
               <StudentSubscriptionPlans />
             </StudentProtectedRoute>
-          } 
+          }
         />
-        <Route 
-          path="/my-subscriptions" 
+        <Route
+          path="/my-subscriptions"
           element={
             <StudentProtectedRoute>
               <StudentMySubscriptions />
             </StudentProtectedRoute>
-          } 
+          }
         />
-        <Route 
-          path="/contact-us" 
+        <Route
+          path="/contact-us"
           element={
             <StudentProtectedRoute>
               <StudentContactUs />
             </StudentProtectedRoute>
-          } 
+          }
         />
-        <Route 
-          path="/about-us" 
+        <Route
+          path="/about-us"
           element={
             <StudentProtectedRoute>
               <StudentAboutUs />
             </StudentProtectedRoute>
-          } 
+          }
         />
-        <Route 
-          path="/privacy-policy" 
+        <Route
+          path="/privacy-policy"
           element={
             <StudentProtectedRoute>
               <StudentPrivacyPolicy />
             </StudentProtectedRoute>
-          } 
+          }
         />
-        <Route 
-          path="/terms-and-conditions" 
+        <Route
+          path="/terms-and-conditions"
           element={
             <StudentProtectedRoute>
               <StudentTermsAndConditions />
             </StudentProtectedRoute>
-          } 
+          }
         />
-        <Route 
-          path="/content/:type" 
+        <Route
+          path="/content/:type"
           element={
             <StudentProtectedRoute>
               <StudentContentView />
             </StudentProtectedRoute>
-          } 
+          }
         />
-        <Route 
-          path="/live-classes" 
+        <Route
+          path="/live-classes"
           element={
             <StudentProtectedRoute>
               <StudentLiveClasses />
             </StudentProtectedRoute>
-          } 
+          }
         />
-        <Route 
-          path="/live-class/:id" 
+        <Route
+          path="/live-class/:id"
           element={
             <StudentProtectedRoute>
               <StudentLiveClassRoom />
             </StudentProtectedRoute>
-          } 
+          }
         />
-        <Route 
-          path="/recordings" 
+        <Route
+          path="/recordings"
           element={
             <StudentProtectedRoute>
               <StudentRecordings />
             </StudentProtectedRoute>
-          } 
+          }
         />
-        <Route 
-          path="/timetable" 
+        <Route
+          path="/timetable"
           element={
             <StudentProtectedRoute>
               <StudentTimetable />
             </StudentProtectedRoute>
-          } 
+          }
         />
-        <Route 
-          path="/doubts" 
+        <Route
+          path="/doubts"
           element={
             <StudentProtectedRoute>
               <StudentDoubts />
             </StudentProtectedRoute>
-          } 
+          }
         />
-        <Route 
-          path="/quizzes" 
+        <Route
+          path="/quizzes"
           element={
             <StudentProtectedRoute>
               <StudentQuizzes />
             </StudentProtectedRoute>
-          } 
+          }
         />
-        <Route 
-          path="/quiz/:id" 
+        <Route
+          path="/quiz/:id"
           element={
             <StudentProtectedRoute>
               <StudentTakeQuiz />
             </StudentProtectedRoute>
-          } 
+          }
         />
-        <Route 
-          path="/quiz-results/:id" 
+        <Route
+          path="/quiz-results/:id"
           element={
             <StudentProtectedRoute>
               <StudentQuizResults />
             </StudentProtectedRoute>
-          } 
+          }
         />
-        <Route 
-          path="/profile" 
+        <Route
+          path="/profile"
           element={
             <StudentProtectedRoute>
               <StudentProfile />
             </StudentProtectedRoute>
-          } 
+          }
         />
-        <Route 
-          path="/personal-information" 
+        <Route
+          path="/personal-information"
           element={
             <StudentProtectedRoute>
               <StudentPersonalInformation />
             </StudentProtectedRoute>
-          } 
+          }
         />
-        <Route 
-          path="/change-password" 
+        <Route
+          path="/change-password"
           element={
             <StudentProtectedRoute>
               <StudentChangePassword />
             </StudentProtectedRoute>
-          } 
+          }
         />
-        <Route 
-          path="/edit-profile" 
+        <Route
+          path="/edit-profile"
           element={
             <StudentProtectedRoute>
               <StudentEditProfile />
             </StudentProtectedRoute>
-          } 
+          }
         />
-        <Route 
-          path="/refer-and-earn" 
+        <Route
+          path="/refer-and-earn"
           element={
             <StudentProtectedRoute>
               <StudentReferAndEarn />
             </StudentProtectedRoute>
-          } 
+          }
         />
-        <Route 
-          path="/delete-account" 
+        <Route
+          path="/delete-account"
           element={
             <StudentProtectedRoute>
               <StudentDeleteAccount />
             </StudentProtectedRoute>
-          } 
+          }
+        />
+        <Route
+          path="/payment/return"
+          element={
+            <StudentProtectedRoute>
+              <StudentPaymentReturn />
+            </StudentProtectedRoute>
+          }
         />
 
         {/* Admin Routes - /admin/* */}

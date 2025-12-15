@@ -12,16 +12,18 @@ const paymentSchema = new mongoose.Schema(
       ref: 'SubscriptionPlan',
       required: [true, 'Please provide a subscription plan ID']
     },
-    razorpayOrderId: {
+    // Cashfree identifiers
+    cashfreeOrderId: {
       type: String,
-      required: [true, 'Please provide Razorpay order ID'],
-      unique: true
+      required: [true, 'Please provide Cashfree order ID'],
+      unique: true,
+      sparse: true
     },
-    razorpayPaymentId: {
+    cashfreePaymentId: {
       type: String,
       sparse: true
     },
-    razorpaySignature: {
+    cashfreeSignature: {
       type: String,
       sparse: true
     },
@@ -41,7 +43,8 @@ const paymentSchema = new mongoose.Schema(
     },
     paymentMethod: {
       type: String,
-      default: 'razorpay'
+      default: 'cashfree',
+      enum: ['cashfree'] // Only Cashfree is supported now
     },
     subscriptionStartDate: {
       type: Date
@@ -61,7 +64,7 @@ const paymentSchema = new mongoose.Schema(
 // Indexes
 paymentSchema.index({ studentId: 1 });
 paymentSchema.index({ subscriptionPlanId: 1 });
-paymentSchema.index({ razorpayOrderId: 1 });
+paymentSchema.index({ cashfreeOrderId: 1 }, { unique: true, sparse: true });
 paymentSchema.index({ status: 1 });
 paymentSchema.index({ createdAt: -1 });
 

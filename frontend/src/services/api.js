@@ -1079,7 +1079,7 @@ export const subscriptionPlanAPI = {
 
 // Payment API functions
 export const paymentAPI = {
-  // Create Razorpay order
+  // Create Cashfree order
   createOrder: async (planId) => {
     return apiRequest('/payment/create-order', {
       method: 'POST',
@@ -1087,13 +1087,15 @@ export const paymentAPI = {
     }, 'student');
   },
   // Verify payment
-  verifyPayment: async (razorpayOrderId, razorpayPaymentId, razorpaySignature) => {
+  verifyPayment: async (orderId, referenceId, paymentSignature, txStatus, orderAmount) => {
     return apiRequest('/payment/verify-payment', {
       method: 'POST',
       body: {
-        razorpayOrderId,
-        razorpayPaymentId,
-        razorpaySignature
+        orderId,
+        referenceId,
+        paymentSignature,
+        txStatus,
+        orderAmount
       },
     }, 'student');
   },

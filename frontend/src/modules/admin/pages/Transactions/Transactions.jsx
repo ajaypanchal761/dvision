@@ -56,8 +56,8 @@ const Transactions = () => {
       payment.studentId?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       payment.studentId?.phone?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       payment.studentId?.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      payment.razorpayOrderId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      payment.razorpayPaymentId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      payment.cashfreeOrderId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      payment.cashfreePaymentId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       payment.subscriptionPlanId?.name?.toLowerCase().includes(searchTerm.toLowerCase())
     
     return matchesSearch
@@ -269,10 +269,10 @@ const Transactions = () => {
                           <div className="text-[10px] text-gray-500 capitalize">{payment.subscriptionPlanId?.duration || ''}</div>
                         </td>
                         <td className="px-2 sm:px-3 py-2 whitespace-nowrap hidden md:table-cell">
-                          <div className="text-[10px] sm:text-xs text-gray-600 font-mono">{payment.razorpayOrderId?.substring(0, 20)}...</div>
+                          <div className="text-[10px] sm:text-xs text-gray-600 font-mono">{payment.cashfreeOrderId || 'N/A'}</div>
                         </td>
                         <td className="px-2 sm:px-3 py-2 whitespace-nowrap hidden lg:table-cell">
-                          <div className="text-[10px] sm:text-xs text-gray-600 font-mono">{payment.razorpayPaymentId?.substring(0, 20) || 'N/A'}...</div>
+                          <div className="text-[10px] sm:text-xs text-gray-600 font-mono">{payment.cashfreePaymentId || 'N/A'}</div>
                         </td>
                         <td className="px-2 sm:px-3 py-2 whitespace-nowrap">
                           <div className="text-xs font-semibold text-gray-900">{formatCurrency(payment.amount)}</div>

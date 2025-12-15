@@ -44,7 +44,7 @@ const LiveClasses = () => {
     try {
       setIsLoading(true);
       setError('');
-      
+
       // Format date for API (YYYY-MM-DD) - use selectedDate directly if it's already in YYYY-MM-DD format
       let dateParam = null;
       if (selectedDate) {
@@ -68,19 +68,19 @@ const LiveClasses = () => {
         const day = String(today.getDate()).padStart(2, '0');
         dateParam = `${year}-${month}-${day}`;
       }
-      
-      console.log('[LiveClasses] Fetching with params:', { 
-        selectedDate, 
-        dateParam, 
-        search: searchQuery 
+
+      console.log('[LiveClasses] Fetching with params:', {
+        selectedDate,
+        dateParam,
+        search: searchQuery
       });
-      
+
       const response = await liveClassAPI.getStudentLiveClasses(dateParam, searchQuery || null);
       if (response.success && response.data?.liveClasses) {
         console.log('[LiveClasses] Received classes:', response.data.liveClasses.length);
         // Log first class's scheduled time for debugging
         if (response.data.liveClasses.length > 0) {
-          console.log('[LiveClasses] First class scheduled time:', 
+          console.log('[LiveClasses] First class scheduled time:',
             new Date(response.data.liveClasses[0].scheduledStartTime).toLocaleString()
           );
         }
@@ -127,10 +127,10 @@ const LiveClasses = () => {
     const dateParts = selectedDate.split('-');
     if (dateParts.length === 3) {
       const date = new Date(parseInt(dateParts[0]), parseInt(dateParts[1]) - 1, parseInt(dateParts[2]));
-      return date.toLocaleDateString('en-IN', { 
-        year: 'numeric', 
-        month: 'short', 
-        day: 'numeric' 
+      return date.toLocaleDateString('en-IN', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
       });
     }
     return selectedDate;
@@ -153,7 +153,7 @@ const LiveClasses = () => {
         setPlaybackUrl(liveClass.recording.playbackUrl);
         return;
       }
-      
+
       // Try to fetch recording from Recording model using liveClassId
       // First, try to get recording by finding it via liveClassId
       try {
@@ -173,7 +173,7 @@ const LiveClasses = () => {
       } catch (fetchErr) {
         console.warn('Error fetching recording from live class:', fetchErr);
       }
-      
+
       // If still not available, show message
       alert('Recording is not available yet. Please check back later.');
     } catch (err) {
@@ -184,10 +184,10 @@ const LiveClasses = () => {
 
   const formatDateTime = (dateString) => {
     const date = new Date(dateString);
-    const dateStr = date.toLocaleDateString('en-IN', { 
-      year: 'numeric', 
-      month: 'short', 
-      day: 'numeric' 
+    const dateStr = date.toLocaleDateString('en-IN', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
     });
     const timeStr = date.toLocaleTimeString('en-IN', {
       hour: '2-digit',
@@ -202,7 +202,7 @@ const LiveClasses = () => {
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
     const secs = Math.floor(seconds % 60);
-    
+
     if (hours > 0) {
       return `${hours}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
     }
@@ -358,7 +358,7 @@ const LiveClasses = () => {
                       {liveNow.map((liveClass) => {
                         const scheduledTime = new Date(liveClass.scheduledStartTime);
                         const { date, time } = formatDateTime(scheduledTime.toISOString());
-                        
+
                         return (
                           <div
                             key={liveClass._id}
@@ -395,7 +395,7 @@ const LiveClasses = () => {
                               </div>
                               <button
                                 onClick={() => handleJoinClass(liveClass._id)}
-                                className="bg-green-600 text-white font-bold px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg sm:rounded-xl hover:bg-green-700 transition-colors flex items-center gap-1.5 shadow-md text-xs sm:text-sm"
+                                className="bg-[var(--app-dark-blue)] hover:bg-blue-700 text-white font-bold px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg sm:rounded-xl transition-colors flex items-center gap-1.5 shadow-md text-xs sm:text-sm"
                               >
                                 <FiVideo className="text-xs" />
                                 <span>Join Live</span>
@@ -417,7 +417,7 @@ const LiveClasses = () => {
                       {startsSoon.map((liveClass) => {
                         const scheduledTime = new Date(liveClass.scheduledStartTime);
                         const { date, time } = formatDateTime(scheduledTime.toISOString());
-                        
+
                         return (
                           <div
                             key={liveClass._id}
@@ -466,7 +466,7 @@ const LiveClasses = () => {
                       {ended.map((liveClass) => {
                         const scheduledTime = new Date(liveClass.scheduledStartTime);
                         const { date, time } = formatDateTime(scheduledTime.toISOString());
-                        
+
                         return (
                           <div
                             key={liveClass._id}
@@ -502,7 +502,7 @@ const LiveClasses = () => {
                                 {liveClass.recording?.isAvailable && (
                                   <button
                                     onClick={() => handlePlayRecording(liveClass)}
-                                    className="bg-purple-600 text-white font-bold px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg sm:rounded-xl hover:bg-purple-700 transition-colors flex items-center gap-1.5 shadow-md text-xs sm:text-sm"
+                                    className="bg-[var(--app-dark-blue)] hover:bg-blue-700 text-white font-bold px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg sm:rounded-xl transition-colors flex items-center gap-1.5 shadow-md text-xs sm:text-sm"
                                     title="Watch Recording"
                                   >
                                     <FiPlay className="text-xs" />
@@ -564,7 +564,7 @@ const LiveClasses = () => {
               controlsList="nodownload"
               preload="metadata"
               className="w-full rounded-lg"
-              style={{ 
+              style={{
                 maxHeight: '70vh',
                 // Ensure controls are visible
                 backgroundColor: '#000'
