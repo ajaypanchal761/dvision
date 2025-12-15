@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { FiBell, FiClock, FiCheckCircle, FiCalendar, FiUser, FiVideo, FiBookOpen, FiFileText, FiMessageCircle, FiArrowRight, FiEye } from 'react-icons/fi';
 import { ROUTES } from '../constants/routes';
 import BottomNav from '../components/common/BottomNav';
-import { teacherAPI, quizAPI, doubtAPI, notificationAPI } from '../services/api';
+import { teacherAPI, quizAPI, doubtAPI, notificationAPI, teacherAttendanceAPI } from '../services/api';
 
 /**
  * Teacher Dashboard Page
@@ -22,6 +22,10 @@ const Dashboard = () => {
   const [doubts, setDoubts] = useState([]);
   const [liveClasses, setLiveClasses] = useState([]);
   const [loadingStats, setLoadingStats] = useState(true);
+  const [todayAttendance, setTodayAttendance] = useState({
+    status: 'unknown', // 'present' | 'absent' | 'unknown'
+    loading: true,
+  });
 
   useEffect(() => {
     const fetchTeacherData = async () => {
@@ -45,8 +49,32 @@ const Dashboard = () => {
 
     fetchTeacherData();
     fetchDashboardData();
+    fetchTodayAttendance();
     fetchUnreadCount();
   }, []);
+
+  const fetchTodayAttendance = async () => {
+    try {
+      const response = await teacherAttendanceAPI.getToday();
+      if (response.success && response.data) {
+        setTodayAttendance({
+          status: response.data.status || 'absent',
+          loading: false,
+        });
+      } else {
+        setTodayAttendance({
+          status: 'absent',
+          loading: false,
+        });
+      }
+    } catch (err) {
+      console.error('Error fetching today attendance:', err);
+      setTodayAttendance({
+        status: 'absent',
+        loading: false,
+      });
+    }
+  };
 
   const fetchUnreadCount = async () => {
     try {
@@ -199,6 +227,41 @@ const Dashboard = () => {
           </div>
         </div>
       </header>
+
+      {/* Daily Attendance Card */}
+      {!todayAttendance.loading && todayAttendance.status !== 'present' && (
+        <div className="px-3 sm:px-4 md:px-6 mt-3 sm:mt-4">
+          <div className="bg-gradient-to-r from-[var(--app-dark-blue)] to-blue-600 text-white rounded-2xl p-4 sm:p-5 md:p-6 shadow-lg flex items-center justify-between gap-4">
+            <div>
+              <p className="text-xs sm:text-sm uppercase tracking-wide text-white/70 mb-1">
+                Daily Attendance
+              </p>
+              <h2 className="text-base sm:text-lg md:text-xl font-semibold">
+                Mark your attendance for today
+              </h2>
+              <p className="text-xs sm:text-sm text-white/80 mt-1">
+                Please mark your presence so the admin can track your daily attendance.
+              </p>
+            </div>
+            <button
+              onClick={async () => {
+                try {
+                  const res = await teacherAttendanceAPI.markToday();
+                  if (res.success) {
+                    setTodayAttendance({ status: 'present', loading: false });
+                  }
+                } catch (err) {
+                  console.error('Error marking attendance:', err);
+                  alert(err.message || 'Failed to mark attendance. Please try again.');
+                }
+              }}
+              className="flex-shrink-0 bg-white text-[var(--app-dark-blue)] font-semibold px-4 sm:px-5 py-2 sm:py-2.5 rounded-full shadow-md hover:shadow-lg hover:bg-gray-100 text-xs sm:text-sm transition-all"
+            >
+              Mark Present
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Class Statistics Section */}
       <div className="px-3 sm:px-4 md:px-6 py-2 sm:py-3 md:py-4">

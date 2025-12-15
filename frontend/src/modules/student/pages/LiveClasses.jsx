@@ -19,7 +19,6 @@ const LiveClasses = () => {
   const [error, setError] = useState('');
   const [selectedRecording, setSelectedRecording] = useState(null);
   const [playbackUrl, setPlaybackUrl] = useState('');
-  const [videoRef, setVideoRef] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDate, setSelectedDate] = useState(null); // null means today
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -558,7 +557,6 @@ const LiveClasses = () => {
               </button>
             </div>
             <video
-              ref={setVideoRef}
               src={playbackUrl}
               controls
               controlsList="nodownload"

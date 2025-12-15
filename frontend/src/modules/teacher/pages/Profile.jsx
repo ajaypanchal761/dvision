@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FiUser, FiChevronRight, FiLogOut, FiFileText, FiShield, FiFileText as FiFile, FiArrowLeft } from 'react-icons/fi';
+import { FiUser, FiChevronRight, FiLogOut, FiFileText, FiShield, FiFileText as FiFile, FiArrowLeft, FiCalendar } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import BottomNav from '../components/common/BottomNav';
 import { teacherAPI } from '../services/api';
@@ -75,6 +75,12 @@ const Profile = () => {
       label: 'Personal Information',
       icon: FiUser,
       onClick: () => navigate('/teacher/personal-information'),
+    },
+    {
+      id: 'my-attendance',
+      label: 'My Attendance',
+      icon: FiCalendar,
+      onClick: () => navigate(ROUTES.ATTENDANCE),
     },
     {
       id: 'about-us',

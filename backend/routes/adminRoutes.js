@@ -46,6 +46,10 @@ const {
   updateCourse,
   deleteCourse
 } = require('../controllers/adminCourseController');
+const {
+  getTeacherMonthlyAttendanceAdmin,
+  getAllTeacherAttendanceAdmin,
+} = require('../controllers/teacherAttendanceController');
 const { protect, authorize } = require('../middlewares/auth');
 const { uploadCourse } = require('../middlewares/upload');
 
@@ -69,10 +73,13 @@ router.delete('/students/:id', protect, authorize('admin', 'super_admin'), delet
 
 // Admin Teacher Management Routes
 router.get('/teachers', protect, authorize('admin', 'super_admin'), getAllTeachers);
+// Teacher attendance (list + calendar) - keep BEFORE /teachers/:id to avoid route conflict
+router.get('/teachers/attendance', protect, authorize('admin', 'super_admin'), getAllTeacherAttendanceAdmin);
 router.get('/teachers/:id', protect, authorize('admin', 'super_admin'), getTeacher);
 router.post('/teachers', protect, authorize('admin', 'super_admin'), createTeacher);
 router.put('/teachers/:id', protect, authorize('admin', 'super_admin'), updateTeacher);
 router.delete('/teachers/:id', protect, authorize('admin', 'super_admin'), deleteTeacher);
+router.get('/teachers/:id/attendance', protect, authorize('admin', 'super_admin'), getTeacherMonthlyAttendanceAdmin);
 
 // Admin Class Management Routes
 router.get('/classes', protect, authorize('admin', 'super_admin'), getAllClasses);

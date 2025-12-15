@@ -629,6 +629,28 @@ export const subscriptionPlanAPI = {
   },
 };
 
+// Teacher Attendance API (admin)
+export const teacherAttendanceAPI = {
+  // Get monthly attendance for a specific teacher
+  getMonthlyForTeacher: async (teacherId, year, month) => {
+    const params = new URLSearchParams();
+    if (year) params.append('year', String(year));
+    if (month) params.append('month', String(month));
+    const query = params.toString() ? `?${params.toString()}` : '';
+    return apiRequest(`/admin/teachers/${teacherId}/attendance${query}`, {
+      method: 'GET',
+    });
+  },
+  // Get all attendance records (optionally filtered)
+  getAll: async (params = {}) => {
+    const queryString = new URLSearchParams(params).toString();
+    const query = queryString ? `?${queryString}` : '';
+    return apiRequest(`/admin/teachers/attendance${query}`, {
+      method: 'GET',
+    });
+  },
+};
+
 // Payment Management API (Admin)
 export const paymentAPI = {
   // Get all payments

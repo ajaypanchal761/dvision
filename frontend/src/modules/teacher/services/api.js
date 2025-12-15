@@ -398,6 +398,32 @@ export const timetableAPI = {
   },
 };
 
+// Teacher Attendance API
+export const teacherAttendanceAPI = {
+  // Mark today's attendance as present
+  markToday: async () => {
+    return apiRequest('/teacher/attendance/mark', {
+      method: 'POST',
+    });
+  },
+  // Get today's attendance status
+  getToday: async () => {
+    return apiRequest('/teacher/attendance/today', {
+      method: 'GET',
+    });
+  },
+  // Get monthly attendance for current teacher
+  getMyMonthly: async (year, month) => {
+    const params = new URLSearchParams();
+    if (year) params.append('year', String(year));
+    if (month) params.append('month', String(month));
+    const query = params.toString() ? `?${params.toString()}` : '';
+    return apiRequest(`/teacher/attendance${query}`, {
+      method: 'GET',
+    });
+  },
+};
+
 export const doubtAPI = {
   // Get all doubts (for teachers)
   getAllDoubts: async (status = null) => {
