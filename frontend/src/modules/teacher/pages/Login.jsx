@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { FiChevronDown } from 'react-icons/fi';
 import { ROUTES } from '../constants/routes';
 import Image from '../components/common/Image';
-import { teacherAPI } from '../services/api';
+import { teacherAPI, agentAPI } from '../services/api';
 
 
 /**
@@ -17,6 +17,7 @@ const Login = () => {
   const [error, setError] = useState('');
   const [selectedCountryCode, setSelectedCountryCode] = useState('+91');
   const [showCountryDropdown, setShowCountryDropdown] = useState(false);
+  const [loginMode, setLoginMode] = useState('teacher'); // 'teacher' or 'agent'
 
   // Popular country codes
   const countryCodes = [
@@ -47,28 +48,61 @@ const Login = () => {
     try {
       const fullPhone = `${selectedCountryCode}${phone}`;
 
-      // First check if teacher exists
-      const checkResponse = await teacherAPI.checkTeacherExists(fullPhone);
+      if (loginMode === 'agent') {
+        // Agent login flow
+        // First check if agent exists and is active
+        const checkResponse = await agentAPI.checkAgentExists(fullPhone);
 
-      if (!checkResponse.exists) {
-        setError(checkResponse.message || 'Teacher account not found. Please contact admin to get your account created. Signup is not available.');
-        setIsLoading(false);
-        return;
-      }
+        if (!checkResponse.exists) {
+          setError(checkResponse.message || 'Agent account not found. Contact admin to create your account.');
+          setIsLoading(false);
+          return;
+        }
 
-      // Teacher exists, now send OTP
-      const response = await teacherAPI.sendOTP(fullPhone);
+        if (!checkResponse.isActive) {
+          setError('Your agent account has been deactivated. Please contact admin.');
+          setIsLoading(false);
+          return;
+        }
 
-      if (response.success) {
-        // Store phone in sessionStorage for OTP page
-        sessionStorage.setItem('login_phone', fullPhone);
-        // Navigate to OTP verification page
-        navigate(ROUTES.FINAL_OTP);
+        // Agent exists and is active, now send OTP
+        const response = await agentAPI.sendOTP(fullPhone);
+
+        if (response.success) {
+          // Store phone and mode in sessionStorage for OTP page
+          sessionStorage.setItem('login_phone', fullPhone);
+          sessionStorage.setItem('login_mode', 'agent');
+          // Navigate to OTP verification page
+          navigate(ROUTES.FINAL_OTP);
+        } else {
+          setError(response.message || 'Failed to send OTP. Please try again.');
+        }
       } else {
-        setError(response.message || 'Failed to send OTP. Please try again.');
+        // Teacher login flow
+        // First check if teacher exists
+        const checkResponse = await teacherAPI.checkTeacherExists(fullPhone);
+
+        if (!checkResponse.exists) {
+          setError(checkResponse.message || 'Teacher account not found. Please contact admin to get your account created. Signup is not available.');
+          setIsLoading(false);
+          return;
+        }
+
+        // Teacher exists, now send OTP
+        const response = await teacherAPI.sendOTP(fullPhone);
+
+        if (response.success) {
+          // Store phone and mode in sessionStorage for OTP page
+          sessionStorage.setItem('login_phone', fullPhone);
+          sessionStorage.setItem('login_mode', 'teacher');
+          // Navigate to OTP verification page
+          navigate(ROUTES.FINAL_OTP);
+        } else {
+          setError(response.message || 'Failed to send OTP. Please try again.');
+        }
       }
     } catch (err) {
-      setError(err.message || 'Failed to verify teacher. Please try again.');
+      setError(err.message || `Failed to verify ${loginMode}. Please try again.`);
     } finally {
       setIsLoading(false);
     }
@@ -123,7 +157,9 @@ const Login = () => {
         <div className="pt-5 sm:pt-6 md:pt-8 px-4 sm:px-6 md:px-8 relative z-10">
           <div>
             <p className="text-xs sm:text-sm md:text-base text-white/90 mb-0.5 sm:mb-1">Welcome back!</p>
-            <h1 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold text-white">Sign In</h1>
+            <h1 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold text-white">
+              {loginMode === 'agent' ? 'Agent Sign In' : 'Sign In'}
+            </h1>
           </div>
         </div>
       </div>
@@ -242,14 +278,31 @@ const Login = () => {
               className="w-full bg-[var(--app-dark-blue)] text-white py-2.5 sm:py-3 md:py-3.5 rounded-lg sm:rounded-xl font-bold text-sm sm:text-base md:text-lg hover:opacity-90 transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={isLoading || !phone || phone.length < 10}
             >
-              {isLoading ? 'Sending OTP...' : 'Sign In'}
+              {isLoading ? 'Sending OTP...' : loginMode === 'agent' ? 'Agent Sign In' : 'Sign In'}
             </button>
           </form>
 
+          {/* Mode Toggle */}
+          <div className="mt-4 sm:mt-5 md:mt-6 text-center">
+            <button
+              type="button"
+              onClick={() => {
+                setLoginMode(loginMode === 'teacher' ? 'agent' : 'teacher');
+                setError('');
+                setPhone('');
+              }}
+              className="text-sm sm:text-base text-[var(--app-dark-blue)] hover:underline font-medium"
+            >
+              {loginMode === 'teacher' ? 'Login as Agent' : 'Login as Teacher'}
+            </button>
+          </div>
+
           {/* Footer Text */}
-          <div className="mt-6 sm:mt-8 md:mt-10 text-center">
+          <div className="mt-4 sm:mt-5 md:mt-6 text-center">
             <p className="text-xs sm:text-sm md:text-base text-[var(--app-black)]/80">
-              Teacher registration is not available. Only pre-registered teachers can login. Please contact admin to get your account created.
+              {loginMode === 'agent'
+                ? 'Agent accounts are created by admin only. Contact admin if you need an agent account.'
+                : 'Teacher registration is not available. Only pre-registered teachers can login. Please contact admin to get your account created.'}
             </p>
           </div>
         </div>

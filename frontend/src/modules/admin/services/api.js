@@ -8,12 +8,12 @@ const getApiBaseUrl = () => {
     console.log('[Admin API] Using VITE_API_BASE_URL from env:', cleanUrl);
     return cleanUrl;
   }
-  
+
   // Auto-detect production environment
   if (typeof window !== 'undefined') {
     const hostname = window.location.hostname;
     const isProduction = hostname.includes('dvisionacademy.com');
-    
+
     if (isProduction) {
       // Try api subdomain first, fallback to same domain
       const protocol = window.location.protocol;
@@ -31,7 +31,7 @@ const getApiBaseUrl = () => {
       console.log('[Admin API] Development mode. Hostname:', hostname);
     }
   }
-  
+
   // Default to localhost for development
   const defaultUrl = 'http://localhost:5000/api';
   console.log('[Admin API] Using default API URL:', defaultUrl);
@@ -82,7 +82,7 @@ const apiRequest = async (endpoint, options = {}) => {
 
   const fullUrl = `${API_BASE_URL}${endpoint}`;
   const method = options.method || 'GET';
-  
+
   console.log(`[Admin API] ${method} Request:`, {
     endpoint,
     fullUrl,
@@ -90,7 +90,7 @@ const apiRequest = async (endpoint, options = {}) => {
     hasBody: !!options.body,
     isFormData
   });
-  
+
   if (options.body && typeof options.body === 'object' && !isFormData) {
     console.log('[Admin API] Request Body:', options.body);
   }
@@ -916,4 +916,73 @@ export const notificationAPI = {
   },
 };
 
-export default { adminAPI, studentAPI, teacherAPI, bannerAPI, contentAPI, classAPI, subjectAPI, courseAPI, subscriptionPlanAPI, paymentAPI, doubtAPI, quizAPI, timetableAPI, notificationAPI };
+// Agent Management API
+export const agentAPI = {
+  // Create agent
+  create: async (agentData) => {
+    return apiRequest('/admin/agents', {
+      method: 'POST',
+      body: agentData,
+    });
+  },
+  // Get all agents
+  getAll: async (params = {}) => {
+    const queryString = new URLSearchParams(params).toString();
+    return apiRequest(`/admin/agents${queryString ? `?${queryString}` : ''}`, {
+      method: 'GET',
+    });
+  },
+  // Get single agent
+  getById: async (id) => {
+    return apiRequest(`/admin/agents/${id}`, {
+      method: 'GET',
+    });
+  },
+  // Update agent
+  update: async (id, agentData) => {
+    return apiRequest(`/admin/agents/${id}`, {
+      method: 'PUT',
+      body: agentData,
+    });
+  },
+  // Delete/deactivate agent
+  delete: async (id) => {
+    return apiRequest(`/admin/agents/${id}`, {
+      method: 'DELETE',
+    });
+  },
+  // Get agent referrals
+  getReferrals: async (id, params = {}) => {
+    const queryString = new URLSearchParams(params).toString();
+    return apiRequest(`/admin/agents/${id}/referrals${queryString ? `?${queryString}` : ''}`, {
+      method: 'GET',
+    });
+  },
+};
+
+// Referral Management API
+export const referralAPI = {
+  // Get all referrals
+  getAll: async (params = {}) => {
+    const queryString = new URLSearchParams(params).toString();
+    return apiRequest(`/admin/referrals${queryString ? `?${queryString}` : ''}`, {
+      method: 'GET',
+    });
+  },
+  // Update referral status
+  updateStatus: async (id, status) => {
+    return apiRequest(`/admin/referrals/${id}/status`, {
+      method: 'PUT',
+      body: { status },
+    });
+  },
+  // Get referral statistics
+  getStatistics: async (params = {}) => {
+    const queryString = new URLSearchParams(params).toString();
+    return apiRequest(`/admin/referrals/statistics${queryString ? `?${queryString}` : ''}`, {
+      method: 'GET',
+    });
+  },
+};
+
+export default { adminAPI, studentAPI, teacherAPI, bannerAPI, contentAPI, classAPI, subjectAPI, courseAPI, subscriptionPlanAPI, paymentAPI, doubtAPI, quizAPI, timetableAPI, notificationAPI, agentAPI, referralAPI };

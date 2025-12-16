@@ -36,7 +36,11 @@ exports.checkStudentExists = asyncHandler(async (req, res) => {
 // @route   POST /api/student/register
 // @access  Public
 exports.register = asyncHandler(async (req, res) => {
-  const { phone, name, email, class: studentClass, board, profileImageBase64 } = req.body;
+  const { phone, name, email, class: studentClass, board, profileImageBase64, referralAgentId } = req.body;
+
+  // Also check query parameter for referralAgentId (for URL-based referrals)
+  const referralAgentIdFromQuery = req.query.ref || req.query.referralAgentId;
+  const finalReferralAgentId = referralAgentId || referralAgentIdFromQuery;
 
   console.log('STORE_REGISTRATION_DATA payload:', {
     phone,
@@ -128,6 +132,29 @@ exports.register = asyncHandler(async (req, res) => {
 
   if (profileImageUrl) {
     studentData.profileImage = profileImageUrl;
+  }
+
+  // Validate and handle referral agent ID if provided
+  if (finalReferralAgentId) {
+    const Agent = require('../models/Agent');
+    const mongoose = require('mongoose');
+    
+    // Validate ObjectId format
+    if (mongoose.Types.ObjectId.isValid(finalReferralAgentId)) {
+      // Check if agent exists and is active
+      const agent = await Agent.findById(finalReferralAgentId);
+      if (agent && agent.isActive) {
+        // Agent exists and is active - store referral info
+        studentData.referralAgentId = agent._id;
+        studentData.referredAt = new Date();
+        console.log('Referral agent validated and stored:', agent._id);
+      } else {
+        console.warn('Referral agent not found or inactive:', finalReferralAgentId);
+        // Don't throw error - just log warning and continue without referral
+      }
+    } else {
+      console.warn('Invalid referral agent ID format:', finalReferralAgentId);
+    }
   }
 
   // Create or update student
@@ -412,7 +439,7 @@ exports.uploadProfileImage = asyncHandler(async (req, res) => {
   if (!req.user || !req.user._id) {
     throw new ErrorResponse('Student not authenticated', 401);
   }
-  
+
   const student = await Student.findById(req.user._id);
 
   if (!student) {
@@ -510,12 +537,12 @@ exports.resendOTP = asyncHandler(async (req, res) => {
 exports.getMe = asyncHandler(async (req, res) => {
   const Payment = require('../models/Payment');
   const SubscriptionPlan = require('../models/SubscriptionPlan');
-  
+
   // req.user is already the Student document from auth middleware
   if (!req.user || !req.user._id) {
     throw new ErrorResponse('Student not authenticated', 401);
   }
-  
+
   // Get fresh student data from database
   const student = await Student.findById(req.user._id);
 
@@ -681,7 +708,7 @@ exports.updateProfile = asyncHandler(async (req, res) => {
   if (!req.user || !req.user._id) {
     throw new ErrorResponse('Student not authenticated', 401);
   }
-  
+
   const student = await Student.findById(req.user._id);
 
   if (!student) {
@@ -717,12 +744,12 @@ exports.getCourses = asyncHandler(async (req, res) => {
   const Course = require('../models/Course');
   const Payment = require('../models/Payment');
   const Class = require('../models/Class');
-  
+
   // req.user is already the Student document from auth middleware
   if (!req.user || !req.user._id) {
     throw new ErrorResponse('Student not authenticated', 401);
   }
-  
+
   // Get fresh student data from database
   const student = await Student.findById(req.user._id);
 
@@ -817,12 +844,12 @@ exports.getCourseById = asyncHandler(async (req, res) => {
   const Course = require('../models/Course');
   const Payment = require('../models/Payment');
   const Class = require('../models/Class');
-  
+
   // req.user is already the Student document from auth middleware
   if (!req.user || !req.user._id) {
     throw new ErrorResponse('Student not authenticated', 401);
   }
-  
+
   const student = await Student.findById(req.user._id);
 
   if (!student) {
@@ -912,7 +939,7 @@ exports.updateFcmToken = asyncHandler(async (req, res) => {
   if (!req.user || !req.user._id) {
     throw new ErrorResponse('Student not authenticated', 401);
   }
-  
+
   // Use req.user directly since it's already the Student document from auth middleware
   // No need to query again - this avoids "Student not found" errors
   const student = req.user;

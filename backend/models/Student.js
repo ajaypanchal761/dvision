@@ -93,6 +93,13 @@ const studentSchema = new mongoose.Schema({
   },
   profileImage: {
     type: String
+  },
+  referralAgentId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Agent'
+  },
+  referredAt: {
+    type: Date
   }
 }, {
   timestamps: true
@@ -105,6 +112,7 @@ studentSchema.index({ class: 1, board: 1 });
 studentSchema.index({ 'activeSubscriptions.endDate': 1 });
 studentSchema.index({ 'activeSubscriptions.type': 1 });
 studentSchema.index({ 'activeSubscriptions.classId': 1 });
+studentSchema.index({ referralAgentId: 1 });
 
 module.exports = mongoose.model('Student', studentSchema);
 

@@ -8,12 +8,12 @@ const getApiBaseUrl = () => {
     console.log('[API] Using VITE_API_BASE_URL from env:', cleanUrl);
     return cleanUrl;
   }
-  
+
   // Auto-detect production environment
   if (typeof window !== 'undefined') {
     const hostname = window.location.hostname;
     const isProduction = hostname.includes('dvisionacademy.com');
-    
+
     if (isProduction) {
       // Try api subdomain first, fallback to same domain
       const protocol = window.location.protocol;
@@ -31,7 +31,7 @@ const getApiBaseUrl = () => {
       console.log('[API] Development mode. Hostname:', hostname);
     }
   }
-  
+
   // Default to localhost for development
   const defaultUrl = 'http://localhost:5000/api';
   console.log('[API] Using default API URL:', defaultUrl);
@@ -52,7 +52,7 @@ const apiRequest = async (endpoint, options = {}) => {
   const isFormData = options.body instanceof FormData;
   const fullUrl = `${API_BASE_URL}${endpoint}`;
   const method = options.method || 'GET';
-  
+
   console.log(`[API] ${method} Request:`, {
     endpoint,
     fullUrl,
@@ -60,7 +60,7 @@ const apiRequest = async (endpoint, options = {}) => {
     hasBody: !!options.body,
     isFormData
   });
-  
+
   const config = {
     ...options,
     headers: {
@@ -124,14 +124,14 @@ const apiRequest = async (endpoint, options = {}) => {
         error.data = errorData.data || errorData;
         error.errors = errorData.data?.errors || errorData.errors;
       }
-      
+
       // Log 401 errors specifically for debugging
       if (response.status === 401) {
         console.error('[API] 401 Unauthorized - Token may be invalid or expired');
         console.error('[API] Endpoint:', endpoint);
         console.error('[API] Error Data:', errorData);
       }
-      
+
       throw error;
     }
 
@@ -173,7 +173,7 @@ const apiRequest = async (endpoint, options = {}) => {
     // Check for specific error types
     if (error.name === 'TypeError' && (error.message.includes('fetch') || error.message.includes('Failed to fetch'))) {
       console.error('[API] Network Error - Failed to connect:', errorDetails);
-      
+
       // Provide more specific error message
       let errorMsg = 'Network error. ';
       if (fullUrl.includes('localhost')) {
@@ -182,16 +182,16 @@ const apiRequest = async (endpoint, options = {}) => {
         errorMsg += 'Cannot connect to production API. Please check if https://api.dvisionacademy.com is accessible. ';
       }
       errorMsg += `Trying to connect to: ${fullUrl}`;
-      
+
       throw new Error(errorMsg);
     }
-    
+
     // CORS or other network errors
     if (error.message.includes('CORS') || error.message.includes('blocked')) {
       console.error('[API] CORS Error:', errorDetails);
       throw new Error('CORS error. Please check backend CORS configuration.');
     }
-    
+
     console.error('[API] Request Error:', errorDetails);
     throw error;
   }
@@ -217,7 +217,7 @@ export const studentAPI = {
   },
 
   // Register student (with all data and send OTP)
-  register: async (phone, name, email, studentClass, board, profileImageBase64 = null) => {
+  register: async (phone, name, email, studentClass, board, profileImageBase64 = null, referralAgentId = null) => {
     const body = {
       phone,
       name,
@@ -228,6 +228,10 @@ export const studentAPI = {
 
     if (profileImageBase64) {
       body.profileImageBase64 = profileImageBase64;
+    }
+
+    if (referralAgentId) {
+      body.referralAgentId = referralAgentId;
     }
 
     return apiRequest('/student/register', {
@@ -556,10 +560,10 @@ export const liveClassAPI = {
       params.append('search', search.trim());
     }
     const queryString = params.toString();
-    const endpoint = queryString 
+    const endpoint = queryString
       ? `/live-classes/student/live-classes?${queryString}`
       : '/live-classes/student/live-classes';
-    
+
     return apiRequest(endpoint, {
       method: 'GET',
     });
@@ -570,7 +574,7 @@ export const liveClassAPI = {
       method: 'GET',
     });
   },
-  
+
   // Join live class
   joinLiveClass: async (id) => {
     console.log('[API][Student] joinLiveClass', { id });

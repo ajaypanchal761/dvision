@@ -50,6 +50,17 @@ const {
   getTeacherMonthlyAttendanceAdmin,
   getAllTeacherAttendanceAdmin,
 } = require('../controllers/teacherAttendanceController');
+const {
+  createAgent,
+  getAllAgents,
+  getAgentById,
+  updateAgent,
+  deleteAgent,
+  getAgentReferrals,
+  getAllReferrals,
+  updateReferralStatus,
+  getReferralStatistics
+} = require('../controllers/adminReferralController');
 const { protect, authorize } = require('../middlewares/auth');
 const { uploadCourse } = require('../middlewares/upload');
 
@@ -107,6 +118,20 @@ router.put('/courses/:id', protect, authorize('admin', 'super_admin'), uploadCou
   { name: 'chapterPdf', maxCount: 20 }
 ]), updateCourse);
 router.delete('/courses/:id', protect, authorize('admin', 'super_admin'), deleteCourse);
+
+// Admin Agent Management Routes
+router.post('/agents', protect, authorize('admin', 'super_admin'), createAgent);
+router.get('/agents', protect, authorize('admin', 'super_admin'), getAllAgents);
+// Agent referrals - keep BEFORE /agents/:id to avoid route conflict
+router.get('/agents/:id/referrals', protect, authorize('admin', 'super_admin'), getAgentReferrals);
+router.get('/agents/:id', protect, authorize('admin', 'super_admin'), getAgentById);
+router.put('/agents/:id', protect, authorize('admin', 'super_admin'), updateAgent);
+router.delete('/agents/:id', protect, authorize('admin', 'super_admin'), deleteAgent);
+
+// Admin Referral Management Routes
+router.get('/referrals', protect, authorize('admin', 'super_admin'), getAllReferrals);
+router.put('/referrals/:id/status', protect, authorize('admin', 'super_admin'), updateReferralStatus);
+router.get('/referrals/statistics', protect, authorize('admin', 'super_admin'), getReferralStatistics);
 
 // Super admin only routes
 router.post('/register', protect, authorize('super_admin'), register);

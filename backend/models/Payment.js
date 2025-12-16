@@ -54,6 +54,10 @@ const paymentSchema = new mongoose.Schema(
     },
     metadata: {
       type: mongoose.Schema.Types.Mixed
+    },
+    referralAgentId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Agent'
     }
   },
   {
@@ -67,6 +71,7 @@ paymentSchema.index({ subscriptionPlanId: 1 });
 paymentSchema.index({ cashfreeOrderId: 1 }, { unique: true, sparse: true });
 paymentSchema.index({ status: 1 });
 paymentSchema.index({ createdAt: -1 });
+paymentSchema.index({ referralAgentId: 1 });
 
 module.exports = mongoose.model('Payment', paymentSchema);
 

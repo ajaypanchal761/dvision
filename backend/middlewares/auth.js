@@ -2,6 +2,7 @@ const jwt = require('jsonwebtoken');
 const Student = require('../models/Student');
 const Teacher = require('../models/Teacher');
 const Admin = require('../models/Admin');
+const Agent = require('../models/Agent');
 const ErrorResponse = require('../utils/errorResponse');
 const asyncHandler = require('../utils/asyncHandler');
 
@@ -37,6 +38,8 @@ exports.protect = asyncHandler(async (req, res, next) => {
       user = await Teacher.findById(decoded.id);
     } else if (decoded.role === 'admin') {
       user = await Admin.findById(decoded.id);
+    } else if (decoded.role === 'agent') {
+      user = await Agent.findById(decoded.id);
     } else {
       throw new ErrorResponse('Invalid user role', 401);
     }

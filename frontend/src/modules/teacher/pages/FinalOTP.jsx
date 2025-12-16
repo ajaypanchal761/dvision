@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ROUTES } from '../constants/routes';
-import { teacherAPI } from '../services/api';
+import { teacherAPI, agentAPI } from '../services/api';
 import { initializeNotifications, savePendingFcmToken, setupForegroundMessageListener } from '../utils/notifications';
 
 /**
@@ -15,14 +15,17 @@ const FinalOTP = () => {
   const [isResending, setIsResending] = useState(false);
   const [error, setError] = useState('');
   const [phone, setPhone] = useState('');
+  const [loginMode, setLoginMode] = useState('teacher'); // 'teacher' or 'agent'
   const inputRefs = useRef([]);
 
   useEffect(() => {
-    // Get phone from sessionStorage
+    // Get phone and mode from sessionStorage
     const loginPhone = sessionStorage.getItem('login_phone');
-    
+    const mode = sessionStorage.getItem('login_mode') || 'teacher';
+
     if (loginPhone) {
       setPhone(loginPhone);
+      setLoginMode(mode);
     } else {
       // No phone found, redirect to login
       navigate(ROUTES.LOGIN);
@@ -75,7 +78,7 @@ const FinalOTP = () => {
   const handleVerify = async (e) => {
     e.preventDefault();
     const otpString = otp.join('');
-    
+
     if (otpString.length !== 6) {
       setError('Please enter complete 6-digit OTP');
       return;
@@ -85,26 +88,58 @@ const FinalOTP = () => {
     setError('');
 
     try {
-      const response = await teacherAPI.verifyOTP(phone, otpString);
-      
-      if (response.success && response.data) {
-        // Store token in localStorage
-        if (response.data.token) {
-          localStorage.setItem('dvision_token', response.data.token);
+      let response;
+
+      if (loginMode === 'agent') {
+        // Agent OTP verification
+        response = await agentAPI.verifyOTP(phone, otpString);
+
+        if (response.success && response.data) {
+          // Store token in localStorage
+          if (response.data.token) {
+            localStorage.setItem('dvision_token', response.data.token);
+          }
+
+          // Store user role as agent
+          localStorage.setItem('user_role', 'agent');
+          localStorage.setItem('agent_data', JSON.stringify(response.data.agent));
+
+          // Clear sessionStorage
+          sessionStorage.removeItem('login_phone');
+          sessionStorage.removeItem('login_mode');
+
+          // Navigate to agent dashboard on success
+          navigate(ROUTES.AGENT_DASHBOARD);
+        } else {
+          setError(response.message || 'Invalid OTP. Please try again.');
         }
-        
-        // Clear sessionStorage
-        sessionStorage.removeItem('login_phone');
-        
-        // Initialize notifications after login
-        initializeNotifications();
-        setupForegroundMessageListener();
-        savePendingFcmToken();
-        
-        // Navigate to dashboard on success
-        navigate(ROUTES.DASHBOARD);
       } else {
-        setError(response.message || 'Invalid OTP. Please try again.');
+        // Teacher OTP verification
+        response = await teacherAPI.verifyOTP(phone, otpString);
+
+        if (response.success && response.data) {
+          // Store token in localStorage
+          if (response.data.token) {
+            localStorage.setItem('dvision_token', response.data.token);
+          }
+
+          // Store user role as teacher
+          localStorage.setItem('user_role', 'teacher');
+
+          // Clear sessionStorage
+          sessionStorage.removeItem('login_phone');
+          sessionStorage.removeItem('login_mode');
+
+          // Initialize notifications after login
+          initializeNotifications();
+          setupForegroundMessageListener();
+          savePendingFcmToken();
+
+          // Navigate to dashboard on success
+          navigate(ROUTES.DASHBOARD);
+        } else {
+          setError(response.message || 'Invalid OTP. Please try again.');
+        }
       }
     } catch (error) {
       setError(error.message || 'Something went wrong. Please try again.');
@@ -118,8 +153,16 @@ const FinalOTP = () => {
     setError('');
 
     try {
-      const response = await teacherAPI.resendOTP(phone);
-      
+      let response;
+
+      if (loginMode === 'agent') {
+        // Agent resend OTP
+        response = await agentAPI.sendOTP(phone);
+      } else {
+        // Teacher resend OTP
+        response = await teacherAPI.resendOTP(phone);
+      }
+
       if (response.success) {
         // Show success message
         alert('OTP resent successfully!');
@@ -143,7 +186,7 @@ const FinalOTP = () => {
   return (
     <div className="min-h-screen w-full bg-white flex flex-col">
       {/* Header Section */}
-      <div 
+      <div
         className="bg-[var(--app-dark-blue)] text-white h-32 sm:h-40 md:h-48 relative overflow-hidden"
         style={{
           borderBottomRightRadius: '300px',
@@ -151,41 +194,41 @@ const FinalOTP = () => {
       >
         {/* Animated Waves Pattern */}
         <div className="absolute bottom-0 left-0 w-full h-16 sm:h-20 md:h-24 overflow-hidden">
-          <svg 
+          <svg
             className="absolute bottom-0 w-full h-full"
-            viewBox="0 0 1200 120" 
+            viewBox="0 0 1200 120"
             preserveAspectRatio="none"
           >
-            <path 
-              d="M0,60 Q300,20 600,60 T1200,60 L1200,120 L0,120 Z" 
+            <path
+              d="M0,60 Q300,20 600,60 T1200,60 L1200,120 L0,120 Z"
               fill="rgba(255,255,255,0.1)"
             >
-              <animate 
-                attributeName="d" 
-                values="M0,60 Q300,20 600,60 T1200,60 L1200,120 L0,120 Z;M0,60 Q300,40 600,60 T1200,60 L1200,120 L0,120 Z;M0,60 Q300,20 600,60 T1200,60 L1200,120 L0,120 Z" 
-                dur="3s" 
+              <animate
+                attributeName="d"
+                values="M0,60 Q300,20 600,60 T1200,60 L1200,120 L0,120 Z;M0,60 Q300,40 600,60 T1200,60 L1200,120 L0,120 Z;M0,60 Q300,20 600,60 T1200,60 L1200,120 L0,120 Z"
+                dur="3s"
                 repeatCount="indefinite"
               />
             </path>
-            <path 
-              d="M0,80 Q300,40 600,80 T1200,80 L1200,120 L0,120 Z" 
+            <path
+              d="M0,80 Q300,40 600,80 T1200,80 L1200,120 L0,120 Z"
               fill="rgba(255,255,255,0.05)"
             >
-              <animate 
-                attributeName="d" 
-                values="M0,80 Q300,40 600,80 T1200,80 L1200,120 L0,120 Z;M0,80 Q300,60 600,80 T1200,80 L1200,120 L0,120 Z;M0,80 Q300,40 600,80 T1200,80 L1200,120 L0,120 Z" 
-                dur="4s" 
+              <animate
+                attributeName="d"
+                values="M0,80 Q300,40 600,80 T1200,80 L1200,120 L0,120 Z;M0,80 Q300,60 600,80 T1200,80 L1200,120 L0,120 Z;M0,80 Q300,40 600,80 T1200,80 L1200,120 L0,120 Z"
+                dur="4s"
                 repeatCount="indefinite"
               />
             </path>
           </svg>
         </div>
-        
+
         {/* Decorative Circles */}
         <div className="absolute top-3 right-6 w-16 h-16 sm:w-20 sm:h-20 bg-white/10 rounded-full blur-xl"></div>
         <div className="absolute top-8 right-16 w-12 h-12 sm:w-16 sm:h-16 bg-white/5 rounded-full blur-lg"></div>
         <div className="absolute bottom-6 left-10 w-20 h-20 sm:w-24 sm:h-24 bg-white/10 rounded-full blur-xl"></div>
-        
+
         <div className="pt-5 sm:pt-6 md:pt-8 px-4 sm:px-6 md:px-8 relative z-10">
           <div className="flex items-center gap-2 sm:gap-3">
             <button
@@ -211,7 +254,7 @@ const FinalOTP = () => {
           <div className="absolute bottom-1/4 right-1/4 w-60 h-60 sm:w-80 sm:h-80 bg-[var(--app-teal)]/5 rounded-full blur-3xl"></div>
           <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-72 h-72 sm:w-96 sm:h-96 bg-[var(--app-dark-blue)]/3 rounded-full blur-3xl"></div>
         </div>
-        
+
         <div className="w-full max-w-sm sm:max-w-md relative z-10">
           {/* Title */}
           <div className="text-center mb-4 sm:mb-5 md:mb-6">
@@ -278,7 +321,7 @@ const FinalOTP = () => {
       </div>
 
       {/* Bottom Colored Pattern */}
-      <div 
+      <div
         className="bg-[var(--app-dark-blue)] h-16 sm:h-20 md:h-24 relative mt-auto overflow-hidden"
         style={{
           borderTopLeftRadius: '300px',
@@ -286,36 +329,36 @@ const FinalOTP = () => {
       >
         {/* Animated Waves Pattern */}
         <div className="absolute top-0 left-0 w-full h-full overflow-hidden">
-          <svg 
+          <svg
             className="absolute top-0 w-full h-full"
-            viewBox="0 0 1200 120" 
+            viewBox="0 0 1200 120"
             preserveAspectRatio="none"
           >
-            <path 
-              d="M0,40 Q300,80 600,40 T1200,40 L1200,0 L0,0 Z" 
+            <path
+              d="M0,40 Q300,80 600,40 T1200,40 L1200,0 L0,0 Z"
               fill="rgba(255,255,255,0.1)"
             >
-              <animate 
-                attributeName="d" 
-                values="M0,40 Q300,80 600,40 T1200,40 L1200,0 L0,0 Z;M0,40 Q300,60 600,40 T1200,40 L1200,0 L0,0 Z;M0,40 Q300,80 600,40 T1200,40 L1200,0 L0,0 Z" 
-                dur="3s" 
+              <animate
+                attributeName="d"
+                values="M0,40 Q300,80 600,40 T1200,40 L1200,0 L0,0 Z;M0,40 Q300,60 600,40 T1200,40 L1200,0 L0,0 Z;M0,40 Q300,80 600,40 T1200,40 L1200,0 L0,0 Z"
+                dur="3s"
                 repeatCount="indefinite"
               />
             </path>
-            <path 
-              d="M0,20 Q300,60 600,20 T1200,20 L1200,0 L0,0 Z" 
+            <path
+              d="M0,20 Q300,60 600,20 T1200,20 L1200,0 L0,0 Z"
               fill="rgba(255,255,255,0.05)"
             >
-              <animate 
-                attributeName="d" 
-                values="M0,20 Q300,60 600,20 T1200,20 L1200,0 L0,0 Z;M0,20 Q300,40 600,20 T1200,20 L1200,0 L0,0 Z;M0,20 Q300,60 600,20 T1200,20 L1200,0 L0,0 Z" 
-                dur="4s" 
+              <animate
+                attributeName="d"
+                values="M0,20 Q300,60 600,20 T1200,20 L1200,0 L0,0 Z;M0,20 Q300,40 600,20 T1200,20 L1200,0 L0,0 Z;M0,20 Q300,60 600,20 T1200,20 L1200,0 L0,0 Z"
+                dur="4s"
                 repeatCount="indefinite"
               />
             </path>
           </svg>
         </div>
-        
+
         {/* Decorative Circles */}
         <div className="absolute bottom-3 left-6 w-16 h-16 sm:w-20 sm:h-20 bg-white/10 rounded-full blur-xl"></div>
         <div className="absolute bottom-8 left-16 w-12 h-12 sm:w-16 sm:h-16 bg-white/5 rounded-full blur-lg"></div>

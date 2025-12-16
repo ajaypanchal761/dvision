@@ -1,0 +1,395 @@
+const Agent = require('../models/Agent');
+const asyncHandler = require('../utils/asyncHandler');
+const ErrorResponse = require('../utils/errorResponse');
+const otpService = require('../services/otpService');
+const generateToken = require('../utils/generateToken');
+const ReferralRecord = require('../models/ReferralRecord');
+const Student = require('../models/Student');
+
+// @desc    Check if agent exists and is active
+// @route   POST /api/agent/check-exists
+// @access  Public
+exports.checkAgentExists = asyncHandler(async (req, res) => {
+  const { phone } = req.body;
+
+  if (!phone) {
+    throw new ErrorResponse('Please provide a phone number', 400);
+  }
+
+  const phoneRegex = /^\+?[1-9]\d{1,14}$/;
+  if (!phoneRegex.test(phone)) {
+    throw new ErrorResponse('Please provide a valid phone number with country code', 400);
+  }
+
+  // Normalize phone number for database lookup
+  let normalizedPhone = phone.replace(/^\+/, '');
+  let agent = await Agent.findOne({ phone });
+
+  // If not found, try with normalized phone
+  if (!agent && normalizedPhone.length > 10) {
+    const withoutCountryCode = normalizedPhone.replace(/^(91|1|44|61|971)/, '');
+    if (withoutCountryCode !== normalizedPhone) {
+      agent = await Agent.findOne({ phone: withoutCountryCode });
+    }
+  }
+
+  if (!agent) {
+    agent = await Agent.findOne({ phone: normalizedPhone });
+  }
+
+  if (!agent) {
+    return res.status(200).json({
+      success: false,
+      exists: false,
+      message: 'Agent account not found. Contact admin to create your account.'
+    });
+  }
+
+  if (!agent.isActive) {
+    return res.status(200).json({
+      success: false,
+      exists: true,
+      isActive: false,
+      message: 'Your agent account has been deactivated. Please contact admin.'
+    });
+  }
+
+  return res.status(200).json({
+    success: true,
+    exists: true,
+    isActive: true,
+    message: 'Agent account found and active'
+  });
+});
+
+// @desc    Send OTP to agent phone number (only if agent exists and is active)
+// @route   POST /api/agent/send-otp
+// @access  Public
+exports.sendOTP = asyncHandler(async (req, res) => {
+  const { phone } = req.body;
+
+  if (!phone) {
+    throw new ErrorResponse('Please provide a phone number', 400);
+  }
+
+  const phoneRegex = /^\+?[1-9]\d{1,14}$/;
+  if (!phoneRegex.test(phone)) {
+    throw new ErrorResponse('Please provide a valid phone number with country code', 400);
+  }
+
+  // Normalize phone number for database lookup
+  let normalizedPhone = phone.replace(/^\+/, '');
+  let agent = await Agent.findOne({ phone });
+
+  // If not found, try with normalized phone
+  if (!agent && normalizedPhone.length > 10) {
+    const withoutCountryCode = normalizedPhone.replace(/^(91|1|44|61|971)/, '');
+    if (withoutCountryCode !== normalizedPhone) {
+      agent = await Agent.findOne({ phone: withoutCountryCode });
+    }
+  }
+
+  if (!agent) {
+    agent = await Agent.findOne({ phone: normalizedPhone });
+  }
+
+  // Check if agent exists
+  if (!agent) {
+    throw new ErrorResponse('Agent account not found. Contact admin to create your account.', 404);
+  }
+
+  // Check if agent is active
+  if (!agent.isActive) {
+    throw new ErrorResponse('Your agent account has been deactivated. Please contact admin.', 403);
+  }
+
+  // Check if it's a test number
+  const isTestNumber = otpService.isTestNumber(phone);
+
+  // Check resend cooldown (skip for test numbers)
+  if (!isTestNumber) {
+    const canResend = await otpService.canResendOTP(phone);
+    if (!canResend) {
+      throw new ErrorResponse(
+        `Please wait ${process.env.OTP_RESEND_COOLDOWN_SECONDS || 60} seconds before requesting a new OTP`,
+        429
+      );
+    }
+  }
+
+  // Send OTP using 2Factor.in (will bypass SMS for test numbers)
+  const result = await otpService.sendOTP(phone, process.env.TWOFACTOR_TEMPLATE_NAME);
+
+  // Update last OTP sent time
+  agent.lastOtpSentAt = new Date();
+  await agent.save();
+
+  // Store resend cooldown (skip for test numbers)
+  if (!isTestNumber) {
+    await otpService.storeResendCooldown(phone);
+  }
+
+  res.status(200).json({
+    success: true,
+    message: result.message || (isTestNumber
+      ? 'OTP sent successfully (Test Mode - Use OTP: 123456)'
+      : 'OTP sent successfully to your phone number'),
+    data: {
+      phone: phone.replace(/\d(?=\d{4})/g, '*'),
+      expiresIn: `${process.env.OTP_EXPIRY_MINUTES || 5} minutes`,
+      isTest: isTestNumber
+    }
+  });
+});
+
+// @desc    Verify OTP and login agent
+// @route   POST /api/agent/verify-otp
+// @access  Public
+exports.verifyOTP = asyncHandler(async (req, res) => {
+  const { phone, otp } = req.body;
+
+  if (!phone || !otp) {
+    throw new ErrorResponse('Please provide phone number and OTP', 400);
+  }
+
+  if (otp.length !== 6 || !/^\d{6}$/.test(otp)) {
+    throw new ErrorResponse('OTP must be a 6-digit number', 400);
+  }
+
+  // Verify OTP (will handle test numbers automatically)
+  await otpService.verifyOTP(phone, otp);
+
+  // After OTP verification, find agent for login
+  // Normalize phone number for database lookup
+  let normalizedPhone = phone.replace(/^\+/, '');
+  let agent = await Agent.findOne({ phone });
+
+  // If not found, try with normalized phone
+  if (!agent && normalizedPhone.length > 10) {
+    const withoutCountryCode = normalizedPhone.replace(/^(91|1|44|61|971)/, '');
+    if (withoutCountryCode !== normalizedPhone) {
+      agent = await Agent.findOne({ phone: withoutCountryCode });
+    }
+  }
+
+  if (!agent) {
+    agent = await Agent.findOne({ phone: normalizedPhone });
+  }
+
+  if (!agent) {
+    throw new ErrorResponse('Agent account not found. Contact admin to create your account.', 404);
+  }
+
+  // Check if agent is active
+  if (!agent.isActive) {
+    throw new ErrorResponse('Your agent account has been deactivated. Please contact admin.', 403);
+  }
+
+  // Agent exists and is active - Login
+  agent.isPhoneVerified = true;
+  agent.lastOtpSentAt = null;
+  await agent.save();
+
+  const token = generateToken(agent._id, 'agent');
+
+  res.status(200).json({
+    success: true,
+    message: 'Login successful',
+    data: {
+      agent: {
+        _id: agent._id,
+        name: agent.name,
+        phone: agent.phone,
+        email: agent.email,
+        isPhoneVerified: agent.isPhoneVerified,
+        profileImage: agent.profileImage
+      },
+      token
+    }
+  });
+});
+
+// @desc    Get current agent profile
+// @route   GET /api/agent/me
+// @access  Private (Agent)
+exports.getMe = asyncHandler(async (req, res) => {
+  const agent = await Agent.findById(req.user._id);
+
+  if (!agent) {
+    throw new ErrorResponse('Agent not found', 404);
+  }
+
+  res.status(200).json({
+    success: true,
+    data: {
+      agent: {
+        _id: agent._id,
+        name: agent.name,
+        phone: agent.phone,
+        email: agent.email,
+        isPhoneVerified: agent.isPhoneVerified,
+        profileImage: agent.profileImage
+      }
+    }
+  });
+});
+
+// @desc    Update agent profile (limited fields - email, profile image only)
+// @route   PUT /api/agent/me
+// @access  Private (Agent)
+exports.updateMe = asyncHandler(async (req, res) => {
+  const { email, profileImage } = req.body;
+
+  const agent = await Agent.findById(req.user._id);
+
+  if (!agent) {
+    throw new ErrorResponse('Agent not found', 404);
+  }
+
+  // Only allow updating email and profileImage
+  if (email !== undefined) {
+    agent.email = email;
+  }
+
+  if (profileImage !== undefined) {
+    agent.profileImage = profileImage;
+  }
+
+  await agent.save();
+
+  res.status(200).json({
+    success: true,
+    message: 'Profile updated successfully',
+    data: {
+      agent: {
+        _id: agent._id,
+        name: agent.name,
+        phone: agent.phone,
+        email: agent.email,
+        isPhoneVerified: agent.isPhoneVerified,
+        profileImage: agent.profileImage
+      }
+    }
+  });
+});
+
+// @desc    Get agent's referral link
+// @route   GET /api/agent/referral-link
+// @access  Private (Agent)
+exports.getReferralLink = asyncHandler(async (req, res) => {
+  const agent = await Agent.findById(req.user._id);
+
+  if (!agent) {
+    throw new ErrorResponse('Agent not found', 404);
+  }
+
+  if (!agent.isActive) {
+    throw new ErrorResponse('Your agent account has been deactivated', 403);
+  }
+
+  // Generate referral link
+  const baseUrl = process.env.FRONTEND_URL || 'https://app.dvisionacademy.com';
+  const referralLink = `${baseUrl}/register?ref=${agent._id}`;
+
+  // WhatsApp share message
+  const whatsappMessage = `Join Dvision Academy! Register here: ${referralLink}`;
+  const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(whatsappMessage)}`;
+
+  res.status(200).json({
+    success: true,
+    data: {
+      referralLink,
+      whatsappUrl,
+      agentId: agent._id
+    }
+  });
+});
+
+// @desc    Get agent's referral statistics
+// @route   GET /api/agent/statistics
+// @access  Private (Agent)
+exports.getStatistics = asyncHandler(async (req, res) => {
+  const agent = await Agent.findById(req.user._id);
+
+  if (!agent) {
+    throw new ErrorResponse('Agent not found', 404);
+  }
+
+  // Get total referrals (students registered via this agent)
+  const totalReferrals = await Student.countDocuments({
+    referralAgentId: agent._id
+  });
+
+  // Get successful subscriptions (ReferralRecords with status 'completed')
+  const successfulSubscriptions = await ReferralRecord.countDocuments({
+    agentId: agent._id,
+    status: 'completed'
+  });
+
+  // Get pending commissions (ReferralRecords with status 'completed' but not 'paid')
+  const pendingCommissions = await ReferralRecord.countDocuments({
+    agentId: agent._id,
+    status: 'completed'
+  });
+
+  // Get month-wise breakdown
+  const now = new Date();
+  const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1); // Last 6 months
+
+  const monthWiseData = await ReferralRecord.aggregate([
+    {
+      $match: {
+        agentId: agent._id,
+        status: 'completed',
+        subscriptionDate: { $gte: sixMonthsAgo }
+      }
+    },
+    {
+      $group: {
+        _id: {
+          year: { $year: '$subscriptionDate' },
+          month: { $month: '$subscriptionDate' }
+        },
+        count: { $sum: 1 },
+        totalAmount: { $sum: '$amount' }
+      }
+    },
+    {
+      $sort: { '_id.year': -1, '_id.month': -1 }
+    }
+  ]);
+
+  // Format month-wise data
+  const monthWiseBreakdown = monthWiseData.map(item => ({
+    month: `${item._id.year}-${String(item._id.month).padStart(2, '0')}`,
+    count: item.count,
+    totalAmount: item.totalAmount
+  }));
+
+  // Get recent referrals (last 10)
+  const recentReferrals = await ReferralRecord.find({
+    agentId: agent._id,
+    status: 'completed'
+  })
+    .populate('studentId', 'name phone email')
+    .populate('subscriptionPlanId', 'name')
+    .sort({ subscriptionDate: -1 })
+    .limit(10)
+    .select('studentId subscriptionPlanId amount subscriptionDate status');
+
+  res.status(200).json({
+    success: true,
+    data: {
+      statistics: {
+        totalReferrals,
+        successfulSubscriptions,
+        pendingCommissions
+      },
+      monthWiseBreakdown,
+      recentReferrals
+    }
+  });
+});
+
+
+

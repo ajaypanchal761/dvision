@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { 
-  FiArrowLeft, 
-  FiMic, 
-  FiMicOff, 
-  FiVideo, 
+import {
+  FiArrowLeft,
+  FiMic,
+  FiMicOff,
+  FiVideo,
   FiVideoOff,
   FiMessageSquare,
   FiX,
@@ -28,12 +28,12 @@ const getApiBaseUrl = () => {
     console.log('[Student Socket] Using VITE_API_BASE_URL from env:', cleanUrl);
     return cleanUrl;
   }
-  
+
   // Auto-detect production environment
   if (typeof window !== 'undefined') {
     const hostname = window.location.hostname;
     const isProduction = hostname.includes('dvisionacademy.com');
-    
+
     if (isProduction) {
       // Try api subdomain first, fallback to same domain
       const protocol = window.location.protocol;
@@ -51,7 +51,7 @@ const getApiBaseUrl = () => {
       console.log('[Student Socket] Development mode. Hostname:', hostname);
     }
   }
-  
+
   // Default to localhost for development
   const defaultUrl = 'http://localhost:5000/api';
   console.log('[Student Socket] Using default API URL:', defaultUrl);
@@ -96,7 +96,7 @@ console.log('[Student Socket] Final SOCKET_URL:', SOCKET_URL);
 const LiveClassRoom = () => {
   const navigate = useNavigate();
   const { id } = useParams();
-  
+
   // State
   const [liveClass, setLiveClass] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -109,14 +109,14 @@ const LiveClassRoom = () => {
   const [isKicked, setIsKicked] = useState(false);
   const [classEnded, setClassEnded] = useState(false);
   const [hasTeacherVideo, setHasTeacherVideo] = useState(false);
-  
+
   // Chat
   const [chatMessages, setChatMessages] = useState([]);
   const chatMessagesEndRef = useRef(null);
   const [newMessage, setNewMessage] = useState('');
   const [showChat, setShowChat] = useState(false);
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
-  
+
   // Get current user ID for read tracking
   const getCurrentUserId = () => {
     const token = localStorage.getItem('dvision_token');
@@ -130,24 +130,24 @@ const LiveClassRoom = () => {
     }
     return null;
   };
-  
+
   // Calculate unread message count
   const calculateUnreadCount = (messages) => {
     const currentUserId = getCurrentUserId();
     if (!currentUserId) return 0;
-    
+
     return messages.filter(msg => {
       const msgUserId = msg.userId?._id?.toString() || msg.userId?.toString() || msg.userId;
       const isOwnMessage = msgUserId === currentUserId?.toString();
       if (isOwnMessage) return false; // Own messages are always considered read
-      
+
       const hasRead = msg.readBy && msg.readBy.some(
         read => read.userId?.toString() === currentUserId?.toString()
       );
       return !hasRead;
     }).length;
   };
-  
+
   // Agora refs
   const clientRef = useRef(null);
   const localVideoTrackRef = useRef(null);
@@ -155,10 +155,10 @@ const LiveClassRoom = () => {
   const remoteUsersRef = useRef({});
   const localVideoContainerRef = useRef(null);
   const teacherVideoContainerRef = useRef(null);
-  
+
   // Socket.io ref
   const socketRef = useRef(null);
-  
+
   // Connection state
   const [connectionState, setConnectionState] = useState('disconnected');
   const [wasConnected, setWasConnected] = useState(false); // Track if we were ever connected
@@ -166,7 +166,7 @@ const LiveClassRoom = () => {
   // Initialize class
   useEffect(() => {
     let isMounted = true;
-    
+
     const init = async () => {
       // Cleanup any existing connections first
       await cleanup();
@@ -174,9 +174,9 @@ const LiveClassRoom = () => {
         await initializeClass();
       }
     };
-    
+
     init();
-    
+
     return () => {
       isMounted = false;
       cleanup();
@@ -188,15 +188,15 @@ const LiveClassRoom = () => {
     const checkConnection = () => {
       // If both Agora and Socket are connected, clear reconnecting state
       if (clientRef.current && clientRef.current.connectionState === 'CONNECTED' &&
-          socketRef.current && socketRef.current.connected &&
-          connectionState === 'connected') {
+        socketRef.current && socketRef.current.connected &&
+        connectionState === 'connected') {
         if (isReconnecting) {
           console.log('[Connection Check] Clearing false reconnecting state - both connections are stable');
           setIsReconnecting(false);
         }
       }
     };
-    
+
     const interval = setInterval(checkConnection, 5000); // Check every 5 seconds
     return () => clearInterval(interval);
   }, [isReconnecting, connectionState]);
@@ -253,7 +253,7 @@ const LiveClassRoom = () => {
       socketRef.current.disconnect();
       socketRef.current = null;
     }
-    
+
     const token = localStorage.getItem('dvision_token');
     if (!token) {
       console.error('No auth token found');
@@ -355,7 +355,7 @@ const LiveClassRoom = () => {
           }
           return true;
         });
-        
+
         // Check for duplicates (by _id or content)
         const isDuplicate = filteredPrev.some(msg => {
           if (msg._id && message._id && !msg._id.toString().startsWith('temp-')) {
@@ -364,28 +364,28 @@ const LiveClassRoom = () => {
           // Fallback: check userId, timestamp, and message content
           const msgUserId = msg.userId?._id?.toString() || msg.userId?.toString() || msg.userId;
           const newMsgUserId = message.userId?._id?.toString() || message.userId?.toString() || message.userId;
-          return msgUserId === newMsgUserId && 
-                 msg.message === message.message && 
-                 Math.abs(new Date(msg.timestamp) - new Date(message.timestamp)) < 1000; // Within 1 second
+          return msgUserId === newMsgUserId &&
+            msg.message === message.message &&
+            Math.abs(new Date(msg.timestamp) - new Date(message.timestamp)) < 1000; // Within 1 second
         });
-        
+
         if (isDuplicate) {
           console.log('Duplicate message ignored');
           return filteredPrev;
         }
-        
+
         const newMessages = [...filteredPrev, message];
-        
+
         // Update unread count if chat is closed and message is not from current user
         const currentUserId = getCurrentUserId();
         const msgUserId = message.userId?._id?.toString() || message.userId?.toString() || message.userId;
         const isOwnMessage = currentUserId && msgUserId && currentUserId.toString() === msgUserId.toString();
-        
+
         if (!showChat && !isOwnMessage) {
           // Increment unread count for new messages when chat is closed
           setUnreadMessageCount(prev => prev + 1);
         }
-        
+
         // Scroll to bottom after state update
         setTimeout(() => {
           chatMessagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -431,15 +431,15 @@ const LiveClassRoom = () => {
       }
       // Also check from liveClass participants
       if (liveClass) {
-        const participant = liveClass.participants?.find(p => 
-          p.userId?._id?.toString() === userId?.toString() || 
+        const participant = liveClass.participants?.find(p =>
+          p.userId?._id?.toString() === userId?.toString() ||
           p.userId?.toString() === userId?.toString()
         );
         if (participant) {
           currentUserId = participant.userId?._id || participant.userId;
         }
       }
-      
+
       if (userId?.toString() === currentUserId?.toString()) {
         setIsKicked(true);
         setTimeout(() => {
@@ -462,18 +462,18 @@ const LiveClassRoom = () => {
           console.error('Error parsing token:', e);
         }
       }
-      
+
       if (userId?.toString() === currentUserId?.toString()) {
         console.log('Teacher muted/unmuted student:', teacherMutedState);
-        
+
         // Update state immediately for UI feedback
         setIsMuted(teacherMutedState);
-        
+
         if (clientRef.current) {
           if (teacherMutedState) {
             // Muting: Unpublish and disable track
             console.log('Muting student audio by teacher...');
-            
+
             if (localAudioTrackRef.current) {
               // Unpublish the track first
               try {
@@ -481,7 +481,7 @@ const LiveClassRoom = () => {
               } catch (unpubErr) {
                 console.warn('Error unpublishing audio track:', unpubErr);
               }
-              
+
               // Disable and stop the track
               try {
                 await localAudioTrackRef.current.setEnabled(false);
@@ -490,12 +490,12 @@ const LiveClassRoom = () => {
                 console.warn('Error disabling audio track:', disableErr);
               }
             }
-            
+
             console.log('Student audio muted by teacher');
           } else {
             // Unmuting: Recreate the audio track to ensure it works properly
             console.log('Unmuting student audio by teacher...');
-            
+
             try {
               // Clean up old track if it exists
               if (localAudioTrackRef.current) {
@@ -504,7 +504,7 @@ const LiveClassRoom = () => {
                 } catch (unpubErr) {
                   console.warn('Error unpublishing old audio track:', unpubErr);
                 }
-                
+
                 try {
                   localAudioTrackRef.current.stop();
                   localAudioTrackRef.current.close();
@@ -513,7 +513,7 @@ const LiveClassRoom = () => {
                 }
                 localAudioTrackRef.current = null;
               }
-              
+
               // Create a new audio track
               const audioTrack = await AgoraRTC.createMicrophoneAudioTrack({
                 encoderConfig: 'speech_standard',
@@ -521,16 +521,16 @@ const LiveClassRoom = () => {
                 ANS: true,  // Noise suppression
                 AGC: true   // Auto gain control
               });
-              
+
               // Set volume to 100
               await audioTrack.setVolume(100);
-              
+
               // Store the new track
               localAudioTrackRef.current = audioTrack;
-              
+
               // Wait a bit for track to be ready
               await new Promise(resolve => setTimeout(resolve, 200));
-              
+
               // Publish the new track
               await clientRef.current.publish([audioTrack]);
               console.log('Audio track recreated and published successfully after teacher unmute');
@@ -538,7 +538,7 @@ const LiveClassRoom = () => {
               console.error('Error recreating audio track after teacher unmute:', recreateErr);
             }
           }
-          
+
           // Emit status update to notify teacher
           if (socketRef.current) {
             socketRef.current.emit('participant-status', {
@@ -565,13 +565,13 @@ const LiveClassRoom = () => {
     });
 
     socketRef.current = socket;
-    
+
     // If socket is already connected, join room immediately
     if (socket.connected) {
       console.log('Student socket already connected, joining room');
       socket.emit('join-live-class', { liveClassId: id });
     }
-    
+
     return socket;
   }, [id, navigate]);
 
@@ -588,7 +588,7 @@ const LiveClassRoom = () => {
       const response = await liveClassAPI.joinLiveClass(id);
       if (response.success && response.data) {
         const { liveClass: classData, agoraToken, agoraAppId, agoraChannelName, agoraUid, unreadMessageCount: initialUnreadCount } = response.data;
-        
+
         if (classData.status !== 'live') {
           setError('Class is not live yet');
           return;
@@ -605,13 +605,13 @@ const LiveClassRoom = () => {
           const msgUserId = msg.userId?._id?.toString() || msg.userId?.toString() || msg.userId;
           return self.findIndex(m => {
             const mUserId = m.userId?._id?.toString() || m.userId?.toString() || m.userId;
-            return mUserId === msgUserId && 
-                   m.message === msg.message && 
-                   m.timestamp === msg.timestamp;
+            return mUserId === msgUserId &&
+              m.message === msg.message &&
+              m.timestamp === msg.timestamp;
           }) === index;
         });
         setChatMessages(uniqueMessages);
-        
+
         // Set initial unread count from backend or calculate it
         const unreadCount = initialUnreadCount !== undefined ? initialUnreadCount : calculateUnreadCount(uniqueMessages);
         setUnreadMessageCount(unreadCount);
@@ -644,10 +644,10 @@ const LiveClassRoom = () => {
         }
         clientRef.current = null;
       }
-      
+
       // Create Agora client
-      const client = AgoraRTC.createClient({ 
-        mode: 'rtc', 
+      const client = AgoraRTC.createClient({
+        mode: 'rtc',
         codec: 'vp8',
         enableAudio: true,
         enableVideo: true
@@ -670,7 +670,7 @@ const LiveClassRoom = () => {
       setConnectionState('connected');
       setWasConnected(true); // Mark that we've successfully connected
       setIsReconnecting(false); // Ensure reconnecting is false on successful join
-      
+
       // Also ensure socket reconnecting is false if socket is connected
       if (socketRef.current && socketRef.current.connected) {
         setIsReconnecting(false);
@@ -745,7 +745,7 @@ const LiveClassRoom = () => {
         AGC: true   // Auto gain control
       });
       localAudioTrackRef.current = audioTrack;
-      
+
       // Set initial volume to 100
       await audioTrack.setVolume(100);
 
@@ -806,7 +806,7 @@ const LiveClassRoom = () => {
   const handleUserPublished = async (user, mediaType) => {
     try {
       console.log('User published:', user.uid, 'MediaType:', mediaType);
-      
+
       // If client is not ready or has been disconnected, don't try to subscribe
       if (!clientRef.current) {
         console.warn('Ignoring user-published event because Agora client is null');
@@ -822,18 +822,18 @@ const LiveClassRoom = () => {
       }
 
       await clientRef.current.subscribe(user, mediaType);
-      
+
       if (mediaType === 'video') {
         remoteUsersRef.current[user.uid] = user;
         console.log('Remote user video track:', user.videoTrack ? 'exists' : 'missing');
         setHasTeacherVideo(true);
-        
+
         // Play teacher video in main container
         const playVideo = (retryCount = 0) => {
           // Use ref instead of getElementById for better reliability
           const container = teacherVideoContainerRef.current;
           console.log('Attempting to play video, container:', container ? 'exists' : 'missing', 'retry:', retryCount);
-          
+
           if (container && user.videoTrack) {
             console.log('Playing teacher video in container, UID:', user.uid);
             try {
@@ -873,7 +873,7 @@ const LiveClassRoom = () => {
         };
         playVideo();
       }
-      
+
       if (mediaType === 'audio') {
         if (user.audioTrack) {
           try {
@@ -928,11 +928,11 @@ const LiveClassRoom = () => {
       }
     }
     delete remoteUsersRef.current[user.uid];
-    
+
     // Don't automatically set classEnded - wait for explicit class-ended event from backend
     // Teacher might temporarily disconnect/reconnect
     console.log('Remaining remote users:', Object.keys(remoteUsersRef.current).length);
-    
+
     // If no remote users, hide teacher video but don't end class
     if (Object.keys(remoteUsersRef.current).length === 0) {
       setHasTeacherVideo(false);
@@ -942,7 +942,7 @@ const LiveClassRoom = () => {
   // Handle connection state change
   const handleConnectionStateChange = (curState, revState) => {
     console.log('Connection state:', curState, 'Previous:', revState, 'Was connected:', wasConnected);
-    
+
     if (curState === 'CONNECTING') {
       // Only show reconnecting if we were previously connected (not initial connection)
       if (wasConnected && (revState === 'CONNECTED' || revState === 'RECONNECTING' || revState === 'DISCONNECTED')) {
@@ -968,7 +968,7 @@ const LiveClassRoom = () => {
         setIsReconnecting(false);
       }
       setConnectionState('disconnected');
-      
+
       // Only attempt reconnection if we were previously connected
       if (wasConnected && clientRef.current && liveClass) {
         setTimeout(async () => {
@@ -1028,14 +1028,14 @@ const LiveClassRoom = () => {
       }
 
       const newMutedState = !isMuted;
-      
+
       // Update state immediately for UI feedback
       setIsMuted(newMutedState);
-      
+
       if (newMutedState) {
         // Muting: Unpublish and disable track
         console.log('Muting student audio track...');
-        
+
         if (localAudioTrackRef.current) {
           // Unpublish the track first
           try {
@@ -1045,7 +1045,7 @@ const LiveClassRoom = () => {
           } catch (unpubErr) {
             console.warn('Error unpublishing audio track:', unpubErr);
           }
-          
+
           // Disable and stop the track
           try {
             if (localAudioTrackRef.current) {
@@ -1056,12 +1056,12 @@ const LiveClassRoom = () => {
             console.warn('Error disabling audio track:', disableErr);
           }
         }
-        
+
         console.log('Student audio track muted');
       } else {
         // Unmuting: Recreate the audio track to ensure it works properly
         console.log('Unmuting student audio track...');
-        
+
         try {
           // Clean up old track if it exists
           if (localAudioTrackRef.current) {
@@ -1072,7 +1072,7 @@ const LiveClassRoom = () => {
             } catch (unpubErr) {
               console.warn('Error unpublishing old audio track:', unpubErr);
             }
-            
+
             try {
               if (localAudioTrackRef.current) {
                 localAudioTrackRef.current.stop();
@@ -1083,7 +1083,7 @@ const LiveClassRoom = () => {
             }
             localAudioTrackRef.current = null;
           }
-          
+
           // Create a new audio track
           const audioTrack = await AgoraRTC.createMicrophoneAudioTrack({
             encoderConfig: 'speech_standard',
@@ -1091,16 +1091,16 @@ const LiveClassRoom = () => {
             ANS: true,  // Noise suppression
             AGC: true   // Auto gain control
           });
-          
+
           // Set volume to 100
           await audioTrack.setVolume(100);
-          
+
           // Store the new track
           localAudioTrackRef.current = audioTrack;
-          
+
           // Wait a bit for track to be ready
           await new Promise(resolve => setTimeout(resolve, 200));
-          
+
           // Publish the new track only if client is still connected
           if (clientRef.current && clientRef.current.connectionState === 'CONNECTED') {
             await clientRef.current.publish([audioTrack]);
@@ -1116,7 +1116,7 @@ const LiveClassRoom = () => {
           setIsMuted(true);
         }
       }
-      
+
       // Emit status update
       if (socketRef.current && socketRef.current.connected) {
         socketRef.current.emit('participant-status', {
@@ -1154,16 +1154,16 @@ const LiveClassRoom = () => {
       }
 
       const newVideoState = !isVideoEnabled;
-      
+
       if (newVideoState) {
         // Turning video on: Enable first, then play
         try {
           await localVideoTrackRef.current.setEnabled(true);
           setIsVideoEnabled(true);
-          
+
           // Wait a bit for track to be enabled
           await new Promise(resolve => setTimeout(resolve, 200));
-          
+
           // Play video in container if it exists
           if (localVideoContainerRef.current && localVideoTrackRef.current && localVideoTrackRef.current.enabled) {
             try {
@@ -1200,7 +1200,7 @@ const LiveClassRoom = () => {
           // Don't revert state if we're already trying to disable
         }
       }
-      
+
       if (socketRef.current && socketRef.current.connected) {
         socketRef.current.emit('participant-status', {
           liveClassId: id,
@@ -1218,7 +1218,7 @@ const LiveClassRoom = () => {
     try {
       if (localVideoTrackRef.current) {
         const devices = await AgoraRTC.getCameras();
-        
+
         if (devices.length < 2) {
           console.warn('Only one camera available');
           return;
@@ -1227,29 +1227,29 @@ const LiveClassRoom = () => {
         // Get current device ID
         const currentDeviceId = localVideoTrackRef.current.getDeviceId();
         const currentDevice = devices.find(d => d.deviceId === currentDeviceId);
-        
+
         // Find the other camera (front/back)
         // On mobile: 'user' = front, 'environment' = back
         let nextDevice;
-        
+
         if (cameraFacing === 'user') {
           // Currently using front camera, switch to back
-          nextDevice = devices.find(d => 
-            d.deviceId !== currentDeviceId && 
-            (d.label.toLowerCase().includes('back') || 
-             d.label.toLowerCase().includes('rear') ||
-             d.label.toLowerCase().includes('environment'))
+          nextDevice = devices.find(d =>
+            d.deviceId !== currentDeviceId &&
+            (d.label.toLowerCase().includes('back') ||
+              d.label.toLowerCase().includes('rear') ||
+              d.label.toLowerCase().includes('environment'))
           ) || devices.find(d => d.deviceId !== currentDeviceId);
         } else {
           // Currently using back camera, switch to front
-          nextDevice = devices.find(d => 
-            d.deviceId !== currentDeviceId && 
-            (d.label.toLowerCase().includes('front') || 
-             d.label.toLowerCase().includes('user') ||
-             d.label.toLowerCase().includes('facing'))
+          nextDevice = devices.find(d =>
+            d.deviceId !== currentDeviceId &&
+            (d.label.toLowerCase().includes('front') ||
+              d.label.toLowerCase().includes('user') ||
+              d.label.toLowerCase().includes('facing'))
           ) || devices.find(d => d.deviceId !== currentDeviceId);
         }
-        
+
         if (nextDevice) {
           await localVideoTrackRef.current.setDevice(nextDevice.deviceId);
           setCameraFacing(cameraFacing === 'user' ? 'environment' : 'user');
@@ -1288,13 +1288,13 @@ const LiveClassRoom = () => {
             const currentUserId = getCurrentUserId();
             const msgUserId = msg.userId?._id?.toString() || msg.userId?.toString() || msg.userId;
             const isOwnMessage = currentUserId && msgUserId && currentUserId.toString() === msgUserId.toString();
-            
+
             if (isOwnMessage) return msg; // Own messages are already considered read
-            
+
             const hasRead = msg.readBy && msg.readBy.some(
               read => read.userId?.toString() === currentUserId?.toString()
             );
-            
+
             if (!hasRead) {
               return {
                 ...msg,
@@ -1306,11 +1306,11 @@ const LiveClassRoom = () => {
             }
             return msg;
           });
-          
+
           // Recalculate unread count (should be 0 after marking as read)
           const unreadCount = calculateUnreadCount(updatedMessages);
           setUnreadMessageCount(unreadCount);
-          
+
           return updatedMessages;
         });
       }
@@ -1318,7 +1318,7 @@ const LiveClassRoom = () => {
       console.error('Error marking messages as read:', err);
     }
   };
-  
+
   // Recalculate unread count when chat visibility changes
   useEffect(() => {
     if (showChat) {
@@ -1331,7 +1331,7 @@ const LiveClassRoom = () => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showChat]);
-  
+
   // Recalculate unread count when messages change (only if chat is closed)
   useEffect(() => {
     if (!showChat && chatMessages.length > 0) {
@@ -1377,7 +1377,7 @@ const LiveClassRoom = () => {
         socketRef.current.connect();
         // Wait a bit for connection
         await new Promise(resolve => setTimeout(resolve, 1000));
-        
+
         if (!socketRef.current.connected) {
           alert('Connection lost. Please refresh the page.');
           return;
@@ -1388,7 +1388,7 @@ const LiveClassRoom = () => {
       console.log('Student sending chat message:', messageText);
       console.log('Socket connected:', socketRef.current.connected);
       console.log('Socket ID:', socketRef.current.id);
-      
+
       // Get student user ID
       const token = localStorage.getItem('dvision_token');
       let studentUserId = null;
@@ -1400,29 +1400,29 @@ const LiveClassRoom = () => {
           console.error('Error parsing token:', e);
         }
       }
-      
+
       // Optimistically add message to UI (will be confirmed by socket event)
       const tempMessage = {
-        userId: studentUserId || liveClass?.participants?.find(p => p.userType === 'Student')?.userId?._id || 
-                liveClass?.participants?.find(p => p.userType === 'Student')?.userId,
+        userId: studentUserId || liveClass?.participants?.find(p => p.userType === 'Student')?.userId?._id ||
+          liveClass?.participants?.find(p => p.userType === 'Student')?.userId,
         userType: 'Student',
         userName: 'You',
         message: messageText,
         timestamp: new Date(),
         _id: `temp-${Date.now()}`
       };
-      
+
       setChatMessages(prev => [...prev, tempMessage]);
       setNewMessage('');
-      
+
       // Emit to socket
       socketRef.current.emit('chat-message', {
         liveClassId: id,
         message: messageText
       });
-      
+
       console.log('Chat message emitted to socket');
-      
+
       // Scroll to bottom after sending
       setTimeout(() => {
         chatMessagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -1471,7 +1471,7 @@ const LiveClassRoom = () => {
         }
         clientRef.current = null;
       }
-      
+
       // Clear remote users
       remoteUsersRef.current = {};
     } catch (err) {
@@ -1580,7 +1580,7 @@ const LiveClassRoom = () => {
             id="teacher-video-container"
             ref={teacherVideoContainerRef}
             className="w-full h-full"
-            style={{ 
+            style={{
               minHeight: '100%',
               minWidth: '100%',
               objectFit: 'contain'
@@ -1594,13 +1594,13 @@ const LiveClassRoom = () => {
               </div>
             </div>
           )}
-          
+
           {/* Student's Own Video - PIP (Picture in Picture) - Bottom Corner */}
           <div className="absolute bottom-4 right-4 w-48 h-36 bg-gray-800 rounded-lg overflow-hidden border-2 border-white shadow-lg z-20">
             <div
               ref={localVideoContainerRef}
               className="w-full h-full"
-              style={{ 
+              style={{
                 minHeight: '100%',
                 minWidth: '100%',
                 objectFit: 'cover'
@@ -1648,7 +1648,7 @@ const LiveClassRoom = () => {
                 } catch (e) {
                   console.error('Error parsing token:', e);
                 }
-                
+
                 // Also check from liveClass participants
                 if (!currentUserId && liveClass?.participants) {
                   const studentParticipant = liveClass.participants.find(p => p.userType === 'Student');
@@ -1656,20 +1656,19 @@ const LiveClassRoom = () => {
                     currentUserId = studentParticipant.userId?._id?.toString() || studentParticipant.userId?.toString() || studentParticipant.userId;
                   }
                 }
-                
+
                 const msgUserId = msg.userId?._id?.toString() || msg.userId?.toString() || msg.userId;
                 const isOwnMessage = currentUserId && msgUserId && currentUserId.toString() === msgUserId.toString();
-                
+
                 return (
-                  <div 
-                    key={msg._id || `${msg.userId}-${msg.timestamp}-${idx}`} 
+                  <div
+                    key={msg._id || `${msg.userId}-${msg.timestamp}-${idx}`}
                     className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'}`}
                   >
-                    <div className={`max-w-[75%] p-2 rounded-lg ${
-                      isOwnMessage 
-                        ? 'bg-blue-600 text-white' 
+                    <div className={`max-w-[75%] p-2 rounded-lg ${isOwnMessage
+                        ? 'bg-blue-600 text-white'
                         : 'bg-gray-700 text-white'
-                    }`}>
+                      }`}>
                       {!isOwnMessage && (
                         <p className="text-xs opacity-80 mb-1">{msg.userName}</p>
                       )}

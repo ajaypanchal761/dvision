@@ -113,6 +113,9 @@ import TeacherAddQuiz from './modules/teacher/pages/AddQuiz';
 import TeacherEditQuiz from './modules/teacher/pages/EditQuiz';
 import TeacherViewQuiz from './modules/teacher/pages/ViewQuiz';
 import TeacherQuizResults from './modules/teacher/pages/QuizResults';
+import AgentDashboard from './modules/teacher/pages/AgentDashboard';
+import AgentStatistics from './modules/teacher/pages/AgentStatistics';
+import AgentProfile from './modules/teacher/pages/AgentProfile';
 import { ROUTES as TeacherRoutes } from './modules/teacher/constants/routes';
 
 function App() {
@@ -901,6 +904,11 @@ function App() {
         <Route path={TeacherRoutes.VIEW_QUIZ} element={<TeacherViewQuiz />} />
         <Route path={TeacherRoutes.QUIZ_RESULTS} element={<TeacherQuizResults />} />
         <Route path="/teacher/content/:type" element={<TeacherContentView />} />
+
+        {/* Agent Routes - /teacher/agent/* */}
+        <Route path={TeacherRoutes.AGENT_DASHBOARD} element={<AgentDashboard />} />
+        <Route path={TeacherRoutes.AGENT_STATISTICS} element={<AgentStatistics />} />
+        <Route path={TeacherRoutes.AGENT_PROFILE} element={<AgentProfile />} />
 
         {/* Root redirect - default to login */}
         <Route path="/" element={<Navigate to="/login" replace />} />

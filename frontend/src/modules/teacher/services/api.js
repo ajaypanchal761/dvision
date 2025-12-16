@@ -621,8 +621,59 @@ export const liveClassAPI = {
   },
 };
 
+// Agent API functions
+export const agentAPI = {
+  // Check if agent exists and is active
+  checkAgentExists: async (phone) => {
+    return apiRequest('/agent/check-exists', {
+      method: 'POST',
+      body: { phone }
+    });
+  },
+  // Send OTP to agent
+  sendOTP: async (phone) => {
+    return apiRequest('/agent/send-otp', {
+      method: 'POST',
+      body: { phone }
+    });
+  },
+  // Verify OTP and login
+  verifyOTP: async (phone, otp) => {
+    return apiRequest('/agent/verify-otp', {
+      method: 'POST',
+      body: { phone, otp }
+    });
+  },
+  // Get agent profile
+  getMe: async () => {
+    return apiRequest('/agent/me', {
+      method: 'GET'
+    });
+  },
+  // Update agent profile (limited fields)
+  updateMe: async (data) => {
+    return apiRequest('/agent/me', {
+      method: 'PUT',
+      body: data
+    });
+  },
+  // Get referral link
+  getReferralLink: async () => {
+    return apiRequest('/agent/referral-link', {
+      method: 'GET'
+    });
+  },
+  // Get referral statistics
+  getStatistics: async () => {
+    return apiRequest('/agent/statistics', {
+      method: 'GET'
+    });
+  }
+};
+
 export default {
   teacherAPI,
+  agentAPI,
   aboutAPI,
   privacyAPI,
   termsAPI,

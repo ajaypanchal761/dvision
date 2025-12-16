@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { FiUser, FiMail, FiChevronDown, FiCamera, FiArrowLeft } from 'react-icons/fi';
 import { ROUTES } from '../constants/routes';
-import { useAuth } from '../context/AuthContext';
 import { studentAPI } from '../services/api';
 
 /**
@@ -11,7 +10,10 @@ import { studentAPI } from '../services/api';
  */
 const RegistrationForm = () => {
   const navigate = useNavigate();
-  const { sendOTP } = useAuth();
+  const [searchParams] = useSearchParams();
+
+  // Get referral agent ID from URL query parameter
+  const referralAgentId = searchParams.get('ref') || searchParams.get('referralAgentId');
   const [formData, setFormData] = useState({
     fullName: '',
     mobileNumber: '',
@@ -37,18 +39,18 @@ const RegistrationForm = () => {
     const registrationPhone = sessionStorage.getItem('registration_phone');
     const registrationCountryCode = sessionStorage.getItem('registration_country_code');
     const registrationMobile = sessionStorage.getItem('registration_mobile');
-    
+
     // Pre-fill phone number if coming from login
     const mobileNumber = registrationMobile || '';
     const countryCode = registrationCountryCode || '+91';
-    
+
     // Clear sessionStorage after reading
     if (registrationPhone) {
       sessionStorage.removeItem('registration_phone');
       sessionStorage.removeItem('registration_country_code');
       sessionStorage.removeItem('registration_mobile');
     }
-    
+
     setSelectedCountryCode(countryCode);
     setFormData({
       fullName: '',
@@ -59,7 +61,7 @@ const RegistrationForm = () => {
     });
     setProfilePhoto(null);
     setProfilePhotoPreview(null);
-    
+
     // Fetch classes from backend
     const fetchClasses = async () => {
       try {
@@ -67,15 +69,15 @@ const RegistrationForm = () => {
         const response = await studentAPI.getClasses();
         if (response.success && response.data && response.data.classes) {
           const classesData = response.data.classes.filter(c => c.isActive);
-          
+
           // Store all classes data for filtering
           setAllClassesData(classesData);
-          
+
           // Extract unique boards and sort them
           const uniqueBoards = [...new Set(classesData.map(c => c.board))]
             .filter(Boolean)
             .sort();
-          
+
           setBoards(uniqueBoards);
         }
       } catch (error) {
@@ -86,7 +88,7 @@ const RegistrationForm = () => {
         setLoadingClasses(false);
       }
     };
-    
+
     fetchClasses();
   }, []);
 
@@ -172,7 +174,7 @@ const RegistrationForm = () => {
     const file = e.target.files[0];
     if (file) {
       setProfilePhoto(file);
-      
+
       // Compress image before showing preview
       try {
         const compressedBase64 = await compressImage(file);
@@ -192,7 +194,7 @@ const RegistrationForm = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    
+
     if (!isFormValid()) {
       setError('Please fill all required fields');
       return;
@@ -204,38 +206,38 @@ const RegistrationForm = () => {
       // Clean and format phone number
       // Remove all non-digit characters and leading zeros
       let cleanedMobile = formData.mobileNumber.replace(/\D/g, '').replace(/^0+/, '');
-      
+
       // Validate mobile number length
       if (!cleanedMobile || cleanedMobile.length < 10) {
         setError('Please enter a valid mobile number (minimum 10 digits)');
         setIsLoading(false);
         return;
       }
-      
+
       if (cleanedMobile.length > 15) {
         setError('Mobile number cannot exceed 15 digits');
         setIsLoading(false);
         return;
       }
-      
+
       // Combine country code with cleaned mobile number
       // Remove '+' from country code if present, we'll add it back
       const countryCode = selectedCountryCode.replace(/^\+/, '');
       const fullPhone = `+${countryCode}${cleanedMobile}`;
-      
+
       console.log('=== REGISTRATION FORM SUBMIT ===');
       console.log('Form Data:', formData);
       console.log('Cleaned Mobile:', cleanedMobile);
       console.log('Full Phone:', fullPhone);
       console.log('Profile Photo:', profilePhoto ? 'Present' : 'Not Present');
-      
+
       // First check if student already exists
       try {
         console.log('Step 1: Checking if student exists...');
         const { studentAPI } = await import('../services/api');
         const checkResponse = await studentAPI.checkStudentExists(fullPhone);
         console.log('Student exists check response:', checkResponse);
-        
+
         // If student already exists, show modal message
         if (checkResponse.success && checkResponse.data && checkResponse.data.exists) {
           console.log('Student already exists, showing login modal');
@@ -247,9 +249,10 @@ const RegistrationForm = () => {
         // If check API fails, continue with registration flow
         console.warn('Could not check student existence:', checkError);
       }
-      
+
       // Register student - POST API Call (stores data and sends OTP)
       console.log('Step 2: Registering student (POST /student/register)...');
+      console.log('Referral Agent ID from URL:', referralAgentId);
       const { studentAPI } = await import('../services/api');
       const registerResult = await studentAPI.register(
         fullPhone,
@@ -257,18 +260,19 @@ const RegistrationForm = () => {
         formData.email,
         formData.class,
         formData.board,
-        profilePhotoPreview // base64 image if available
+        profilePhotoPreview, // base64 image if available
+        referralAgentId // referral agent ID from URL query parameter
       );
       console.log('Register Result:', registerResult);
-      
+
       if (registerResult.success) {
         // Store phone for OTP page
         sessionStorage.setItem('registration_phone', fullPhone);
-        
+
         console.log('Step 3: Navigating to OTP page');
         console.log('Note: Registration data stored in backend. OTP verification will complete registration.');
         console.log('=== REGISTRATION FORM SUBMIT COMPLETE ===');
-        
+
         // Navigate to OTP page
         navigate(ROUTES.FINAL_OTP);
       } else {
@@ -438,9 +442,8 @@ const RegistrationForm = () => {
                               handleInputChange('board', board);
                               setShowBoardDropdown(false);
                             }}
-                            className={`w-full flex items-center gap-1.5 sm:gap-2 md:gap-3 px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 hover:bg-gray-50 transition-colors ${
-                              formData.board === board ? 'bg-gray-100' : ''
-                            }`}
+                            className={`w-full flex items-center gap-1.5 sm:gap-2 md:gap-3 px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 hover:bg-gray-50 transition-colors ${formData.board === board ? 'bg-gray-100' : ''
+                              }`}
                           >
                             <span className="text-xs sm:text-sm md:text-base text-[var(--app-black)] font-medium">{board}</span>
                           </button>
@@ -469,9 +472,8 @@ const RegistrationForm = () => {
                     setShowBoardDropdown(false);
                   }}
                   disabled={!formData.board}
-                  className={`w-full flex items-center justify-between px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 rounded-lg sm:rounded-xl border-2 border-gray-300 bg-white hover:bg-gray-50 focus:border-[var(--app-dark-blue)] focus:ring-2 focus:ring-[var(--app-dark-blue)]/20 transition-colors text-left min-h-[40px] sm:min-h-[44px] md:min-h-[48px] ${
-                    !formData.board ? 'opacity-50 cursor-not-allowed' : ''
-                  }`}
+                  className={`w-full flex items-center justify-between px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 rounded-lg sm:rounded-xl border-2 border-gray-300 bg-white hover:bg-gray-50 focus:border-[var(--app-dark-blue)] focus:ring-2 focus:ring-[var(--app-dark-blue)]/20 transition-colors text-left min-h-[40px] sm:min-h-[44px] md:min-h-[48px] ${!formData.board ? 'opacity-50 cursor-not-allowed' : ''
+                    }`}
                 >
                   <div className="flex items-center gap-1.5 sm:gap-2 md:gap-3">
                     <span className="text-[var(--app-black)]/50 text-sm sm:text-base md:text-lg">🎓</span>
@@ -504,9 +506,8 @@ const RegistrationForm = () => {
                               handleInputChange('class', cls);
                               setShowClassDropdown(false);
                             }}
-                            className={`w-full flex items-center gap-1.5 sm:gap-2 md:gap-3 px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 hover:bg-gray-50 transition-colors ${
-                              formData.class === cls ? 'bg-gray-100' : ''
-                            }`}
+                            className={`w-full flex items-center gap-1.5 sm:gap-2 md:gap-3 px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 hover:bg-gray-50 transition-colors ${formData.class === cls ? 'bg-gray-100' : ''
+                              }`}
                           >
                             <span className="text-xs sm:text-sm md:text-base text-[var(--app-black)] font-medium">{cls}</span>
                           </button>
@@ -596,7 +597,7 @@ const RegistrationForm = () => {
                     const countryCode = selectedCountryCode.replace(/^\+/, '');
                     const fullPhone = `+${countryCode}${cleanedMobile}`;
                     sessionStorage.setItem('login_phone', fullPhone);
-                    
+
                     // Redirect to login page
                     navigate(ROUTES.LOGIN);
                     setShowLoginModal(false);
@@ -615,3 +616,8 @@ const RegistrationForm = () => {
 };
 
 export default RegistrationForm;
+
+
+
+
+

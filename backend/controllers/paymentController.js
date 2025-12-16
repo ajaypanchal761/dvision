@@ -28,9 +28,9 @@ exports.createOrder = asyncHandler(async (req, res, next) => {
   console.log('=== CREATE ORDER DEBUG ===');
   console.log('Plan ID:', planId);
   console.log('Student ID:', studentId);
-  
+
   let plan = await SubscriptionPlan.findById(planId).populate('classId', 'name description classCode type isActive');
-  
+
   console.log('Plan found:', plan ? 'Yes' : 'No');
   if (plan) {
     console.log('Plan type:', plan.type);
@@ -42,7 +42,7 @@ exports.createOrder = asyncHandler(async (req, res, next) => {
       name: plan.classId.name,
       type: plan.classId.type
     } : 'null');
-    
+
     // If prep plan and classId not populated, try to populate it
     if (plan.type === 'preparation' && !plan.classId) {
       const planRaw = await SubscriptionPlan.findById(planId).select('classId').lean();
@@ -55,7 +55,7 @@ exports.createOrder = asyncHandler(async (req, res, next) => {
       }
     }
   }
-  
+
   if (!plan) {
     return next(new ErrorResponse('Subscription plan not found', 404));
   }
@@ -66,7 +66,7 @@ exports.createOrder = asyncHandler(async (req, res, next) => {
 
   // Get student
   const student = await Student.findById(studentId);
-  
+
   // Validate plan based on type
   if (plan.type === 'regular') {
     // For regular plans, check board and class match
@@ -81,14 +81,14 @@ exports.createOrder = asyncHandler(async (req, res, next) => {
     // For preparation plans, any student can subscribe (no board/class restriction)
     // Check if classId exists in database (even if populate failed)
     let classIdValue = plan.classId;
-    
+
     // If populated classId is null, check raw database value
     if (!classIdValue) {
       const planRaw = await SubscriptionPlan.findById(planId).select('classId').lean();
       classIdValue = planRaw?.classId;
       console.log('Plan classId from raw query:', classIdValue);
     }
-    
+
     // If classId exists but wasn't populated, populate it now
     if (classIdValue && (!plan.classId || typeof plan.classId === 'string' || plan.classId instanceof mongoose.Types.ObjectId)) {
       try {
@@ -121,7 +121,7 @@ exports.createOrder = asyncHandler(async (req, res, next) => {
         classType: plan.classId.type
       });
     }
-    
+
     // If no classId at all, log warning but allow payment to proceed
     if (!classIdValue) {
       console.warn('⚠️ PREPARATION PLAN WARNING: Missing classId in database');
@@ -134,12 +134,12 @@ exports.createOrder = asyncHandler(async (req, res, next) => {
       // Don't block payment - allow it to proceed
     }
   }
-  
+
   console.log('=== PLAN VALIDATION PASSED ===');
 
   // Check if student already has an active subscription that conflicts
   const now = new Date();
-  
+
   // Get all active subscriptions from activeSubscriptions array
   const activeSubs = (student.activeSubscriptions || []).filter(sub => {
     return new Date(sub.endDate) >= now;
@@ -164,27 +164,27 @@ exports.createOrder = asyncHandler(async (req, res, next) => {
     // For regular plans: Only one active subscription per class allowed
     // Check if student has any active regular subscription
     const hasActiveRegular = activeSubs.some(sub => {
-      return sub.type === 'regular' && 
-             sub.board === plan.board && 
-             plan.classes && 
-             plan.classes.includes(sub.class);
+      return sub.type === 'regular' &&
+        sub.board === plan.board &&
+        plan.classes &&
+        plan.classes.includes(sub.class);
     });
 
     // Also check Payment records
     const hasActiveRegularFromPayments = activePayments.some(payment => {
-      return payment.subscriptionPlanId && 
-             payment.subscriptionPlanId.type === 'regular' &&
-             payment.subscriptionPlanId.board === plan.board &&
-             payment.subscriptionPlanId.classes &&
-             plan.classes &&
-             payment.subscriptionPlanId.classes.some(c => plan.classes.includes(c));
+      return payment.subscriptionPlanId &&
+        payment.subscriptionPlanId.type === 'regular' &&
+        payment.subscriptionPlanId.board === plan.board &&
+        payment.subscriptionPlanId.classes &&
+        plan.classes &&
+        payment.subscriptionPlanId.classes.some(c => plan.classes.includes(c));
     });
 
     // Also check legacy subscription field
-    const legacyActive = student.subscription && 
-                        student.subscription.status === 'active' && 
-                        new Date(student.subscription.endDate) >= now;
-    
+    const legacyActive = student.subscription &&
+      student.subscription.status === 'active' &&
+      new Date(student.subscription.endDate) >= now;
+
     if (hasActiveRegular || hasActiveRegularFromPayments || legacyActive) {
       return next(new ErrorResponse(
         `You already have an active subscription for ${plan.board} Class ${plan.classes?.join(', ')}. Please wait until your current subscription expires before subscribing to another plan for the same class.`,
@@ -204,14 +204,14 @@ exports.createOrder = asyncHandler(async (req, res, next) => {
         prepClassId = planDoc.classId.toString();
       }
     }
-    
+
     console.log('=== PREP PLAN VALIDATION ===');
     console.log('Plan ID:', planId);
     console.log('Plan classId (raw):', plan.classId);
     console.log('Prep Class ID to check:', prepClassId);
     console.log('Active subscriptions from array:', activeSubs.length);
     console.log('Active payments:', activePayments.length);
-    
+
     if (prepClassId) {
       console.log('Checking active subscriptions for prep class:', prepClassId);
       console.log('Active subs to check:', activeSubs.map(s => ({
@@ -219,14 +219,14 @@ exports.createOrder = asyncHandler(async (req, res, next) => {
         classId: s.classId,
         endDate: s.endDate
       })));
-      
+
       // Check activeSubscriptions array
       const hasActivePrepForClass = activeSubs.some(sub => {
         if (sub.type !== 'preparation' || !sub.classId) {
           console.log('Skipping sub - not prep or no classId:', { type: sub.type, hasClassId: !!sub.classId });
           return false;
         }
-        
+
         // Handle both ObjectId and string comparisons
         let subClassId = null;
         if (sub.classId && typeof sub.classId === 'object' && sub.classId._id) {
@@ -234,7 +234,7 @@ exports.createOrder = asyncHandler(async (req, res, next) => {
         } else if (sub.classId) {
           subClassId = sub.classId.toString();
         }
-        
+
         console.log('Comparing sub classId:', subClassId, 'with plan classId:', prepClassId);
         const matches = subClassId && subClassId === prepClassId;
         if (matches) {
@@ -250,22 +250,22 @@ exports.createOrder = asyncHandler(async (req, res, next) => {
         classId: p.subscriptionPlanId?.classId,
         endDate: p.subscriptionEndDate
       })));
-      
+
       const hasActivePrepFromPayments = activePayments.some(payment => {
-        if (!payment.subscriptionPlanId || 
-            payment.subscriptionPlanId.type !== 'preparation' ||
-            !payment.subscriptionPlanId.classId) {
+        if (!payment.subscriptionPlanId ||
+          payment.subscriptionPlanId.type !== 'preparation' ||
+          !payment.subscriptionPlanId.classId) {
           console.log('Skipping payment - not prep or no classId');
           return false;
         }
-        
+
         let paymentClassId = null;
         if (payment.subscriptionPlanId.classId && typeof payment.subscriptionPlanId.classId === 'object' && payment.subscriptionPlanId.classId._id) {
           paymentClassId = payment.subscriptionPlanId.classId._id.toString();
         } else if (payment.subscriptionPlanId.classId) {
           paymentClassId = payment.subscriptionPlanId.classId.toString();
         }
-        
+
         console.log('Comparing payment classId:', paymentClassId, 'with plan classId:', prepClassId);
         const matches = paymentClassId && paymentClassId === prepClassId;
         if (matches) {
@@ -284,7 +284,7 @@ exports.createOrder = asyncHandler(async (req, res, next) => {
           400
         ));
       }
-      
+
       console.log('No conflicting prep subscription found - allowing subscription');
     } else {
       console.warn('⚠️ Prep class ID not found for plan:', planId);
@@ -429,9 +429,9 @@ exports.verifyPayment = asyncHandler(async (req, res, next) => {
   // Verify payment with Cashfree API (most reliable method)
   try {
     const orderDetails = await cashfree.getOrderDetails(orderId);
-    
+
     console.log('Cashfree order details:', orderDetails);
-    
+
     // Check if payment is successful
     if (orderDetails.order_status !== 'PAID') {
       payment.status = 'failed';
@@ -494,11 +494,36 @@ exports.verifyPayment = asyncHandler(async (req, res, next) => {
     payment.status = 'completed';
     payment.subscriptionStartDate = startDate;
     payment.subscriptionEndDate = endDate;
-    await payment.save();
 
     // Update student subscription
     const student = await Student.findById(studentId);
-    
+
+    // If student has referralAgentId, create ReferralRecord and update payment
+    if (student.referralAgentId) {
+      const ReferralRecord = require('../models/ReferralRecord');
+
+      // Check if referral record already exists for this payment (prevent duplicates)
+      const existingReferral = await ReferralRecord.findOne({
+        paymentId: payment._id
+      });
+
+      if (!existingReferral) {
+        // Create referral record
+        await ReferralRecord.create({
+          agentId: student.referralAgentId,
+          studentId: student._id,
+          paymentId: payment._id,
+          subscriptionPlanId: plan._id,
+          amount: payment.amount,
+          subscriptionDate: startDate,
+          status: 'completed'
+        });
+      }
+
+      // Update payment with referralAgentId
+      payment.referralAgentId = student.referralAgentId;
+    }
+
     // Prepare subscription data for activeSubscriptions array
     const subscriptionData = {
       planId: plan._id,
@@ -530,7 +555,7 @@ exports.verifyPayment = asyncHandler(async (req, res, next) => {
       startDate: startDate,
       endDate: endDate
     };
-    
+
     await student.save();
 
     res.status(200).json({
