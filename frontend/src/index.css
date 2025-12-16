@@ -1,5 +1,29 @@
 @import "tailwindcss";
 
+/* Prevent zooming on all devices */
+html, body {
+  touch-action: manipulation;
+  -ms-touch-action: manipulation;
+  -webkit-touch-callout: none;
+}
+
+/* Prevent double-tap zoom and pinch zoom */
+* {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Allow text selection for text content, input fields and text areas */
+p, span, div, h1, h2, h3, h4, h5, h6, li, td, th, label {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+input, textarea, [contenteditable] {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
 /* Custom Color Variables for App */
 :root {
   --app-white: #FEFFFF;

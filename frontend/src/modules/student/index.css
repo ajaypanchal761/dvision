@@ -1,5 +1,16 @@
 @import "tailwindcss";
 
+/* Prevent zooming */
+html, body {
+  touch-action: manipulation;
+  -ms-touch-action: manipulation;
+}
+
+* {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
 /* Custom Color Variables for App */
 :root {
   --app-white: #FEFFFF;
