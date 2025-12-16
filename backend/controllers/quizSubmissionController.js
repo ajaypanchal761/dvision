@@ -239,6 +239,24 @@ exports.getQuizLeaderboard = asyncHandler(async (req, res) => {
     });
   }
 
+  // Helper function to calculate points based on rank
+  const calculatePoints = (rank) => {
+    switch (rank) {
+      case 1:
+        return 100; // 1st place: 100 points
+      case 2:
+        return 75;  // 2nd place: 75 points
+      case 3:
+        return 50;  // 3rd place: 50 points
+      case 4:
+        return 25;  // 4th place: 25 points
+      case 5:
+        return 15;  // 5th place: 15 points
+      default:
+        return 10;  // 6th place and below: 10 points
+    }
+  };
+
   // Assign ranks
   let currentRank = 1;
   const rankedSubmissions = allSubmissions.map((submission, index) => {
@@ -246,9 +264,11 @@ exports.getQuizLeaderboard = asyncHandler(async (req, res) => {
     if (index > 0 && submission.score < allSubmissions[index - 1].score) {
       currentRank = index + 1;
     }
+    const points = calculatePoints(currentRank);
     return {
       ...submission.toObject(),
-      rank: currentRank
+      rank: currentRank,
+      points: points
     };
   });
 
@@ -270,12 +290,18 @@ exports.getQuizLeaderboard = asyncHandler(async (req, res) => {
     rank: sub.rank,
     name: sub.studentId?.name || sub.studentId?.fullName || 'Unknown',
     score: sub.score,
-    total: sub.totalQuestions
+    total: sub.totalQuestions,
+    points: sub.points
   }));
 
   // Get current student's submission
   const currentStudentSubmission = allSubmissions.find(
     sub => sub.studentId && sub.studentId._id && sub.studentId._id.toString() === studentId.toString()
+  );
+
+  // Get current student's rank and points
+  const currentStudentRanked = rankedSubmissions.find(
+    s => s.studentId && s.studentId._id && s.studentId._id.toString() === studentId.toString()
   );
 
   res.status(200).json({
@@ -286,7 +312,8 @@ exports.getQuizLeaderboard = asyncHandler(async (req, res) => {
         score: currentStudentSubmission.score,
         totalQuestions: currentStudentSubmission.totalQuestions,
         submittedAt: currentStudentSubmission.submittedAt,
-        rank: rankedSubmissions.find(s => s.studentId && s.studentId._id && s.studentId._id.toString() === studentId.toString())?.rank || null
+        rank: currentStudentRanked?.rank || null,
+        points: currentStudentRanked?.points || 0
       } : null,
       totalStudents: allSubmissions.length
     }

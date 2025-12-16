@@ -138,6 +138,11 @@ const QuizResults = () => {
                   <p className="text-gray-500 text-[10px] sm:text-xs">
                     {topStudents[1] ? Math.round((topStudents[1].score / topStudents[1].total) * 100) : 0}%
                   </p>
+                  {topStudents[1]?.points && (
+                    <p className="text-[var(--app-dark-blue)] font-bold text-[10px] sm:text-xs mt-0.5">
+                      {topStudents[1].points} pts
+                    </p>
+                  )}
                 </div>
               )}
 
@@ -160,6 +165,11 @@ const QuizResults = () => {
                 <p className="text-gray-500 text-[10px] sm:text-xs">
                   {topStudents[0] ? Math.round((topStudents[0].score / topStudents[0].total) * 100) : 0}%
                 </p>
+                {topStudents[0]?.points && (
+                  <p className="text-amber-600 font-bold text-[10px] sm:text-xs mt-0.5">
+                    {topStudents[0].points} pts
+                  </p>
+                )}
               </div>
 
               {/* 3rd Place - Right */}
@@ -182,6 +192,11 @@ const QuizResults = () => {
                   <p className="text-gray-500 text-[10px] sm:text-xs">
                     {topStudents[2] ? Math.round((topStudents[2].score / topStudents[2].total) * 100) : 0}%
                   </p>
+                  {topStudents[2]?.points && (
+                    <p className="text-[var(--app-dark-blue)] font-bold text-[10px] sm:text-xs mt-0.5">
+                      {topStudents[2].points} pts
+                    </p>
+                  )}
                 </div>
               )}
             </div>
@@ -226,6 +241,11 @@ const QuizResults = () => {
                     {Math.round((submissionData.score / (submissionData.totalQuestions || quiz?.questions?.length || 20)) * 100)}%
                     {submissionData.rank && ` • Rank #${submissionData.rank}`}
                   </p>
+                  {submissionData.points && submissionData.points > 0 && (
+                    <p className="text-[var(--app-dark-blue)] font-bold text-sm sm:text-base md:text-lg mt-1 sm:mt-1.5">
+                      🏆 {submissionData.points} Points Earned
+                    </p>
+                  )}
                 </div>
               </div>
             </div>

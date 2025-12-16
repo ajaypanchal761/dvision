@@ -45,16 +45,98 @@ exports.getAllLiveClasses = asyncHandler(async (req, res) => {
 // @route   GET /api/teacher/live-classes
 // @access  Private/Teacher
 exports.getMyLiveClasses = asyncHandler(async (req, res) => {
-  const { status } = req.query;
+  const { status, date, search } = req.query;
 
   const query = { teacherId: req.user._id };
   if (status) query.status = status;
 
-  const liveClasses = await LiveClass.find(query)
+  // Filter by date if provided
+  if (date) {
+    // Parse date string (YYYY-MM-DD) and create UTC date range
+    const dateParts = date.split('-');
+    if (dateParts.length === 3) {
+      const year = parseInt(dateParts[0], 10);
+      const month = parseInt(dateParts[1], 10) - 1; // Month is 0-indexed
+      const day = parseInt(dateParts[2], 10);
+      
+      // Create UTC date for start of selected day (00:00:00 UTC)
+      const selectedDate = new Date(Date.UTC(year, month, day, 0, 0, 0, 0));
+      // Create UTC date for start of next day (00:00:00 UTC)
+      const nextDate = new Date(Date.UTC(year, month, day + 1, 0, 0, 0, 0));
+      
+      console.log('[LiveClass] Teacher date filter:', {
+        dateParam: date,
+        selectedDateUTC: selectedDate.toISOString(),
+        nextDateUTC: nextDate.toISOString()
+      });
+      
+      query.scheduledStartTime = {
+        $gte: selectedDate,
+        $lt: nextDate
+      };
+    } else {
+      // Fallback: try parsing as ISO string
+      const selectedDate = new Date(date);
+      if (!isNaN(selectedDate.getTime())) {
+        // Convert to UTC start of day
+        const year = selectedDate.getUTCFullYear();
+        const month = selectedDate.getUTCMonth();
+        const day = selectedDate.getUTCDate();
+        const startDate = new Date(Date.UTC(year, month, day, 0, 0, 0, 0));
+        const endDate = new Date(Date.UTC(year, month, day + 1, 0, 0, 0, 0));
+        
+        query.scheduledStartTime = {
+          $gte: startDate,
+          $lt: endDate
+        };
+      }
+    }
+  } else {
+    // Default: show current date classes (in UTC)
+    const now = new Date();
+    const year = now.getUTCFullYear();
+    const month = now.getUTCMonth();
+    const day = now.getUTCDate();
+    
+    const today = new Date(Date.UTC(year, month, day, 0, 0, 0, 0));
+    const tomorrow = new Date(Date.UTC(year, month, day + 1, 0, 0, 0, 0));
+    
+    query.scheduledStartTime = {
+      $gte: today,
+      $lt: tomorrow
+    };
+  }
+
+  // Get live classes
+  let liveClasses = await LiveClass.find(query)
     .populate('timetableId', 'dayOfWeek startTime endTime topic')
     .populate('classId', 'type class board name classCode')
     .populate('subjectId', 'name')
     .sort({ scheduledStartTime: -1 });
+
+  // Apply search filter if provided
+  if (search && search.trim()) {
+    const searchLower = search.toLowerCase().trim();
+    console.log('[LiveClass] Teacher applying search filter:', searchLower);
+    
+    liveClasses = liveClasses.filter(liveClass => {
+      const titleMatch = liveClass.title?.toLowerCase().includes(searchLower);
+      const subjectMatch = liveClass.subjectId?.name?.toLowerCase().includes(searchLower);
+      
+      // Also search in date string
+      const classDate = new Date(liveClass.scheduledStartTime);
+      const dateStr = classDate.toLocaleDateString('en-IN', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      });
+      const dateMatch = dateStr.toLowerCase().includes(searchLower);
+      
+      return titleMatch || subjectMatch || dateMatch;
+    });
+    
+    console.log('[LiveClass] Teacher search results count:', liveClasses.length);
+  }
 
   res.status(200).json({
     success: true,
@@ -253,7 +335,7 @@ exports.getStudentLiveClasses = asyncHandler(async (req, res) => {
     .populate('timetableId', 'dayOfWeek startTime endTime topic')
     .populate('teacherId', 'name email phone profileImage')
     .populate('subjectId', 'name')
-    .sort({ scheduledStartTime: 1 });
+    .sort({ scheduledStartTime: -1 }); // Latest first (descending order)
 
   // Apply search filter if provided (search is done after date filter)
   if (search && search.trim()) {
@@ -461,63 +543,46 @@ exports.getUpcomingLiveClasses = asyncHandler(async (req, res) => {
     });
   }
 
-  // Get upcoming scheduled live classes (status = 'scheduled' only, regardless of time)
-  // This matches the "Starts Soon" section in Live Classes page
+  // Get upcoming scheduled live classes for today only (status = 'scheduled' and scheduled for today)
+  // This matches the "Starts Soon" section in Live Classes page for current date
+  const today = new Date();
+  const year = today.getUTCFullYear();
+  const month = today.getUTCMonth();
+  const day = today.getUTCDate();
+  
+  // Create UTC date range for today (start and end of today in UTC)
+  const todayStart = new Date(Date.UTC(year, month, day, 0, 0, 0, 0));
+  const todayEnd = new Date(Date.UTC(year, month, day + 1, 0, 0, 0, 0));
+  
   const query = {
     classId: { $in: classIds },
-    status: 'scheduled' // Only scheduled classes (not started yet)
-    // Don't filter by time - show all scheduled classes until teacher starts them
+    status: 'scheduled', // Only scheduled classes (not started yet)
+    scheduledStartTime: {
+      $gte: todayStart,
+      $lt: todayEnd
+    }
   };
 
   let liveClasses = await LiveClass.find(query)
     .populate('classId', 'type class board name classCode')
     .populate('teacherId', 'name email phone profileImage')
     .populate('subjectId', 'name')
-    .sort({ scheduledStartTime: 1 }) // Sort by scheduled time ascending
+    .sort({ scheduledStartTime: -1 }) // Latest first (descending order)
     .limit(10); // Limit to 10 upcoming classes
 
-  // Format the response
+  // Format the response - send raw scheduledStartTime, let frontend format it
+  // This ensures timezone is handled correctly on client side
   const formattedClasses = liveClasses.map(liveClass => {
-    const scheduledTime = new Date(liveClass.scheduledStartTime);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const scheduledDate = new Date(scheduledTime);
-    scheduledDate.setHours(0, 0, 0, 0);
-    
-    // Determine if it's today or tomorrow
-    let dateLabel = '';
-    const diffTime = scheduledDate - today;
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
-    if (diffDays === 0) {
-      dateLabel = 'Today';
-    } else if (diffDays === 1) {
-      dateLabel = 'Tomorrow';
-    } else {
-      dateLabel = scheduledTime.toLocaleDateString('en-IN', {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric'
-      });
-    }
-
-    // Format time
-    const timeStr = scheduledTime.toLocaleTimeString('en-IN', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true
-    });
-
     return {
       _id: liveClass._id,
       id: liveClass._id.toString(),
       title: liveClass.title,
       teacher: liveClass.teacherId?.name || 'Teacher',
+      teacherId: liveClass.teacherId?._id || liveClass.teacherId,
+      subject: liveClass.subjectId?.name || 'Subject',
+      subjectId: liveClass.subjectId?._id || liveClass.subjectId,
       image: null, // No image in live class model
-      time: timeStr,
-      date: dateLabel,
-      scheduledStartTime: liveClass.scheduledStartTime,
-      subject: liveClass.subjectId?.name || 'Subject'
+      scheduledStartTime: liveClass.scheduledStartTime // Send raw date, format on frontend
     };
   });
 

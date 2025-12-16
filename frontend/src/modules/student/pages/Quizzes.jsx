@@ -14,10 +14,12 @@ const Quizzes = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all'); // 'all', 'available', 'submitted', 'expired'
   const [countUpValues, setCountUpValues] = useState({ total: 0, available: 0, submitted: 0, expired: 0 });
+  const [quizStats, setQuizStats] = useState({ total: 0, available: 0, submitted: 0, expired: 0 });
   const hasAnimated = useRef(false);
 
   useEffect(() => {
     fetchQuizzes();
+    fetchQuizStatistics();
   }, []);
 
   useEffect(() => {
@@ -43,10 +45,8 @@ const Quizzes = () => {
       setLoading(true);
       const response = await studentAPI.getQuizzes();
       if (response.success && response.data?.quizzes) {
-        // Backend already filters by subscription, so use all quizzes returned
-        // Filter only by isActive (backend should handle this, but double-check)
-        const filteredQuizzes = response.data.quizzes.filter(quiz => quiz.isActive);
-        setQuizzes(filteredQuizzes);
+        // Backend already filters by subscription and isActive, so use all quizzes returned
+        setQuizzes(response.data.quizzes);
       } else {
         setQuizzes([]);
       }
@@ -55,6 +55,17 @@ const Quizzes = () => {
       setQuizzes([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchQuizStatistics = async () => {
+    try {
+      const response = await studentAPI.getQuizStatistics();
+      if (response.success && response.data?.statistics) {
+        setQuizStats(response.data.statistics);
+      }
+    } catch (err) {
+      console.error('Error fetching quiz statistics:', err);
     }
   };
 
@@ -109,23 +120,34 @@ const Quizzes = () => {
     
     if (!matchesSearch) return false;
     
-    // Status filter
+    // Status filter - Fixed logic:
+    // If submitted: "Submitted"
+    // If deadline passed AND NOT submitted: "Expired"
+    // Otherwise: "Available"
     const isSubmitted = submissionStatuses[quiz._id] || false;
-    const isExpired = isDeadlinePassed(quiz.deadline);
+    const isExpired = isDeadlinePassed(quiz.deadline) && !isSubmitted;
     
     if (statusFilter === 'all') return true;
     if (statusFilter === 'submitted') return isSubmitted;
     if (statusFilter === 'available') return !isSubmitted && !isExpired;
-    if (statusFilter === 'expired') return isExpired && !isSubmitted;
+    if (statusFilter === 'expired') return isExpired;
     
     return true;
   });
 
-  const quizStats = {
+  // Use statistics from backend, fallback to local calculation if not available
+  const displayStats = quizStats.total > 0 ? quizStats : {
     total: quizzes.length,
-    available: quizzes.filter(q => !(submissionStatuses[q._id]) && !isDeadlinePassed(q.deadline)).length,
+    available: quizzes.filter(q => {
+      const submitted = submissionStatuses[q._id] || false;
+      const expired = isDeadlinePassed(q.deadline) && !submitted;
+      return !submitted && !expired;
+    }).length,
     submitted: quizzes.filter(q => submissionStatuses[q._id]).length,
-    expired: quizzes.filter(q => isDeadlinePassed(q.deadline) && !(submissionStatuses[q._id])).length,
+    expired: quizzes.filter(q => {
+      const submitted = submissionStatuses[q._id] || false;
+      return isDeadlinePassed(q.deadline) && !submitted;
+    }).length,
   };
 
   // Count-up animation effect - Slow animation
@@ -135,10 +157,10 @@ const Quizzes = () => {
       const duration = 20; // Fast animation - 0.02 seconds
       
       // Get all stats values first
-      const total = quizStats.total;
-      const available = quizStats.available;
-      const submitted = quizStats.submitted;
-      const expired = quizStats.expired;
+      const total = displayStats.total;
+      const available = displayStats.available;
+      const submitted = displayStats.submitted;
+      const expired = displayStats.expired;
       
       const animateCount = (targetValue, key) => {
         const startTime = Date.now();
@@ -181,7 +203,7 @@ const Quizzes = () => {
       setCountUpValues({ total: 0, available: 0, submitted: 0, expired: 0 });
       hasAnimated.current = false;
     }
-  }, [loading, quizStats.total, quizStats.available, quizStats.submitted, quizStats.expired]);
+  }, [loading, displayStats.total, displayStats.available, displayStats.submitted, displayStats.expired]);
 
   return (
     <div className="min-h-screen bg-white pb-20">
@@ -345,7 +367,7 @@ const Quizzes = () => {
             {filteredQuizzes.map((quiz, index) => {
               const isSubmitted = submissionStatuses[quiz._id] || false;
               const canViewResults = isDeadlinePassed(quiz.deadline);
-              const isExpired = isDeadlinePassed(quiz.deadline);
+              const isExpired = isDeadlinePassed(quiz.deadline) && !isSubmitted;
               
               return (
                 <div
@@ -450,7 +472,7 @@ const Quizzes = () => {
                       </div>
 
                       {/* Action Button or Status Message */}
-                      {isSubmitted && quiz._id && (
+                      {(isSubmitted || isExpired) && quiz._id && (
                         <div className="mt-2 sm:mt-3">
                           {canViewResults ? (
                             <button

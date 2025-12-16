@@ -14,8 +14,7 @@ const EditQuiz = () => {
     subjectId: '',
     status: 'Active',
     deadlineDate: '',
-    deadlineTime: '12:00',
-    deadlineAmPm: 'AM'
+    deadlineTime: '12:00'
   })
   const [questions, setQuestions] = useState([])
   const [allClassesData, setAllClassesData] = useState([])
@@ -58,8 +57,7 @@ const EditQuiz = () => {
             subjectId: quiz.subjectId?._id || quiz.subjectId || '',
             status: quiz.isActive ? 'Active' : 'Inactive',
             deadlineDate: '',
-            deadlineTime: '12:00',
-            deadlineAmPm: 'AM'
+            deadlineTime: '12:00'
           })
 
           // Set deadline if exists
@@ -68,15 +66,13 @@ const EditQuiz = () => {
             const dateStr = deadline.toISOString().split('T')[0]
             const hours = deadline.getHours()
             const minutes = deadline.getMinutes()
-            const hour12 = hours % 12 || 12
-            const ampm = hours >= 12 ? 'PM' : 'AM'
-            const timeStr = `${String(hour12).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`
+            // Use 24-hour format
+            const timeStr = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`
             
             setFormData(prev => ({
               ...prev,
               deadlineDate: dateStr,
-              deadlineTime: timeStr,
-              deadlineAmPm: ampm
+              deadlineTime: timeStr
             }))
           }
 
@@ -256,15 +252,44 @@ const EditQuiz = () => {
       
       let deadline = null
       if (formData.deadlineDate && formData.deadlineTime) {
-        const [hours, minutes] = formData.deadlineTime.split(':')
-        let hour24 = parseInt(hours)
-        if (formData.deadlineAmPm === 'PM' && hour24 !== 12) {
-          hour24 += 12
-        } else if (formData.deadlineAmPm === 'AM' && hour24 === 12) {
-          hour24 = 0
+        try {
+          const [hours, minutes] = formData.deadlineTime.split(':')
+          
+          // Validate time format
+          if (!hours || !minutes || isNaN(parseInt(hours)) || isNaN(parseInt(minutes))) {
+            throw new Error('Invalid time format')
+          }
+          
+          const hour24 = parseInt(hours, 10)
+          const min24 = parseInt(minutes, 10)
+          
+          // Validate hour and minute ranges (24-hour format)
+          if (hour24 < 0 || hour24 > 23 || min24 < 0 || min24 > 59) {
+            throw new Error('Invalid time value')
+          }
+          
+          // Create date string in ISO format (YYYY-MM-DDTHH:mm)
+          const dateStr = `${formData.deadlineDate}T${String(hour24).padStart(2, '0')}:${String(min24).padStart(2, '0')}`
+          const deadlineDateTime = new Date(dateStr)
+          
+          // Validate the created date
+          if (isNaN(deadlineDateTime.getTime())) {
+            throw new Error('Invalid date or time value')
+          }
+          
+          // Check if deadline is in the past (only if editing and deadline hasn't passed yet)
+          const now = new Date()
+          if (!deadlinePassed && deadlineDateTime <= now) {
+            throw new Error('Deadline must be in the future. Please select a future date and time.')
+          }
+          
+          deadline = deadlineDateTime.toISOString()
+        } catch (error) {
+          console.error('Error parsing deadline:', error)
+          alert(error.message || 'Invalid deadline date or time. Please check your input.')
+          setSubmitting(false)
+          return
         }
-        const deadlineDateTime = new Date(`${formData.deadlineDate}T${String(hour24).padStart(2, '0')}:${minutes}`)
-        deadline = deadlineDateTime.toISOString()
       }
 
       const quizData = {
@@ -433,6 +458,7 @@ const EditQuiz = () => {
                 <input
                   type="date"
                   value={formData.deadlineDate}
+                  min={deadlinePassed ? undefined : new Date().toISOString().split('T')[0]}
                   onChange={(e) => setFormData({ ...formData, deadlineDate: e.target.value })}
                   className="flex-1 px-2 sm:px-3 py-2 sm:py-2.5 text-xs sm:text-sm border-2 border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-[var(--app-dark-blue)] focus:border-[var(--app-dark-blue)] outline-none transition-all"
                 />
@@ -440,19 +466,11 @@ const EditQuiz = () => {
                   type="time"
                   value={formData.deadlineTime}
                   onChange={(e) => setFormData({ ...formData, deadlineTime: e.target.value })}
-                  className="w-24 sm:w-28 px-2 sm:px-3 py-2 sm:py-2.5 text-xs sm:text-sm border-2 border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-[var(--app-dark-blue)] focus:border-[var(--app-dark-blue)] outline-none transition-all"
+                  className="w-32 sm:w-36 px-2 sm:px-3 py-2 sm:py-2.5 text-xs sm:text-sm border-2 border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-[var(--app-dark-blue)] focus:border-[var(--app-dark-blue)] outline-none transition-all"
                 />
-                <select
-                  value={formData.deadlineAmPm}
-                  onChange={(e) => setFormData({ ...formData, deadlineAmPm: e.target.value })}
-                  className="w-16 sm:w-20 px-2 sm:px-3 py-2 sm:py-2.5 text-xs sm:text-sm border-2 border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-[var(--app-dark-blue)] focus:border-[var(--app-dark-blue)] outline-none transition-all bg-white"
-                >
-                  <option value="AM">AM</option>
-                  <option value="PM">PM</option>
-                </select>
               </div>
               <p className="text-[10px] sm:text-xs text-gray-500 mt-1">
-                Optional: Set deadline for quiz submission
+                Optional: Set deadline for quiz submission {deadlinePassed ? '(deadline has passed)' : '(must be in the future)'}
               </p>
             </div>
           </div>

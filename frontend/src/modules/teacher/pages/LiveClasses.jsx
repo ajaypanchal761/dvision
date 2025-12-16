@@ -8,14 +8,16 @@ import {
   FiPlay,
   FiVideo,
   FiUsers,
-  FiBook
+  FiBook,
+  FiSearch,
+  FiX
 } from 'react-icons/fi';
 import BottomNav from '../components/common/BottomNav';
 import { liveClassAPI, timetableAPI } from '../services/api';
 
 /**
  * Live Classes Page
- * Shows teacher's live classes and today's scheduled classes
+ * Shows teacher's live classes with search and date filtering
  */
 const LiveClasses = () => {
   const navigate = useNavigate();
@@ -23,10 +25,25 @@ const LiveClasses = () => {
   const [todaysTimetables, setTodaysTimetables] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedDate, setSelectedDate] = useState(null); // null means today
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
+  // Fetch classes when date changes
   useEffect(() => {
     fetchData();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedDate]);
+
+  // Debounce search - fetch when search query changes (with date context)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fetchData();
+    }, 500);
+
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchQuery]);
 
   // Refresh when page becomes visible (user comes back from create page)
   useEffect(() => {
@@ -52,19 +69,42 @@ const LiveClasses = () => {
         navigate('/teacher/login');
         return;
       }
+
+      // Format date for API (YYYY-MM-DD)
+      let dateParam = null;
+      if (selectedDate) {
+        if (typeof selectedDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(selectedDate)) {
+          dateParam = selectedDate;
+        } else {
+          const date = new Date(selectedDate);
+          const year = date.getFullYear();
+          const month = String(date.getMonth() + 1).padStart(2, '0');
+          const day = String(date.getDate()).padStart(2, '0');
+          dateParam = `${year}-${month}-${day}`;
+        }
+      } else {
+        // Default to today
+        const today = new Date();
+        const year = today.getFullYear();
+        const month = String(today.getMonth() + 1).padStart(2, '0');
+        const day = String(today.getDate()).padStart(2, '0');
+        dateParam = `${year}-${month}-${day}`;
+      }
       
-      // Fetch live classes
+      // Fetch live classes with date and search filters
       try {
-        const liveClassesResponse = await liveClassAPI.getMyLiveClasses();
+        const liveClassesResponse = await liveClassAPI.getMyLiveClasses(
+          dateParam,
+          searchQuery || null,
+          null
+        );
         if (liveClassesResponse.success && liveClassesResponse.data?.liveClasses) {
           setLiveClasses(liveClassesResponse.data.liveClasses);
         }
       } catch (liveClassError) {
-        // If authorization error, redirect to login
         if (liveClassError.message?.includes('not authorized') || liveClassError.message?.includes('role')) {
           console.error('Authorization error:', liveClassError);
           setError('You are not authorized to access this page. Please login as a teacher.');
-          // Clear invalid token and redirect
           localStorage.removeItem('dvision_token');
           setTimeout(() => {
             navigate('/teacher/login');
@@ -74,43 +114,76 @@ const LiveClasses = () => {
         throw liveClassError;
       }
 
-      // Fetch today's schedule classes
-      const now = new Date();
-      const currentDay = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][now.getDay()];
-      
-      // Fetch only today's timetable classes
-      try {
-        const scheduleResponse = await timetableAPI.getMySchedule(currentDay);
-        if (scheduleResponse.success && scheduleResponse.data?.timetables) {
-          const timetables = scheduleResponse.data.timetables || [];
-          const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-          
-          // Filter today's classes (only show classes that haven't ended yet)
-          const todaysClasses = timetables.filter(t => {
-            const [endHours, endMinutes] = t.endTime.split(':').map(Number);
-            const endTime = `${String(endHours).padStart(2, '0')}:${String(endMinutes).padStart(2, '0')}`;
-            return endTime >= currentTime; // Only show classes that haven't ended
-          });
-          
-          setTodaysTimetables(todaysClasses);
+      // Fetch today's schedule classes (only if no date selected or today selected)
+      if (!selectedDate || dateParam === getTodayDateString()) {
+        const now = new Date();
+        const currentDay = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][now.getDay()];
+        
+        try {
+          const scheduleResponse = await timetableAPI.getMySchedule(currentDay);
+          if (scheduleResponse.success && scheduleResponse.data?.timetables) {
+            const timetables = scheduleResponse.data.timetables || [];
+            const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+            
+            const todaysClasses = timetables.filter(t => {
+              const [endHours, endMinutes] = t.endTime.split(':').map(Number);
+              const endTime = `${String(endHours).padStart(2, '0')}:${String(endMinutes).padStart(2, '0')}`;
+              return endTime >= currentTime;
+            });
+            
+            setTodaysTimetables(todaysClasses);
+          }
+        } catch (scheduleError) {
+          if (scheduleError.message?.includes('not authorized') || scheduleError.message?.includes('role')) {
+            console.warn('Could not fetch schedule:', scheduleError);
+          } else {
+            throw scheduleError;
+          }
         }
-      } catch (scheduleError) {
-        // If authorization error for schedule, just log it but don't block the page
-        if (scheduleError.message?.includes('not authorized') || scheduleError.message?.includes('role')) {
-          console.warn('Could not fetch schedule:', scheduleError);
-        } else {
-          throw scheduleError;
-        }
+      } else {
+        setTodaysTimetables([]);
       }
     } catch (err) {
       console.error('Error fetching data:', err);
-      // Only set error if it's not an authorization error (already handled)
       if (!err.message?.includes('not authorized') && !err.message?.includes('role')) {
         setError(err.message || 'Failed to load classes');
       }
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const getTodayDateString = () => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const handleDateChange = (e) => {
+    const date = e.target.value;
+    setSelectedDate(date);
+  };
+
+  const resetDate = () => {
+    setSelectedDate(null);
+  };
+
+  const getDateDisplay = () => {
+    if (!selectedDate) {
+      return 'Today';
+    }
+    const dateParts = selectedDate.split('-');
+    if (dateParts.length === 3) {
+      const date = new Date(parseInt(dateParts[0]), parseInt(dateParts[1]) - 1, parseInt(dateParts[2]));
+      return date.toLocaleDateString('en-IN', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      });
+    }
+    return selectedDate;
   };
 
   const formatTime = (time) => {
@@ -120,6 +193,22 @@ const LiveClasses = () => {
     const ampm = hour >= 12 ? 'PM' : 'AM';
     const displayHour = hour % 12 || 12;
     return `${displayHour}:${minutes} ${ampm}`;
+  };
+
+  const formatDateTime = (dateString) => {
+    if (!dateString) return { date: 'N/A', time: 'N/A' };
+    const date = new Date(dateString);
+    const dateStr = date.toLocaleDateString('en-IN', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+    const timeStr = date.toLocaleTimeString('en-IN', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true
+    });
+    return { date: dateStr, time: timeStr };
   };
 
   const handleCreateLiveClass = () => {
@@ -150,6 +239,12 @@ const LiveClasses = () => {
     };
     return badges[status] || badges.scheduled;
   };
+
+  // Group classes by status
+  const liveNow = liveClasses.filter(lc => lc.status === 'live');
+  const startsSoon = liveClasses.filter(lc => lc.status === 'scheduled');
+  const ended = liveClasses.filter(lc => lc.status === 'ended');
+  const cancelled = liveClasses.filter(lc => lc.status === 'cancelled');
 
   return (
     <div className="min-h-screen bg-white pb-20 sm:pb-24 relative">
@@ -188,8 +283,85 @@ const LiveClasses = () => {
         </div>
       </header>
 
-      {/* Content */}
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-4 sm:py-5">
+      {/* Main Content */}
+      <main className="px-4 sm:px-6 py-4 sm:py-5">
+        {/* Search Bar with Calendar Icon */}
+        <div className="mb-4 relative">
+          <div className="relative">
+            <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-lg z-10" />
+            <input
+              type="text"
+              placeholder="Search by name, subject, or date..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-12 py-2.5 sm:py-3 border border-gray-300 rounded-lg sm:rounded-xl focus:outline-none focus:ring-2 focus:ring-[var(--app-dark-blue)] text-sm sm:text-base"
+            />
+            <div className="absolute right-3 top-1/2 transform -translate-y-1/2 flex items-center gap-2">
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <FiX className="text-lg" />
+                </button>
+              )}
+              <button
+                onClick={() => setShowDatePicker(!showDatePicker)}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+                title={selectedDate ? `Selected: ${getDateDisplay()}` : 'Select Date'}
+              >
+                <FiCalendar className="text-lg" />
+              </button>
+            </div>
+          </div>
+          
+          {/* Hidden Date Input */}
+          <input
+            type="date"
+            value={selectedDate || getTodayDateString()}
+            onChange={handleDateChange}
+            className="hidden"
+            id="date-picker-hidden"
+          />
+          
+          {/* Date Picker Modal */}
+          {showDatePicker && (
+            <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-lg border border-gray-200 p-4 z-50">
+              <div className="flex items-center justify-between mb-3">
+                <label className="text-sm font-semibold text-gray-700">Select Date:</label>
+                <button
+                  onClick={() => setShowDatePicker(false)}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  <FiX className="text-lg" />
+                </button>
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="date"
+                  value={selectedDate || getTodayDateString()}
+                  onChange={(e) => {
+                    handleDateChange(e);
+                    setShowDatePicker(false);
+                  }}
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--app-dark-blue)] text-sm"
+                />
+                {selectedDate && (
+                  <button
+                    onClick={() => {
+                      resetDate();
+                      setShowDatePicker(false);
+                    }}
+                    className="px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium transition-colors"
+                  >
+                    Today
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
         {error && (
           <div className="mb-4 bg-red-50 border-2 border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm">
             {error}
@@ -204,74 +376,268 @@ const LiveClasses = () => {
           <>
             {/* Live Classes Section */}
             {liveClasses.length > 0 && (
-              <div className="mb-6">
-                <h2 className="text-lg font-bold text-gray-800 mb-3">Live Classes</h2>
-                <div className="space-y-3">
-                  {liveClasses.map((liveClass) => (
-                    <div
-                      key={liveClass._id}
-                      className="bg-white border-2 border-gray-200 rounded-xl p-4 shadow-sm hover:shadow-md transition-all"
-                    >
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="flex-1">
-                          <h3 className="font-bold text-base text-gray-800 mb-1">
-                            {liveClass.title}
-                          </h3>
-                          <div className="flex items-center gap-2 flex-wrap text-xs text-gray-600">
-                            {liveClass.subjectId && (
-                              <span className="flex items-center gap-1">
-                                <FiBook className="text-[var(--app-dark-blue)]" />
-                                {liveClass.subjectId.name}
-                              </span>
-                            )}
-                            {liveClass.classId && (
-                              <span className="flex items-center gap-1">
-                                <FiUsers className="text-[var(--app-dark-blue)]" />
-                                {liveClass.classId.type === 'regular' 
-                                  ? `Class ${liveClass.classId.class} - ${liveClass.classId.board}`
-                                  : liveClass.classId.name}
-                              </span>
-                            )}
+              <div className="space-y-4 sm:space-y-5 mb-6">
+                {/* Live Now Section */}
+                {liveNow.length > 0 && (
+                  <div className="space-y-3">
+                    <h2 className="text-sm sm:text-base font-bold text-gray-700 flex items-center gap-2">
+                      <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                      Live Now ({liveNow.length})
+                    </h2>
+                    {liveNow.map((liveClass) => {
+                      const scheduledTime = new Date(liveClass.scheduledStartTime);
+                      const { date, time } = formatDateTime(scheduledTime.toISOString());
+
+                      return (
+                        <div
+                          key={liveClass._id}
+                          className="bg-white border-2 border-green-200 rounded-xl p-4 shadow-sm hover:shadow-md transition-all"
+                        >
+                          <div className="flex items-start justify-between mb-3">
+                            <div className="flex-1">
+                              <h3 className="font-bold text-base text-gray-800 mb-1">
+                                {liveClass.title}
+                              </h3>
+                              <div className="flex items-center gap-2 flex-wrap text-xs text-gray-600">
+                                {liveClass.subjectId && (
+                                  <span className="flex items-center gap-1">
+                                    <FiBook className="text-[var(--app-dark-blue)]" />
+                                    {liveClass.subjectId.name}
+                                  </span>
+                                )}
+                                {liveClass.classId && (
+                                  <span className="flex items-center gap-1">
+                                    <FiUsers className="text-[var(--app-dark-blue)]" />
+                                    {liveClass.classId.type === 'regular' 
+                                      ? `Class ${liveClass.classId.class} - ${liveClass.classId.board}`
+                                      : liveClass.classId.name}
+                                  </span>
+                                )}
+                                <span className="flex items-center gap-1">
+                                  <FiCalendar className="text-[var(--app-dark-blue)]" />
+                                  {date}
+                                </span>
+                                <span className="flex items-center gap-1">
+                                  <FiClock className="text-[var(--app-dark-blue)]" />
+                                  {time}
+                                </span>
+                              </div>
+                            </div>
+                            <span className={`px-2 py-1 rounded-lg text-xs font-semibold ${getStatusBadge(liveClass.status)}`}>
+                              {liveClass.status}
+                            </span>
                           </div>
-                        </div>
-                        <span className={`px-2 py-1 rounded-lg text-xs font-semibold ${getStatusBadge(liveClass.status)}`}>
-                          {liveClass.status}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {liveClass.status === 'scheduled' && (
-                          <button
-                            onClick={() => handleStartClass(liveClass._id)}
-                            className="flex-1 bg-[var(--app-dark-blue)] text-white px-4 py-2 rounded-lg font-semibold text-sm flex items-center justify-center gap-2 hover:bg-[var(--app-dark-blue)]/90"
-                          >
-                            <FiPlay className="text-base" />
-                            Start Class
-                          </button>
-                        )}
-                        {liveClass.status === 'live' && (
                           <button
                             onClick={() => handleJoinClass(liveClass._id)}
-                            className="flex-1 bg-green-600 text-white px-4 py-2 rounded-lg font-semibold text-sm flex items-center justify-center gap-2 hover:bg-green-700"
+                            className="w-full bg-green-600 text-white px-4 py-2 rounded-lg font-semibold text-sm flex items-center justify-center gap-2 hover:bg-green-700"
                           >
                             <FiVideo className="text-base" />
                             Join Class
                           </button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Starts Soon Section */}
+                {startsSoon.length > 0 && (
+                  <div className="space-y-3">
+                    <h2 className="text-sm sm:text-base font-bold text-gray-700 flex items-center gap-2">
+                      <FiClock className="text-[var(--app-dark-blue)]" />
+                      Starts Soon ({startsSoon.length})
+                    </h2>
+                    {startsSoon.map((liveClass) => {
+                      const scheduledTime = new Date(liveClass.scheduledStartTime);
+                      const { date, time } = formatDateTime(scheduledTime.toISOString());
+
+                      return (
+                        <div
+                          key={liveClass._id}
+                          className="bg-white border-2 border-gray-200 rounded-xl p-4 shadow-sm hover:shadow-md transition-all"
+                        >
+                          <div className="flex items-start justify-between mb-3">
+                            <div className="flex-1">
+                              <h3 className="font-bold text-base text-gray-800 mb-1">
+                                {liveClass.title}
+                              </h3>
+                              <div className="flex items-center gap-2 flex-wrap text-xs text-gray-600">
+                                {liveClass.subjectId && (
+                                  <span className="flex items-center gap-1">
+                                    <FiBook className="text-[var(--app-dark-blue)]" />
+                                    {liveClass.subjectId.name}
+                                  </span>
+                                )}
+                                {liveClass.classId && (
+                                  <span className="flex items-center gap-1">
+                                    <FiUsers className="text-[var(--app-dark-blue)]" />
+                                    {liveClass.classId.type === 'regular' 
+                                      ? `Class ${liveClass.classId.class} - ${liveClass.classId.board}`
+                                      : liveClass.classId.name}
+                                  </span>
+                                )}
+                                <span className="flex items-center gap-1">
+                                  <FiCalendar className="text-[var(--app-dark-blue)]" />
+                                  {date}
+                                </span>
+                                <span className="flex items-center gap-1">
+                                  <FiClock className="text-[var(--app-dark-blue)]" />
+                                  {time}
+                                </span>
+                              </div>
+                            </div>
+                            <span className={`px-2 py-1 rounded-lg text-xs font-semibold ${getStatusBadge(liveClass.status)}`}>
+                              {liveClass.status}
+                            </span>
+                          </div>
+                          <button
+                            onClick={() => handleStartClass(liveClass._id)}
+                            className="w-full bg-[var(--app-dark-blue)] text-white px-4 py-2 rounded-lg font-semibold text-sm flex items-center justify-center gap-2 hover:bg-[var(--app-dark-blue)]/90"
+                          >
+                            <FiPlay className="text-base" />
+                            Start Class
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Ended Section */}
+                {ended.length > 0 && (
+                  <div className="space-y-3">
+                    <h2 className="text-sm sm:text-base font-bold text-gray-700 flex items-center gap-2">
+                      <FiClock className="text-gray-500" />
+                      Ended ({ended.length})
+                    </h2>
+                    {ended.map((liveClass) => {
+                      const scheduledTime = new Date(liveClass.scheduledStartTime);
+                      const { date, time } = formatDateTime(scheduledTime.toISOString());
+                      const startTimeInfo = liveClass.actualStartTime ? formatDateTime(liveClass.actualStartTime) : null;
+                      const endTimeInfo = liveClass.endTime ? formatDateTime(liveClass.endTime) : null;
+
+                      return (
+                        <div
+                          key={liveClass._id}
+                          className="bg-white border-2 border-gray-200 rounded-xl p-4 shadow-sm hover:shadow-md transition-all opacity-75"
+                        >
+                          <div className="flex items-start justify-between mb-3">
+                            <div className="flex-1">
+                              <h3 className="font-bold text-base text-gray-800 mb-1">
+                                {liveClass.title}
+                              </h3>
+                              <div className="flex items-center gap-2 flex-wrap text-xs text-gray-600 mb-2">
+                                {liveClass.subjectId && (
+                                  <span className="flex items-center gap-1">
+                                    <FiBook className="text-[var(--app-dark-blue)]" />
+                                    {liveClass.subjectId.name}
+                                  </span>
+                                )}
+                                {liveClass.classId && (
+                                  <span className="flex items-center gap-1">
+                                    <FiUsers className="text-[var(--app-dark-blue)]" />
+                                    {liveClass.classId.type === 'regular' 
+                                      ? `Class ${liveClass.classId.class} - ${liveClass.classId.board}`
+                                      : liveClass.classId.name}
+                                  </span>
+                                )}
+                                <span className="flex items-center gap-1">
+                                  <FiCalendar className="text-[var(--app-dark-blue)]" />
+                                  {date}
+                                </span>
+                              </div>
+                              {/* Show actual start and end times for ended classes */}
+                              {startTimeInfo && (
+                                <div className="text-xs text-gray-500 mb-1">
+                                  <span className="font-medium">Started:</span> {startTimeInfo.date} at {startTimeInfo.time}
+                                </div>
+                              )}
+                              {endTimeInfo && (
+                                <div className="text-xs text-gray-500">
+                                  <span className="font-medium">Ended:</span> {endTimeInfo.date} at {endTimeInfo.time}
+                                </div>
+                              )}
+                              {!startTimeInfo && !endTimeInfo && (
+                                <div className="text-xs text-gray-500">
+                                  Scheduled: {date} at {time}
+                                </div>
+                              )}
+                            </div>
+                            <span className={`px-2 py-1 rounded-lg text-xs font-semibold ${getStatusBadge(liveClass.status)}`}>
+                              {liveClass.status}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Cancelled Section */}
+                {cancelled.length > 0 && (
+                  <div className="space-y-3">
+                    <h2 className="text-sm sm:text-base font-bold text-gray-700 flex items-center gap-2">
+                      <FiX className="text-red-500" />
+                      Cancelled ({cancelled.length})
+                    </h2>
+                    {cancelled.map((liveClass) => {
+                      const scheduledTime = new Date(liveClass.scheduledStartTime);
+                      const { date, time } = formatDateTime(scheduledTime.toISOString());
+
+                      return (
+                        <div
+                          key={liveClass._id}
+                          className="bg-white border-2 border-red-200 rounded-xl p-4 shadow-sm hover:shadow-md transition-all opacity-75"
+                        >
+                          <div className="flex items-start justify-between mb-3">
+                            <div className="flex-1">
+                              <h3 className="font-bold text-base text-gray-800 mb-1">
+                                {liveClass.title}
+                              </h3>
+                              <div className="flex items-center gap-2 flex-wrap text-xs text-gray-600">
+                                {liveClass.subjectId && (
+                                  <span className="flex items-center gap-1">
+                                    <FiBook className="text-[var(--app-dark-blue)]" />
+                                    {liveClass.subjectId.name}
+                                  </span>
+                                )}
+                                {liveClass.classId && (
+                                  <span className="flex items-center gap-1">
+                                    <FiUsers className="text-[var(--app-dark-blue)]" />
+                                    {liveClass.classId.type === 'regular' 
+                                      ? `Class ${liveClass.classId.class} - ${liveClass.classId.board}`
+                                      : liveClass.classId.name}
+                                  </span>
+                                )}
+                                <span className="flex items-center gap-1">
+                                  <FiCalendar className="text-[var(--app-dark-blue)]" />
+                                  {date}
+                                </span>
+                                <span className="flex items-center gap-1">
+                                  <FiClock className="text-[var(--app-dark-blue)]" />
+                                  {time}
+                                </span>
+                              </div>
+                            </div>
+                            <span className={`px-2 py-1 rounded-lg text-xs font-semibold ${getStatusBadge(liveClass.status)}`}>
+                              {liveClass.status}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             )}
 
-            {/* Today's Timetable Classes Section (Info Only) */}
-            {todaysTimetables.length > 0 && (
+            {/* Today's Timetable Classes Section (Info Only) - Only show if today selected */}
+            {todaysTimetables.length > 0 && (!selectedDate || selectedDate === getTodayDateString()) && (
               <div>
                 <h2 className="text-lg font-bold text-gray-800 mb-3">Today's Classes</h2>
                 <p className="text-xs text-gray-500 mb-3">These are your scheduled classes for today from timetable. You can create live classes anytime using the Create button above.</p>
                 <div className="space-y-3">
                   {todaysTimetables.map((timetable) => {
-                    // Check if live class already exists
                     const existingLiveClass = liveClasses.find(
                       lc => lc.timetableId?._id === timetable._id || lc.timetableId === timetable._id
                     );
@@ -321,10 +687,42 @@ const LiveClasses = () => {
                   <FiClock className="text-[var(--app-dark-blue)] text-3xl" />
                 </div>
                 <h2 className="text-lg sm:text-xl font-bold text-gray-800 mb-1.5 text-center">
-                  No live classes yet
+                  {(() => {
+                    if (!selectedDate) {
+                      return 'No live classes today';
+                    }
+                    const selected = new Date(selectedDate);
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    selected.setHours(0, 0, 0, 0);
+                    
+                    if (selected < today) {
+                      return 'No live classes on this date';
+                    } else if (selected > today) {
+                      return 'No live classes scheduled';
+                    } else {
+                      return 'No live classes today';
+                    }
+                  })()}
                 </h2>
                 <p className="text-gray-500 text-center max-w-md text-xs sm:text-sm mb-4">
-                  Create a live class to get started
+                  {(() => {
+                    if (!selectedDate) {
+                      return 'Create a live class to get started';
+                    }
+                    const selected = new Date(selectedDate);
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    selected.setHours(0, 0, 0, 0);
+                    
+                    if (selected < today) {
+                      return 'There were no live classes scheduled for this date';
+                    } else if (selected > today) {
+                      return 'Check back later for upcoming classes';
+                    } else {
+                      return 'Create a live class to get started';
+                    }
+                  })()}
                 </p>
                 <button
                   onClick={handleCreateLiveClass}
@@ -337,7 +735,7 @@ const LiveClasses = () => {
             )}
           </>
         )}
-      </div>
+      </main>
 
       {/* Bottom Navigation Bar */}
       <BottomNav />

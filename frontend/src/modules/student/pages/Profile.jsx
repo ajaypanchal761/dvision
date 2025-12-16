@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { FiUser, FiTrash2, FiChevronRight, FiEdit2, FiLogOut, FiFileText, FiShield, FiDollarSign, FiArrowLeft } from 'react-icons/fi';
+import { FiUser, FiChevronRight, FiEdit2, FiLogOut, FiFileText, FiShield, FiDollarSign, FiArrowLeft } from 'react-icons/fi';
 import { ROUTES } from '../constants/routes';
 import { useAuth } from '../context/AuthContext';
 import BottomNav from '../components/common/BottomNav';
@@ -74,13 +74,6 @@ const Profile = () => {
       label: 'Terms & Conditions',
       icon: FiFileText,
       onClick: () => navigate('/content/terms-and-conditions')
-    },
-    {
-      id: 'delete-account',
-      label: 'Delete Account',
-      icon: FiTrash2,
-      onClick: () => navigate('/delete-account'),
-      isDestructive: true
     },
     {
       id: 'logout',

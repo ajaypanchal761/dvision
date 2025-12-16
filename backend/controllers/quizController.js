@@ -551,3 +551,200 @@ exports.deleteQuiz = asyncHandler(async (req, res) => {
   });
 });
 
+// @desc    Get quiz statistics for teacher
+// @route   GET /api/teacher/quizzes/statistics
+// @access  Private/Teacher
+exports.getTeacherQuizStatistics = asyncHandler(async (req, res) => {
+  const QuizSubmission = require('../models/QuizSubmission');
+  const teacherId = req.user._id;
+  const now = new Date();
+
+  // Get all quizzes created by this teacher
+  const allQuizzes = await Quiz.find({ createdBy: teacherId });
+
+  // Calculate statistics
+  const total = allQuizzes.length;
+  const active = allQuizzes.filter(q => q.isActive && (!q.deadline || new Date(q.deadline) > now)).length;
+  const completed = allQuizzes.filter(q => q.deadline && new Date(q.deadline) <= now).length;
+  const inactive = allQuizzes.filter(q => !q.isActive && (!q.deadline || new Date(q.deadline) > now)).length;
+
+  res.status(200).json({
+    success: true,
+    data: {
+      statistics: {
+        total,
+        active,
+        completed,
+        inactive
+      }
+    }
+  });
+});
+
+// @desc    Get quiz statistics for student
+// @route   GET /api/student/quizzes/statistics
+// @access  Private/Student
+exports.getStudentQuizStatistics = asyncHandler(async (req, res) => {
+  const QuizSubmission = require('../models/QuizSubmission');
+  const Student = require('../models/Student');
+  const Payment = require('../models/Payment');
+  const Class = require('../models/Class');
+  const studentId = req.user._id;
+  const now = new Date();
+
+  // Get student data
+  const student = await Student.findById(studentId);
+  if (!student || !student.class || !student.board) {
+    throw new ErrorResponse('Student class or board not found', 404);
+  }
+
+  // Check active subscriptions (same logic as getAllQuizzes)
+  const activeSubsFromArray = (student.activeSubscriptions || []).filter(sub => 
+    new Date(sub.endDate) >= now
+  );
+
+  const activePayments = await Payment.find({
+    studentId: student._id,
+    status: 'completed',
+    subscriptionEndDate: { $gte: now }
+  })
+    .populate({
+      path: 'subscriptionPlanId',
+      select: 'type board classes classId',
+      populate: {
+        path: 'classId',
+        select: '_id name classCode'
+      }
+    });
+
+  const hasActiveClassSubscription = activePayments.some(payment => 
+    payment.subscriptionPlanId && 
+    payment.subscriptionPlanId.type === 'regular' &&
+    payment.subscriptionPlanId.board === student.board &&
+    payment.subscriptionPlanId.classes &&
+    payment.subscriptionPlanId.classes.includes(student.class)
+  ) || activeSubsFromArray.some(sub => 
+    sub.type === 'regular' && 
+    sub.board === student.board && 
+    sub.class === student.class
+  );
+
+  const prepClassIdsFromPayments = activePayments
+    .filter(payment => 
+      payment.subscriptionPlanId && 
+      payment.subscriptionPlanId.type === 'preparation' &&
+      payment.subscriptionPlanId.classId
+    )
+    .map(payment => payment.subscriptionPlanId.classId._id || payment.subscriptionPlanId.classId);
+
+  const prepClassIdsFromArray = activeSubsFromArray
+    .filter(sub => sub.type === 'preparation' && sub.classId)
+    .map(sub => {
+      const classId = sub.classId._id || sub.classId;
+      return classId ? classId.toString() : null;
+    })
+    .filter(Boolean);
+
+  const mongoose = require('mongoose');
+  const allPrepClassIds = [...new Set([
+    ...prepClassIdsFromPayments.map(id => id.toString()),
+    ...prepClassIdsFromArray
+  ])];
+
+  const preparationClassIds = allPrepClassIds
+    .filter(id => mongoose.Types.ObjectId.isValid(id))
+    .map(id => new mongoose.Types.ObjectId(id));
+
+  const classIds = [];
+
+  if (hasActiveClassSubscription) {
+    const classItem = await Class.findOne({
+      type: 'regular',
+      class: student.class,
+      board: student.board,
+      isActive: true
+    });
+    if (classItem) {
+      classIds.push(classItem._id);
+    }
+  }
+
+  if (preparationClassIds.length > 0) {
+    classIds.push(...preparationClassIds);
+  }
+
+  if (classIds.length === 0) {
+    return res.status(200).json({
+      success: true,
+      data: {
+        statistics: {
+          total: 0,
+          available: 0,
+          submitted: 0,
+          expired: 0
+        }
+      }
+    });
+  }
+
+  // Get all active quizzes for student's classes (same logic as getAllQuizzes)
+  const regularQuery = {
+    classNumber: student.class,
+    board: student.board,
+    isActive: true
+  };
+
+  const preparationQuery = {
+    classId: { $in: preparationClassIds },
+    isActive: true
+  };
+
+  const regularQuizzes = hasActiveClassSubscription
+    ? await Quiz.find(regularQuery)
+    : [];
+
+  const preparationQuizzes = preparationClassIds.length > 0
+    ? await Quiz.find(preparationQuery)
+    : [];
+
+  const allQuizzes = [...regularQuizzes, ...preparationQuizzes];
+
+  // Get all submissions for this student
+  const submissions = await QuizSubmission.find({ studentId: studentId });
+  const submissionMap = new Map();
+  submissions.forEach(sub => {
+    submissionMap.set(sub.quizId.toString(), true);
+  });
+
+  // Calculate statistics
+  const total = allQuizzes.length;
+  let available = 0;
+  let submitted = 0;
+  let expired = 0;
+
+  allQuizzes.forEach(quiz => {
+    const hasSubmitted = submissionMap.has(quiz._id.toString());
+    const deadlinePassed = quiz.deadline && new Date(quiz.deadline) <= now;
+
+    if (hasSubmitted) {
+      submitted++;
+    } else if (deadlinePassed) {
+      expired++;
+    } else {
+      available++;
+    }
+  });
+
+  res.status(200).json({
+    success: true,
+    data: {
+      statistics: {
+        total,
+        available,
+        submitted,
+        expired
+      }
+    }
+  });
+});
+

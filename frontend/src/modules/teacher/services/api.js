@@ -322,6 +322,12 @@ export const quizAPI = {
       method: 'GET',
     });
   },
+  // Get quiz statistics
+  getStatistics: async () => {
+    return apiRequest('/teacher/quizzes/statistics', {
+      method: 'GET',
+    });
+  },
   // Get single quiz
   getById: async (id) => {
     return apiRequest(`/teacher/quizzes/${id}`, {
@@ -496,8 +502,12 @@ export const notificationAPI = {
 // Live Class API functions
 export const liveClassAPI = {
   // Get my live classes
-  getMyLiveClasses: async (status = null) => {
-    const query = status ? `?status=${status}` : '';
+  getMyLiveClasses: async (date = null, search = null, status = null) => {
+    const params = new URLSearchParams();
+    if (date) params.append('date', date);
+    if (search) params.append('search', search);
+    if (status) params.append('status', status);
+    const query = params.toString() ? `?${params.toString()}` : '';
     return apiRequest(`/live-classes/teacher/live-classes${query}`, {
       method: 'GET',
     });

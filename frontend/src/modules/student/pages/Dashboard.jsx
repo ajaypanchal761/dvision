@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiBell, FiUser, FiSearch, FiVideo, FiBook, FiFileText, FiClock } from 'react-icons/fi';
+import { FiBell, FiUser, FiSearch, FiVideo, FiBook, FiFileText, FiClock, FiCalendar } from 'react-icons/fi';
 import { MdMic } from 'react-icons/md';
 import { ROUTES } from '../constants/routes';
 import { useAuth } from '../context/AuthContext';
@@ -566,59 +566,65 @@ const Dashboard = () => {
               </button>
             </div>
 
-            {/* Live Classes Cards - Vertical Scroll */}
+            {/* Live Classes Cards - Match LiveClasses page format */}
             {upcomingLiveClasses.length === 0 ? (
               <div className="text-center py-6 sm:py-8">
                 <p className="text-gray-600 text-sm sm:text-base md:text-lg">No upcoming live classes.</p>
               </div>
             ) : (
-              <div className="max-h-[350px] sm:max-h-[400px] overflow-y-auto space-y-2 sm:space-y-3 scrollbar-hide">
-                {upcomingLiveClasses.map((liveClass, index) => (
-                  <div
-                    key={liveClass.id}
-                    className={`bg-white rounded-lg sm:rounded-xl overflow-hidden shadow-md hover:shadow-lg transition-all cursor-pointer border border-gray-100 ${index % 2 === 0 ? 'animate-slide-in-left' : 'animate-slide-in-right'
-                      }`}
-                    style={{ animationDelay: `${index * 0.15}s` }}
-                    onClick={() => navigate(`/live-class/${liveClass.id || liveClass._id}`)}
-                  >
-                    <div className="flex flex-row">
-                      {/* Live Class Image - Left Side */}
-                      <div className="relative w-24 sm:w-32 md:w-40 h-24 sm:h-32 md:h-40 flex-shrink-0 overflow-hidden">
-                        {liveClass.image ? (
-                          <Image
-                            src={liveClass.image}
-                            alt={liveClass.title}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-full h-full bg-gradient-to-br from-[var(--app-dark-blue)] to-blue-700 flex items-center justify-center">
-                            <FiFileText className="text-white text-2xl sm:text-3xl" />
-                          </div>
-                        )}
-                      </div>
+              <div className="space-y-3">
+                {upcomingLiveClasses.map((liveClass, index) => {
+                  // Format date and time on frontend to ensure correct timezone
+                  const scheduledTime = new Date(liveClass.scheduledStartTime);
+                  const dateStr = scheduledTime.toLocaleDateString('en-IN', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric'
+                  });
+                  const timeStr = scheduledTime.toLocaleTimeString('en-IN', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: true
+                  });
 
-                      {/* Live Class Info - Right Side */}
-                      <div className="flex-1 p-2.5 sm:p-3 md:p-4 flex flex-col justify-between">
-                        <div>
-                          <h3 className="text-sm sm:text-base md:text-lg font-bold text-gray-800 mb-1 sm:mb-1.5 md:mb-2 line-clamp-2">
+                  return (
+                    <div
+                      key={liveClass.id || liveClass._id}
+                      className={`bg-white rounded-lg sm:rounded-xl p-3 sm:p-4 shadow-md hover:shadow-lg transition-all cursor-pointer border border-gray-200 ${index % 2 === 0 ? 'animate-slide-in-left' : 'animate-slide-in-right'
+                        }`}
+                      style={{ animationDelay: `${index * 0.15}s` }}
+                      onClick={() => navigate(`/live-class/${liveClass.id || liveClass._id}`)}
+                    >
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex-1 min-w-0">
+                          <h3 className="text-base sm:text-lg font-bold text-gray-800 mb-1.5">
                             {liveClass.title}
                           </h3>
-                          <p className="text-xs sm:text-sm text-gray-600 mb-2 sm:mb-2.5 md:mb-3">
-                            {liveClass.teacher}
+                          <p className="text-gray-600 text-xs sm:text-sm mb-2.5 font-medium">
+                            {liveClass.subject || 'Subject'} · {liveClass.teacher || 'Teacher'}
                           </p>
-                        </div>
-                        <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm text-gray-500">
-                          <div className="flex items-center gap-1 sm:gap-1.5 bg-blue-50 px-2 sm:px-2.5 md:px-3 py-1 sm:py-1.5 rounded-lg">
-                            <FiClock className="text-[var(--app-dark-blue)] text-xs sm:text-sm md:text-base" />
-                            <span className="font-medium text-[var(--app-dark-blue)]">{liveClass.time}</span>
+                          <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs sm:text-sm text-gray-600">
+                            <div className="flex items-center gap-1.5">
+                              <div className="p-1 bg-[var(--app-dark-blue)]/10 rounded-lg">
+                                <FiCalendar className="text-[var(--app-dark-blue)] text-xs" />
+                              </div>
+                              <span className="font-medium">{dateStr}</span>
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                              <div className="p-1 bg-[var(--app-dark-blue)]/10 rounded-lg">
+                                <FiClock className="text-[var(--app-dark-blue)] text-xs" />
+                              </div>
+                              <span className="font-medium">{timeStr}</span>
+                            </div>
                           </div>
-                          <span className="text-gray-400">•</span>
-                          <span className="text-gray-600 font-medium">{liveClass.date}</span>
+                        </div>
+                        <div className="px-3 py-2 text-xs sm:text-sm text-gray-500 font-medium">
+                          Starts Soon
                         </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>

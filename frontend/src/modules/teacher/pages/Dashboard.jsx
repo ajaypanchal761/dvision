@@ -230,35 +230,34 @@ const Dashboard = () => {
 
       {/* Daily Attendance Card */}
       {!todayAttendance.loading && todayAttendance.status !== 'present' && (
-        <div className="px-3 sm:px-4 md:px-6 mt-3 sm:mt-4">
-          <div className="bg-gradient-to-r from-[var(--app-dark-blue)] to-blue-600 text-white rounded-2xl p-4 sm:p-5 md:p-6 shadow-lg flex items-center justify-between gap-4">
-            <div>
-              <p className="text-xs sm:text-sm uppercase tracking-wide text-white/70 mb-1">
-                Daily Attendance
-              </p>
-              <h2 className="text-base sm:text-lg md:text-xl font-semibold">
-                Mark your attendance for today
-              </h2>
-              <p className="text-xs sm:text-sm text-white/80 mt-1">
-                Please mark your presence so the admin can track your daily attendance.
-              </p>
-            </div>
-            <button
-              onClick={async () => {
-                try {
-                  const res = await teacherAttendanceAPI.markToday();
-                  if (res.success) {
-                    setTodayAttendance({ status: 'present', loading: false });
+        <div className="px-3 sm:px-4 mt-3">
+          <div className="bg-gradient-to-r from-[var(--app-dark-blue)] to-blue-600 text-white rounded-xl p-3 shadow-md">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] uppercase tracking-wide text-white/70 mb-0.5">
+                  Daily Attendance
+                </p>
+                <p className="text-xs text-white/90 leading-tight">
+                  Mark your presence for today
+                </p>
+              </div>
+              <button
+                onClick={async () => {
+                  try {
+                    const res = await teacherAttendanceAPI.markToday();
+                    if (res.success) {
+                      setTodayAttendance({ status: 'present', loading: false });
+                    }
+                  } catch (err) {
+                    console.error('Error marking attendance:', err);
+                    alert(err.message || 'Failed to mark attendance. Please try again.');
                   }
-                } catch (err) {
-                  console.error('Error marking attendance:', err);
-                  alert(err.message || 'Failed to mark attendance. Please try again.');
-                }
-              }}
-              className="flex-shrink-0 bg-white text-[var(--app-dark-blue)] font-semibold px-4 sm:px-5 py-2 sm:py-2.5 rounded-full shadow-md hover:shadow-lg hover:bg-gray-100 text-xs sm:text-sm transition-all"
-            >
-              Mark Present
-            </button>
+                }}
+                className="flex-shrink-0 bg-white text-[var(--app-dark-blue)] font-semibold px-3 py-1.5 rounded-full shadow-sm hover:shadow-md hover:bg-gray-100 text-[11px] transition-all whitespace-nowrap"
+              >
+                Mark Present
+              </button>
+            </div>
           </div>
         </div>
       )}

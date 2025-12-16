@@ -342,6 +342,13 @@ export const studentAPI = {
     });
   },
 
+  // Get quiz statistics
+  getQuizStatistics: async () => {
+    return apiRequest('/student/quizzes/statistics', {
+      method: 'GET',
+    });
+  },
+
   // Get single quiz by ID
   getQuizById: async (id) => {
     return apiRequest(`/student/quizzes/${id}`, {

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiArrowLeft, FiClock, FiPlay, FiCalendar, FiUsers, FiGrid, FiVideo, FiFilm, FiSearch, FiX } from 'react-icons/fi';
+import { FiArrowLeft, FiClock, FiPlay, FiCalendar, FiUsers, FiGrid, FiVideo, FiSearch, FiX } from 'react-icons/fi';
 import { ROUTES } from '../constants/routes';
 import BottomNav from '../components/common/BottomNav';
 import { liveClassAPI } from '../services/api';
@@ -223,14 +223,6 @@ const LiveClasses = () => {
               <h1 className="text-lg sm:text-xl md:text-2xl font-bold">Live Classes</h1>
             </div>
             <div className="flex items-center gap-2">
-              <button
-                onClick={() => navigate('/recordings')}
-                className="p-2 bg-white/20 hover:bg-white/30 text-white rounded-lg transition-colors flex items-center gap-1.5 backdrop-blur-sm"
-                title="View Recordings"
-              >
-                <FiFilm className="text-base sm:text-lg" />
-                <span className="hidden sm:inline text-xs sm:text-sm font-medium">Recordings</span>
-              </button>
               <button
                 onClick={() => navigate('/timetable')}
                 className="p-2 bg-white/20 hover:bg-white/30 text-white rounded-lg transition-colors flex items-center gap-1.5 backdrop-blur-sm"

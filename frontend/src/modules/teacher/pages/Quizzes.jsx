@@ -12,9 +12,11 @@ const Quizzes = () => {
   const [deleteQuizId, setDeleteQuizId] = useState(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('all') // 'all', 'active', 'completed', 'inactive'
+  const [quizStats, setQuizStats] = useState({ total: 0, active: 0, completed: 0, inactive: 0 })
 
   useEffect(() => {
     fetchQuizzes()
+    fetchQuizStatistics()
   }, [])
 
   const fetchQuizzes = async () => {
@@ -35,6 +37,17 @@ const Quizzes = () => {
       alert('Failed to load quizzes. Please try again.')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchQuizStatistics = async () => {
+    try {
+      const response = await quizAPI.getStatistics()
+      if (response.success && response.data?.statistics) {
+        setQuizStats(response.data.statistics)
+      }
+    } catch (error) {
+      console.error('Error fetching quiz statistics:', error)
     }
   }
 
@@ -96,7 +109,8 @@ const Quizzes = () => {
     return true
   })
 
-  const quizStats = {
+  // Use statistics from backend, fallback to local calculation if not available
+  const displayStats = quizStats.total > 0 ? quizStats : {
     total: quizzes.length,
     active: quizzes.filter(q => q.isActive && !isDeadlinePassed(q.deadline)).length,
     completed: quizzes.filter(q => isDeadlinePassed(q.deadline)).length,
@@ -129,7 +143,7 @@ const Quizzes = () => {
               <FiFileText className="text-indigo-600 text-base sm:text-lg group-hover:scale-110 transition-transform" />
             </div>
             <p className="text-lg sm:text-xl md:text-2xl font-extrabold text-indigo-600">
-              {loading ? '...' : quizStats.total}
+              {loading ? '...' : displayStats.total}
             </p>
           </div>
           <div className="group bg-gradient-to-br from-white to-green-50 rounded-lg sm:rounded-xl shadow-lg hover:shadow-xl p-3 sm:p-4 border border-gray-200 hover:border-green-300 transition-all duration-300">
@@ -138,7 +152,7 @@ const Quizzes = () => {
               <FiCheckCircle className="text-green-600 text-base sm:text-lg group-hover:scale-110 transition-transform" />
             </div>
             <p className="text-lg sm:text-xl md:text-2xl font-extrabold text-green-600">
-              {loading ? '...' : quizStats.active}
+              {loading ? '...' : displayStats.active}
             </p>
           </div>
           <div className="group bg-gradient-to-br from-white to-blue-50 rounded-lg sm:rounded-xl shadow-lg hover:shadow-xl p-3 sm:p-4 border border-gray-200 hover:border-blue-300 transition-all duration-300">
@@ -147,7 +161,7 @@ const Quizzes = () => {
               <FiBarChart2 className="text-blue-600 text-base sm:text-lg group-hover:scale-110 transition-transform" />
             </div>
             <p className="text-lg sm:text-xl md:text-2xl font-extrabold text-blue-600">
-              {loading ? '...' : quizStats.completed}
+              {loading ? '...' : displayStats.completed}
             </p>
           </div>
           <div className="group bg-gradient-to-br from-white to-gray-50 rounded-lg sm:rounded-xl shadow-lg hover:shadow-xl p-3 sm:p-4 border border-gray-200 hover:border-gray-300 transition-all duration-300">
@@ -156,7 +170,7 @@ const Quizzes = () => {
               <FiClock className="text-gray-600 text-base sm:text-lg group-hover:scale-110 transition-transform" />
             </div>
             <p className="text-lg sm:text-xl md:text-2xl font-extrabold text-gray-600">
-              {loading ? '...' : quizStats.inactive}
+              {loading ? '...' : displayStats.inactive}
             </p>
           </div>
         </div>
