@@ -7,7 +7,8 @@ const {
   getMe,
   updateMe,
   getReferralLink,
-  getStatistics
+  getStatistics,
+  updateFcmToken
 } = require('../controllers/agentController');
 const { protect } = require('../middlewares/auth');
 
@@ -19,6 +20,7 @@ router.post('/verify-otp', verifyOTP);
 // Protected routes (require authentication)
 router.get('/me', protect, getMe);
 router.put('/me', protect, updateMe);
+router.put('/fcm-token', protect, updateFcmToken);
 router.get('/referral-link', protect, getReferralLink);
 router.get('/statistics', protect, getStatistics);
 

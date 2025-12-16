@@ -43,7 +43,7 @@ const sendTimetableNotifications = async () => {
     })
       .populate('classId', 'type class board name classCode')
       .populate('subjectId', 'name')
-      .populate('teacherId', 'name email phone fcmToken');
+      .populate('teacherId', 'name email phone fcmToken fcmTokens');
 
     for (const timetable of timetables) {
       const [startHour, startMin] = timetable.startTime.split(':').map(Number);
@@ -106,10 +106,20 @@ const sendTimetableNotifications = async () => {
             students = await Student.find({
               class: classItem.class,
               board: classItem.board,
-              fcmToken: { $exists: true, $ne: null },
-              $or: [
-                { 'subscription.status': 'active', 'subscription.endDate': { $gt: now } },
-                { 'activeSubscriptions': { $exists: true, $ne: [] } }
+              $and: [
+                {
+                  $or: [
+                    { fcmToken: { $exists: true, $ne: null } },
+                    { 'fcmTokens.app': { $exists: true, $ne: null } },
+                    { 'fcmTokens.web': { $exists: true, $ne: null } }
+                  ]
+                },
+                {
+                  $or: [
+                    { 'subscription.status': 'active', 'subscription.endDate': { $gt: now } },
+                    { 'activeSubscriptions': { $exists: true, $ne: [] } }
+                  ]
+                }
               ]
             });
           } else {
@@ -120,7 +130,13 @@ const sendTimetableNotifications = async () => {
           }
 
           if (students.length > 0) {
-            const studentFcmTokens = students.map(s => s.fcmToken).filter(Boolean);
+            // Get all tokens (app + web) from each student
+            const notificationService = require('./notificationService');
+            const studentFcmTokens = [];
+            for (const student of students) {
+              const tokens = notificationService.getUserFcmTokens(student);
+              studentFcmTokens.push(...tokens);
+            }
             
             if (studentFcmTokens.length > 0) {
               const studentNotification = {

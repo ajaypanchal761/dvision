@@ -28,7 +28,7 @@ const checkExpiringSubscriptions = async () => {
     })
       .populate({
         path: 'studentId',
-        select: 'name phone email fcmToken class board'
+        select: 'name phone email fcmToken fcmTokens class board'
       })
       .populate({
         path: 'subscriptionPlanId',
@@ -122,7 +122,7 @@ const checkExpiredSubscriptions = async () => {
     })
       .populate({
         path: 'studentId',
-        select: 'name phone email fcmToken class board'
+        select: 'name phone email fcmToken fcmTokens class board'
       })
       .populate({
         path: 'subscriptionPlanId',

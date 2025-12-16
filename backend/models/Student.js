@@ -85,8 +85,20 @@ const studentSchema = new mongoose.Schema({
       ref: 'Class'
     }
   }],
+  // Legacy single FCM token (for backward compatibility)
   fcmToken: {
     type: String
+  },
+  // Platform-based FCM tokens (app and web)
+  fcmTokens: {
+    app: {
+      type: String,
+      default: null
+    },
+    web: {
+      type: String,
+      default: null
+    }
   },
   lastOtpSentAt: {
     type: Date

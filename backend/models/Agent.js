@@ -27,8 +27,20 @@ const agentSchema = new mongoose.Schema({
     type: Boolean,
     default: true
   },
+  // Legacy single FCM token (for backward compatibility)
   fcmToken: {
     type: String
+  },
+  // Platform-based FCM tokens (app and web)
+  fcmTokens: {
+    app: {
+      type: String,
+      default: null
+    },
+    web: {
+      type: String,
+      default: null
+    }
   },
   lastOtpSentAt: {
     type: Date

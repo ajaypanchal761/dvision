@@ -7,6 +7,28 @@ const asyncHandler = require('../utils/asyncHandler');
 
 class NotificationService {
   /**
+   * Helper function to get all FCM tokens from a user (app + web)
+   * @param {Object} user - User document (Student, Teacher, Agent, or Admin)
+   * @returns {Array<string>} - Array of FCM tokens
+   */
+  getUserFcmTokens(user) {
+    const tokens = [];
+    
+    // Get platform-based tokens (app and web)
+    if (user.fcmTokens) {
+      if (user.fcmTokens.app) tokens.push(user.fcmTokens.app);
+      if (user.fcmTokens.web) tokens.push(user.fcmTokens.web);
+    }
+    
+    // Fallback to legacy fcmToken if no platform tokens exist
+    if (tokens.length === 0 && user.fcmToken) {
+      tokens.push(user.fcmToken);
+    }
+    
+    return tokens.filter(Boolean); // Remove null/undefined
+  }
+
+  /**
    * Send notification to a single FCM token
    * @param {string} fcmToken - FCM token of the device
    * @param {Object} notification - Notification payload
@@ -188,9 +210,19 @@ class NotificationService {
         };
       }
 
-      console.log('[DEBUG] User found:', { userId: user._id.toString(), hasFcmToken: !!user.fcmToken, isActive: user.isActive });
+      // Get all FCM tokens (app + web)
+      const fcmTokens = this.getUserFcmTokens(user);
+      
+      console.log('[DEBUG] User found:', { 
+        userId: user._id.toString(), 
+        hasFcmToken: !!user.fcmToken,
+        hasAppToken: !!(user.fcmTokens?.app),
+        hasWebToken: !!(user.fcmTokens?.web),
+        tokenCount: fcmTokens.length,
+        isActive: user.isActive 
+      });
 
-      if (!user.fcmToken) {
+      if (fcmTokens.length === 0) {
         console.warn('[WARN] User does not have FCM token:', { userId: user._id.toString(), userType });
         // Still save notification to database even without FCM token
         try {
@@ -212,10 +244,15 @@ class NotificationService {
         };
       }
 
-      console.log('[DEBUG] Sending FCM notification to token:', user.fcmToken.substring(0, 20) + '...');
-      const result = await this.sendToToken(user.fcmToken, notification, data);
+      // Send to all tokens (app + web)
+      let lastResult = null;
+      for (const token of fcmTokens) {
+        console.log('[DEBUG] Sending FCM notification to token:', token.substring(0, 20) + '...');
+        lastResult = await this.sendToToken(token, notification, data);
+        console.log('[DEBUG] FCM send result:', { success: lastResult.success, messageId: lastResult.messageId });
+      }
       
-      console.log('[DEBUG] FCM send result:', { success: result.success, messageId: result.messageId });
+      const result = lastResult || { success: false };
       
       // Save notification to database if sent successfully
       if (result.success) {
@@ -272,8 +309,17 @@ class NotificationService {
       });
 
       // Get users with FCM tokens for push notification
-      const usersWithTokens = allUsers.filter(user => user.fcmToken);
-      const fcmTokens = usersWithTokens.map(user => user.fcmToken).filter(Boolean);
+      // Collect all tokens (app + web) from each user
+      const fcmTokens = [];
+      const usersWithTokens = [];
+      
+      for (const user of allUsers) {
+        const userTokens = this.getUserFcmTokens(user);
+        if (userTokens.length > 0) {
+          usersWithTokens.push(user);
+          fcmTokens.push(...userTokens);
+        }
+      }
 
       let result = { success: false, successCount: 0, failureCount: 0, responses: [] };
 
@@ -348,12 +394,21 @@ class NotificationService {
       const students = await Student.find({
         class: classNumber,
         board: board,
-        fcmToken: { $exists: true, $ne: null },
+        $or: [
+          { fcmToken: { $exists: true, $ne: null } },
+          { 'fcmTokens.app': { $exists: true, $ne: null } },
+          { 'fcmTokens.web': { $exists: true, $ne: null } }
+        ],
         'subscription.status': 'active',
         'subscription.endDate': { $gt: new Date() },
       });
 
-      const fcmTokens = students.map(student => student.fcmToken).filter(Boolean);
+      // Collect all tokens (app + web) from each student
+      const fcmTokens = [];
+      for (const student of students) {
+        const studentTokens = this.getUserFcmTokens(student);
+        fcmTokens.push(...studentTokens);
+      }
 
       if (fcmTokens.length === 0) {
         return {

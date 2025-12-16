@@ -329,11 +329,20 @@ exports.getAllTeachers = asyncHandler(async (req, res) => {
   });
 });
 
-// @desc    Update FCM token
+// @desc    Update FCM token (supports platform: 'app' or 'web')
 // @route   PUT /api/teacher/fcm-token
 // @access  Private
 exports.updateFcmToken = asyncHandler(async (req, res) => {
-  const { fcmToken } = req.body;
+  const { fcmToken, platform = 'web' } = req.body;
+
+  if (!fcmToken) {
+    throw new ErrorResponse('Please provide FCM token', 400);
+  }
+
+  // Validate platform
+  if (platform !== 'app' && platform !== 'web') {
+    throw new ErrorResponse('Platform must be either "app" or "web"', 400);
+  }
 
   const teacher = await Teacher.findById(req.user.id);
 
@@ -341,12 +350,30 @@ exports.updateFcmToken = asyncHandler(async (req, res) => {
     throw new ErrorResponse('Teacher not found', 404);
   }
 
-  teacher.fcmToken = fcmToken;
+  // Initialize fcmTokens if it doesn't exist
+  if (!teacher.fcmTokens) {
+    teacher.fcmTokens = { app: null, web: null };
+  }
+
+  // Update platform-specific FCM token
+  teacher.fcmTokens[platform] = fcmToken;
+
+  // Also update legacy fcmToken for backward compatibility (use app token if available, otherwise web)
+  if (platform === 'app') {
+    teacher.fcmToken = fcmToken;
+  } else if (platform === 'web' && !teacher.fcmToken) {
+    teacher.fcmToken = fcmToken;
+  }
+
   await teacher.save();
 
   res.status(200).json({
     success: true,
-    message: 'FCM token updated successfully'
+    message: `FCM token updated successfully for ${platform} platform`,
+    data: {
+      platform,
+      tokenUpdated: true
+    }
   });
 });
 

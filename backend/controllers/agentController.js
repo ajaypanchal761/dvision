@@ -391,5 +391,53 @@ exports.getStatistics = asyncHandler(async (req, res) => {
   });
 });
 
+// @desc    Update FCM token (supports platform: 'app' or 'web')
+// @route   PUT /api/agent/fcm-token
+// @access  Private (Agent)
+exports.updateFcmToken = asyncHandler(async (req, res) => {
+  const { fcmToken, platform = 'web' } = req.body;
+
+  if (!fcmToken) {
+    throw new ErrorResponse('Please provide FCM token', 400);
+  }
+
+  // Validate platform
+  if (platform !== 'app' && platform !== 'web') {
+    throw new ErrorResponse('Platform must be either "app" or "web"', 400);
+  }
+
+  const agent = await Agent.findById(req.user._id);
+
+  if (!agent) {
+    throw new ErrorResponse('Agent not found', 404);
+  }
+
+  // Initialize fcmTokens if it doesn't exist
+  if (!agent.fcmTokens) {
+    agent.fcmTokens = { app: null, web: null };
+  }
+
+  // Update platform-specific FCM token
+  agent.fcmTokens[platform] = fcmToken;
+
+  // Also update legacy fcmToken for backward compatibility (use app token if available, otherwise web)
+  if (platform === 'app') {
+    agent.fcmToken = fcmToken;
+  } else if (platform === 'web' && !agent.fcmToken) {
+    agent.fcmToken = fcmToken;
+  }
+
+  await agent.save();
+
+  res.status(200).json({
+    success: true,
+    message: `FCM token updated successfully for ${platform} platform`,
+    data: {
+      platform,
+      tokenUpdated: true
+    }
+  });
+});
+
 
 
