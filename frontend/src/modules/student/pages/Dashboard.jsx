@@ -4,7 +4,7 @@ import { FiBell, FiUser, FiSearch, FiVideo, FiBook, FiFileText, FiClock } from '
 import { MdMic } from 'react-icons/md';
 import { ROUTES } from '../constants/routes';
 import { useAuth } from '../context/AuthContext';
-import { notificationAPI, studentAPI } from '../services/api';
+import { notificationAPI, studentAPI, liveClassAPI } from '../services/api';
 import Image from '../components/common/Image';
 import BottomNav from '../components/common/BottomNav';
 
@@ -75,33 +75,20 @@ const Dashboard = () => {
     return () => clearInterval(interval);
   }, [bannerData.length]);
 
-  // Default dummy live classes data
-  const defaultLiveClasses = [
-    {
-      id: 'live-1',
-      title: 'Mathematics Live Session',
-      teacher: 'Dr. Rajesh Kumar',
-      image: 'https://images.unsplash.com/photo-1509228468512-adae6b112b3e?w=400&h=300&fit=crop',
-      time: '10:00 AM',
-      date: 'Today'
-    },
-    {
-      id: 'live-2',
-      title: 'Science Interactive Class',
-      teacher: 'Prof. Priya Sharma',
-      image: 'https://images.unsplash.com/photo-1532094349884-543bc11b234d?w=400&h=300&fit=crop',
-      time: '2:00 PM',
-      date: 'Tomorrow'
-    },
-    {
-      id: 'live-3',
-      title: 'English Grammar Masterclass',
-      teacher: 'Ms. Anjali Mehta',
-      image: 'https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?w=400&h=300&fit=crop',
-      time: '4:30 PM',
-      date: 'Tomorrow'
-    },
-  ];
+  // Fetch upcoming live classes
+  const fetchUpcomingLiveClasses = async () => {
+    try {
+      const response = await liveClassAPI.getUpcomingLiveClasses();
+      if (response.success && response.data?.liveClasses) {
+        setUpcomingLiveClasses(response.data.liveClasses);
+      } else {
+        setUpcomingLiveClasses([]);
+      }
+    } catch (err) {
+      console.error('Error fetching upcoming live classes:', err);
+      setUpcomingLiveClasses([]);
+    }
+  };
 
   // Default dummy courses data
   const defaultCourses = [
@@ -203,8 +190,7 @@ const Dashboard = () => {
 
     if (user) {
       fetchCourses();
-      // Set default live classes for now
-      setUpcomingLiveClasses(defaultLiveClasses);
+      fetchUpcomingLiveClasses();
     }
   }, [user]);
 
@@ -593,7 +579,7 @@ const Dashboard = () => {
                     className={`bg-white rounded-lg sm:rounded-xl overflow-hidden shadow-md hover:shadow-lg transition-all cursor-pointer border border-gray-100 ${index % 2 === 0 ? 'animate-slide-in-left' : 'animate-slide-in-right'
                       }`}
                     style={{ animationDelay: `${index * 0.15}s` }}
-                    onClick={() => navigate('/live-classes')}
+                    onClick={() => navigate(`/live-class/${liveClass.id || liveClass._id}`)}
                   >
                     <div className="flex flex-row">
                       {/* Live Class Image - Left Side */}

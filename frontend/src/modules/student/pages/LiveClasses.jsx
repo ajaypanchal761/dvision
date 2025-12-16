@@ -108,7 +108,6 @@ const LiveClasses = () => {
     const date = e.target.value;
     console.log('[LiveClasses] Date changed:', date);
     setSelectedDate(date);
-    setShowDatePicker(false);
     // fetchLiveClasses will be triggered by useEffect
   };
 
@@ -233,14 +232,6 @@ const LiveClasses = () => {
                 <span className="hidden sm:inline text-xs sm:text-sm font-medium">Recordings</span>
               </button>
               <button
-                onClick={() => setShowDatePicker(!showDatePicker)}
-                className="p-2 bg-white/20 hover:bg-white/30 text-white rounded-lg transition-colors flex items-center gap-1.5 backdrop-blur-sm"
-                title="Select Date"
-              >
-                <FiCalendar className="text-base sm:text-lg" />
-                <span className="hidden sm:inline text-xs sm:text-sm font-medium">{getDateDisplay()}</span>
-              </button>
-              <button
                 onClick={() => navigate('/timetable')}
                 className="p-2 bg-white/20 hover:bg-white/30 text-white rounded-lg transition-colors flex items-center gap-1.5 backdrop-blur-sm"
                 title="View Timetable"
@@ -255,58 +246,83 @@ const LiveClasses = () => {
 
       {/* Main Content */}
       <main className="px-4 sm:px-6 py-4 sm:py-5 pb-24">
-        {/* Date Picker (when calendar icon clicked) */}
-        {showDatePicker && (
-          <div className="mb-4 bg-white rounded-xl shadow-lg border border-gray-200 p-4">
-            <div className="flex items-center justify-between mb-3">
-              <label className="text-sm font-semibold text-gray-700">Select Date:</label>
-              <button
-                onClick={() => setShowDatePicker(false)}
-                className="text-gray-500 hover:text-gray-700"
-              >
-                <FiX className="text-lg" />
-              </button>
-            </div>
-            <div className="flex items-center gap-2">
-              <input
-                type="date"
-                value={selectedDate || getTodayDateString()}
-                onChange={handleDateChange}
-                max={getTodayDateString()} // Can't select future dates
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--app-dark-blue)] text-sm"
-              />
-              {selectedDate && (
-                <button
-                  onClick={resetDate}
-                  className="px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium transition-colors"
-                >
-                  Today
-                </button>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Search Bar */}
+        {/* Search Bar with Calendar Icon */}
         <div className="mb-4 relative">
           <div className="relative">
-            <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-lg" />
+            <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-lg z-10" />
             <input
               type="text"
               placeholder="Search by name, subject, teacher, or date..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-10 py-2.5 sm:py-3 border border-gray-300 rounded-lg sm:rounded-xl focus:outline-none focus:ring-2 focus:ring-[var(--app-dark-blue)] text-sm sm:text-base"
+              className="w-full pl-10 pr-12 py-2.5 sm:py-3 border border-gray-300 rounded-lg sm:rounded-xl focus:outline-none focus:ring-2 focus:ring-[var(--app-dark-blue)] text-sm sm:text-base"
             />
-            {searchQuery && (
+            <div className="absolute right-3 top-1/2 transform -translate-y-1/2 flex items-center gap-2">
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <FiX className="text-lg" />
+                </button>
+              )}
               <button
-                onClick={() => setSearchQuery('')}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                onClick={() => setShowDatePicker(!showDatePicker)}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+                title={selectedDate ? `Selected: ${getDateDisplay()}` : 'Select Date'}
               >
-                <FiX className="text-lg" />
+                <FiCalendar className="text-lg" />
               </button>
-            )}
+            </div>
           </div>
+          
+          {/* Hidden Date Input */}
+          <input
+            type="date"
+            value={selectedDate || getTodayDateString()}
+            onChange={handleDateChange}
+            max={getTodayDateString()}
+            className="hidden"
+            id="date-picker-hidden"
+          />
+          
+          {/* Date Picker Modal */}
+          {showDatePicker && (
+            <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-lg border border-gray-200 p-4 z-50">
+              <div className="flex items-center justify-between mb-3">
+                <label className="text-sm font-semibold text-gray-700">Select Date:</label>
+                <button
+                  onClick={() => setShowDatePicker(false)}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  <FiX className="text-lg" />
+                </button>
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="date"
+                  value={selectedDate || getTodayDateString()}
+                  onChange={(e) => {
+                    handleDateChange(e);
+                    setShowDatePicker(false);
+                  }}
+                  max={getTodayDateString()}
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--app-dark-blue)] text-sm"
+                />
+                {selectedDate && (
+                  <button
+                    onClick={() => {
+                      resetDate();
+                      setShowDatePicker(false);
+                    }}
+                    className="px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium transition-colors"
+                  >
+                    Today
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
         {error && (
@@ -531,10 +547,42 @@ const LiveClasses = () => {
               <FiClock className="text-[var(--app-dark-blue)] text-3xl" />
             </div>
             <h2 className="text-lg sm:text-xl font-bold text-gray-800 mb-1.5 text-center">
-              No live classes scheduled
+              {(() => {
+                if (!selectedDate) {
+                  return 'No live classes scheduled';
+                }
+                const selected = new Date(selectedDate);
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                selected.setHours(0, 0, 0, 0);
+                
+                if (selected < today) {
+                  return 'No live classes on this date';
+                } else if (selected > today) {
+                  return 'No live classes scheduled';
+                } else {
+                  return 'No live classes scheduled';
+                }
+              })()}
             </h2>
             <p className="text-gray-500 text-center max-w-md text-xs sm:text-sm px-4">
-              Check back later for upcoming classes
+              {(() => {
+                if (!selectedDate) {
+                  return 'Check back later for upcoming classes';
+                }
+                const selected = new Date(selectedDate);
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                selected.setHours(0, 0, 0, 0);
+                
+                if (selected < today) {
+                  return 'There were no live classes scheduled for this date';
+                } else if (selected > today) {
+                  return 'Check back later for upcoming classes';
+                } else {
+                  return 'Check back later for upcoming classes';
+                }
+              })()}
             </p>
           </div>
         )}

@@ -116,7 +116,17 @@ const liveClassSchema = new mongoose.Schema(
         timestamp: {
           type: Date,
           default: Date.now
-        }
+        },
+        readBy: [{
+          userId: {
+            type: mongoose.Schema.Types.ObjectId,
+            required: true
+          },
+          readAt: {
+            type: Date,
+            default: Date.now
+          }
+        }]
       }
     ],
     recording: {

@@ -293,23 +293,20 @@ exports.getStudentLiveClasses = asyncHandler(async (req, res) => {
       endTime.setMinutes(endTime.getMinutes() + liveClass.duration);
     }
     
+    // Use the actual status from database - don't auto-change based on time
+    // Status should only change when teacher explicitly starts/ends the class
     let status = liveClass.status;
     
-    // Override status based on current time
-    if (liveClass.status === 'scheduled' && scheduledTime <= nowTime) {
-      // If scheduled time has passed but not ended, mark as live
-      if (!endTime || nowTime < endTime) {
-        status = 'live';
-      } else {
-        status = 'ended';
-      }
-    } else if (liveClass.status === 'live' && endTime && nowTime >= endTime) {
+    // Respect 'ended' status if teacher has explicitly ended the class
+    if (liveClass.status === 'ended') {
       status = 'ended';
-    } else if (liveClass.status === 'ended') {
-      status = 'ended';
-    } else if (liveClass.status === 'scheduled' && scheduledTime > nowTime) {
-      status = 'scheduled';
     }
+    // Only auto-update to 'ended' if class is live and end time has passed (fallback)
+    // This ensures scheduled classes remain scheduled until teacher starts them
+    else if (liveClass.status === 'live' && endTime && nowTime >= endTime) {
+      status = 'ended';
+    }
+    // Keep other statuses as-is (scheduled stays scheduled)
 
     // Format recording info - also check Recording model for presigned URL
     let recording = null;
@@ -353,6 +350,181 @@ exports.getStudentLiveClasses = asyncHandler(async (req, res) => {
     count: classesWithStatus.length,
     data: {
       liveClasses: classesWithStatus
+    }
+  });
+});
+
+// @desc    Get upcoming scheduled live classes for student dashboard
+// @route   GET /api/live-classes/student/upcoming
+// @access  Private/Student
+exports.getUpcomingLiveClasses = asyncHandler(async (req, res) => {
+  const Payment = require('../models/Payment');
+  
+  const student = await Student.findById(req.user._id);
+  
+  if (!student || !student.class || !student.board) {
+    throw new ErrorResponse('Student class or board not found', 404);
+  }
+
+  // Check active subscriptions from both sources
+  const now = new Date();
+  
+  // Get from activeSubscriptions array
+  const activeSubsFromArray = (student.activeSubscriptions || []).filter(sub => 
+    new Date(sub.endDate) >= now
+  );
+  
+  // Get from Payment records
+  const activePayments = await Payment.find({
+    studentId: student._id,
+    status: 'completed',
+    subscriptionEndDate: { $gte: now }
+  })
+    .populate({
+      path: 'subscriptionPlanId',
+      select: 'type board classes classId',
+      populate: {
+        path: 'classId',
+        select: '_id name classCode'
+      }
+    });
+
+  const hasActiveClassSubscription = activePayments.some(payment => 
+    payment.subscriptionPlanId && 
+    payment.subscriptionPlanId.type === 'regular' &&
+    payment.subscriptionPlanId.board === student.board &&
+    payment.subscriptionPlanId.classes &&
+    payment.subscriptionPlanId.classes.includes(student.class)
+  ) || activeSubsFromArray.some(sub => 
+    sub.type === 'regular' && 
+    sub.board === student.board && 
+    sub.class === student.class
+  );
+
+  // Get preparation class IDs from active preparation subscriptions
+  const prepClassIdsFromPayments = activePayments
+    .filter(payment => 
+      payment.subscriptionPlanId && 
+      payment.subscriptionPlanId.type === 'preparation' &&
+      payment.subscriptionPlanId.classId
+    )
+    .map(payment => payment.subscriptionPlanId.classId._id || payment.subscriptionPlanId.classId);
+  
+  const prepClassIdsFromArray = activeSubsFromArray
+    .filter(sub => sub.type === 'preparation' && sub.classId)
+    .map(sub => {
+      const classId = sub.classId._id || sub.classId;
+      return classId ? classId.toString() : null;
+    })
+    .filter(Boolean);
+  
+  // Combine and remove duplicates
+  const mongoose = require('mongoose');
+  const allPrepClassIds = [...new Set([
+    ...prepClassIdsFromPayments.map(id => id.toString()),
+    ...prepClassIdsFromArray
+  ])];
+  
+  const preparationClassIds = allPrepClassIds
+    .filter(id => mongoose.Types.ObjectId.isValid(id))
+    .map(id => new mongoose.Types.ObjectId(id));
+
+  const classIds = [];
+
+  // Get regular class live classes
+  if (hasActiveClassSubscription) {
+    const classItem = await Class.findOne({
+      type: 'regular',
+      class: student.class,
+      board: student.board,
+      isActive: true
+    });
+
+    if (classItem) {
+      classIds.push(classItem._id);
+    }
+  }
+
+  // Add preparation class IDs
+  if (preparationClassIds.length > 0) {
+    classIds.push(...preparationClassIds);
+  }
+
+  // If no active subscriptions, return empty array
+  if (classIds.length === 0) {
+    return res.status(200).json({
+      success: true,
+      count: 0,
+      data: {
+        liveClasses: []
+      }
+    });
+  }
+
+  // Get upcoming scheduled live classes (status = 'scheduled' and scheduledStartTime >= now)
+  const query = {
+    classId: { $in: classIds },
+    status: 'scheduled', // Only scheduled classes
+    scheduledStartTime: { $gte: now } // Only future classes
+  };
+
+  let liveClasses = await LiveClass.find(query)
+    .populate('classId', 'type class board name classCode')
+    .populate('teacherId', 'name email phone profileImage')
+    .populate('subjectId', 'name')
+    .sort({ scheduledStartTime: 1 }) // Sort by scheduled time ascending
+    .limit(10); // Limit to 10 upcoming classes
+
+  // Format the response
+  const formattedClasses = liveClasses.map(liveClass => {
+    const scheduledTime = new Date(liveClass.scheduledStartTime);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const scheduledDate = new Date(scheduledTime);
+    scheduledDate.setHours(0, 0, 0, 0);
+    
+    // Determine if it's today or tomorrow
+    let dateLabel = '';
+    const diffTime = scheduledDate - today;
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 0) {
+      dateLabel = 'Today';
+    } else if (diffDays === 1) {
+      dateLabel = 'Tomorrow';
+    } else {
+      dateLabel = scheduledTime.toLocaleDateString('en-IN', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
+      });
+    }
+
+    // Format time
+    const timeStr = scheduledTime.toLocaleTimeString('en-IN', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true
+    });
+
+    return {
+      _id: liveClass._id,
+      id: liveClass._id.toString(),
+      title: liveClass.title,
+      teacher: liveClass.teacherId?.name || 'Teacher',
+      image: null, // No image in live class model
+      time: timeStr,
+      date: dateLabel,
+      scheduledStartTime: liveClass.scheduledStartTime,
+      subject: liveClass.subjectId?.name || 'Subject'
+    };
+  });
+
+  res.status(200).json({
+    success: true,
+    count: formattedClasses.length,
+    data: {
+      liveClasses: formattedClasses
     }
   });
 });
@@ -729,6 +901,21 @@ exports.joinLiveClass = asyncHandler(async (req, res) => {
     role
   );
 
+  // Calculate unread message count for this user
+  const unreadCount = liveClass.chatMessages.filter(msg => {
+    // Message is unread if:
+    // 1. It's not from the current user
+    // 2. Current user hasn't read it (not in readBy array)
+    const msgUserIdStr = msg.userId?.toString() || msg.userId;
+    const isOwnMessage = msgUserIdStr === userIdStr;
+    if (isOwnMessage) return false; // Own messages are always considered read
+    
+    const hasRead = msg.readBy && msg.readBy.some(
+      read => read.userId?.toString() === userIdStr
+    );
+    return !hasRead;
+  }).length;
+
   res.status(200).json({
     success: true,
     data: {
@@ -737,7 +924,8 @@ exports.joinLiveClass = asyncHandler(async (req, res) => {
       agoraAppId: liveClass.agoraAppId,
       agoraChannelName: liveClass.agoraChannelName,
       agoraUid: userUid, // Return UID for frontend
-      participant
+      participant,
+      unreadMessageCount: unreadCount
     }
   });
 });
@@ -1134,13 +1322,14 @@ exports.sendChatMessage = asyncHandler(async (req, res) => {
   const userRole = req.userRole || req.user?.role;
   const userName = req.user.name || 'Unknown User';
 
-  // Add chat message
+  // Add chat message with empty readBy array
   liveClass.chatMessages.push({
     userId: req.user._id,
     userType: userRole === 'student' ? 'Student' : 'Teacher',
     userName,
     message: message.trim(),
-    timestamp: new Date()
+    timestamp: new Date(),
+    readBy: [] // Initialize empty readBy array
   });
 
   await liveClass.save();
@@ -1149,6 +1338,61 @@ exports.sendChatMessage = asyncHandler(async (req, res) => {
     success: true,
     data: {
       message: liveClass.chatMessages[liveClass.chatMessages.length - 1]
+    }
+  });
+});
+
+// @desc    Mark chat messages as read
+// @route   PUT /api/live-classes/:id/chat/mark-read
+// @access  Private
+exports.markChatMessagesAsRead = asyncHandler(async (req, res) => {
+  const liveClass = await LiveClass.findById(req.params.id);
+
+  if (!liveClass) {
+    throw new ErrorResponse('Live class not found', 404);
+  }
+
+  if (liveClass.status !== 'live') {
+    throw new ErrorResponse('Class is not live', 400);
+  }
+
+  const userId = req.user._id;
+  const userIdStr = userId.toString();
+  let markedCount = 0;
+
+  // Mark all unread messages as read for this user
+  liveClass.chatMessages.forEach(msg => {
+    const msgUserIdStr = msg.userId?.toString() || msg.userId;
+    const isOwnMessage = msgUserIdStr === userIdStr;
+    
+    // Skip own messages (they're already considered read)
+    if (isOwnMessage) return;
+
+    // Check if already read
+    const hasRead = msg.readBy && msg.readBy.some(
+      read => read.userId?.toString() === userIdStr
+    );
+
+    if (!hasRead) {
+      // Add to readBy array if not already there
+      if (!msg.readBy) {
+        msg.readBy = [];
+      }
+      msg.readBy.push({
+        userId: userId,
+        readAt: new Date()
+      });
+      markedCount++;
+    }
+  });
+
+  await liveClass.save();
+
+  res.status(200).json({
+    success: true,
+    data: {
+      markedCount,
+      unreadCount: 0 // All messages are now read
     }
   });
 });

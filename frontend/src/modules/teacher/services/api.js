@@ -549,6 +549,12 @@ export const liveClassAPI = {
       body: { message },
     });
   },
+  // Mark chat messages as read
+  markChatAsRead: async (id) => {
+    return apiRequest(`/live-classes/${id}/chat/mark-read`, {
+      method: 'PUT',
+    });
+  },
   // Toggle mute
   toggleMute: async (id) => {
     return apiRequest(`/live-classes/${id}/mute`, {

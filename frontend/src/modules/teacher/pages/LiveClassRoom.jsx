@@ -116,6 +116,38 @@ const LiveClassRoom = () => {
   const [showParticipants, setShowParticipants] = useState(false);
   const [allParticipants, setAllParticipants] = useState([]);
   const [handRaisedStudents, setHandRaisedStudents] = useState([]);
+  const [unreadMessageCount, setUnreadMessageCount] = useState(0);
+  
+  // Get current user ID for read tracking
+  const getCurrentUserId = () => {
+    const token = localStorage.getItem('dvision_token');
+    if (token) {
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        return payload.id;
+      } catch (e) {
+        console.error('Error parsing token:', e);
+      }
+    }
+    return null;
+  };
+  
+  // Calculate unread message count
+  const calculateUnreadCount = (messages) => {
+    const currentUserId = getCurrentUserId();
+    if (!currentUserId) return 0;
+    
+    return messages.filter(msg => {
+      const msgUserId = msg.userId?._id?.toString() || msg.userId?.toString() || msg.userId;
+      const isOwnMessage = msgUserId === currentUserId?.toString();
+      if (isOwnMessage) return false; // Own messages are always considered read
+      
+      const hasRead = msg.readBy && msg.readBy.some(
+        read => read.userId?.toString() === currentUserId?.toString()
+      );
+      return !hasRead;
+    }).length;
+  };
 
   // Chat scroll ref
   const chatMessagesEndRef = useRef(null);
@@ -323,6 +355,17 @@ const LiveClassRoom = () => {
         }
 
         const newMessages = [...filteredPrev, message];
+        
+        // Update unread count if chat is closed and message is not from current user
+        const currentUserId = getCurrentUserId();
+        const msgUserId = message.userId?._id?.toString() || message.userId?.toString() || message.userId;
+        const isOwnMessage = currentUserId && msgUserId && currentUserId.toString() === msgUserId.toString();
+        
+        if (!showChat && !isOwnMessage) {
+          // Increment unread count for new messages when chat is closed
+          setUnreadMessageCount(prev => prev + 1);
+        }
+        
         // Scroll to bottom after state update
         setTimeout(() => {
           chatMessagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -523,7 +566,7 @@ const LiveClassRoom = () => {
       // Get live class details and join token
       const response = await liveClassAPI.joinLiveClass(id);
       if (response.success && response.data) {
-        const { liveClass: classData, agoraToken, agoraAppId, agoraChannelName, agoraUid } = response.data;
+        const { liveClass: classData, agoraToken, agoraAppId, agoraChannelName, agoraUid, unreadMessageCount: initialUnreadCount } = response.data;
         setLiveClass(classData);
         // Remove duplicates from initial chat messages
         const initialMessages = classData.chatMessages || [];
@@ -541,6 +584,10 @@ const LiveClassRoom = () => {
           }) === index;
         });
         setChatMessages(uniqueMessages);
+        
+        // Set initial unread count from backend or calculate it
+        const unreadCount = initialUnreadCount !== undefined ? initialUnreadCount : calculateUnreadCount(uniqueMessages);
+        setUnreadMessageCount(unreadCount);
         // Remove duplicates from initial participants and filter out those who have left
         const participants = classData.participants || [];
         const uniqueParticipants = participants
@@ -1430,6 +1477,43 @@ const LiveClassRoom = () => {
     }
   };
 
+  // Mark messages as read
+  const markMessagesAsRead = async () => {
+    try {
+      if (unreadMessageCount > 0) {
+        const response = await liveClassAPI.markChatAsRead(id);
+        if (response.success) {
+          setUnreadMessageCount(0);
+          // Update local messages to mark them as read
+          setChatMessages(prev => prev.map(msg => {
+            const currentUserId = getCurrentUserId();
+            const msgUserId = msg.userId?._id?.toString() || msg.userId?.toString() || msg.userId;
+            const isOwnMessage = currentUserId && msgUserId && currentUserId.toString() === msgUserId.toString();
+            
+            if (isOwnMessage) return msg; // Own messages are already considered read
+            
+            const hasRead = msg.readBy && msg.readBy.some(
+              read => read.userId?.toString() === currentUserId?.toString()
+            );
+            
+            if (!hasRead) {
+              return {
+                ...msg,
+                readBy: [
+                  ...(msg.readBy || []),
+                  { userId: currentUserId, readAt: new Date() }
+                ]
+              };
+            }
+            return msg;
+          }));
+        }
+      }
+    } catch (err) {
+      console.error('Error marking messages as read:', err);
+    }
+  };
+
   // Send chat message
   const sendMessage = async () => {
     if (!newMessage.trim()) return;
@@ -1674,19 +1758,30 @@ const LiveClassRoom = () => {
           </button>
           <button
             onClick={() => {
+              const newShowChat = !showChat;
               if (showParticipants) {
                 setShowParticipants(false);
-                setTimeout(() => setShowChat(true), 100);
+                setTimeout(() => {
+                  setShowChat(true);
+                  // Mark messages as read when opening chat
+                  if (unreadMessageCount > 0) {
+                    markMessagesAsRead();
+                  }
+                }, 100);
               } else {
-                setShowChat(!showChat);
+                setShowChat(newShowChat);
+                // Mark messages as read when opening chat
+                if (newShowChat && unreadMessageCount > 0) {
+                  markMessagesAsRead();
+                }
               }
             }}
             className="p-2 hover:bg-gray-700 rounded-lg relative"
           >
             <FiMessageSquare className="text-xl" />
-            {chatMessages.length > 0 && (
+            {unreadMessageCount > 0 && (
               <span className="absolute top-0 right-0 bg-red-500 text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                {chatMessages.length}
+                {unreadMessageCount > 99 ? '99+' : unreadMessageCount}
               </span>
             )}
           </button>

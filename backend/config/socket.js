@@ -238,16 +238,20 @@ function initializeSocket(server) {
           userType: socket.userRole === 'student' ? 'Student' : 'Teacher',
           userName: socket.user.name,
           message: message.trim(),
-          timestamp: new Date()
+          timestamp: new Date(),
+          readBy: [] // Initialize empty readBy array
         };
 
         liveClass.chatMessages.push(chatMessage);
         await liveClass.save();
 
-        // Broadcast to all in room
+        // Get the saved message with _id
+        const savedMessage = liveClass.chatMessages[liveClass.chatMessages.length - 1];
+        
+        // Broadcast to all in room with readBy info
         const messageToSend = {
-          ...chatMessage,
-          _id: liveClass.chatMessages[liveClass.chatMessages.length - 1]._id
+          ...savedMessage.toObject(),
+          _id: savedMessage._id
         };
         
         // Get all sockets in the room to verify

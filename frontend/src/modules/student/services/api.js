@@ -540,8 +540,26 @@ export const teacherAPI = {
 // Live Class API functions
 export const liveClassAPI = {
   // Get live classes for student's class
-  getStudentLiveClasses: async () => {
-    return apiRequest('/live-classes/student/live-classes', {
+  getStudentLiveClasses: async (date = null, search = null) => {
+    const params = new URLSearchParams();
+    if (date) {
+      params.append('date', date);
+    }
+    if (search && search.trim()) {
+      params.append('search', search.trim());
+    }
+    const queryString = params.toString();
+    const endpoint = queryString 
+      ? `/live-classes/student/live-classes?${queryString}`
+      : '/live-classes/student/live-classes';
+    
+    return apiRequest(endpoint, {
+      method: 'GET',
+    });
+  },
+  // Get upcoming scheduled live classes for dashboard
+  getUpcomingLiveClasses: async () => {
+    return apiRequest('/live-classes/student/upcoming', {
       method: 'GET',
     });
   },
@@ -564,6 +582,12 @@ export const liveClassAPI = {
     return apiRequest(`/live-classes/${id}/chat`, {
       method: 'POST',
       body: { message },
+    });
+  },
+  // Mark chat messages as read
+  markChatAsRead: async (id) => {
+    return apiRequest(`/live-classes/${id}/chat/mark-read`, {
+      method: 'PUT',
     });
   },
   // Toggle hand raise

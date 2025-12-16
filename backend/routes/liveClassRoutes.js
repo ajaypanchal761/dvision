@@ -5,12 +5,14 @@ const {
   getAllLiveClasses,
   getMyLiveClasses,
   getStudentLiveClasses,
+  getUpcomingLiveClasses,
   createLiveClass,
   getAssignedOptions,
   startLiveClass,
   joinLiveClass,
   endLiveClass,
   sendChatMessage,
+  markChatMessagesAsRead,
   toggleHandRaise,
   toggleMute,
   toggleVideo,
@@ -28,11 +30,13 @@ const { uploadRecording: uploadRecordingMiddleware } = require('../middlewares/u
 router.get('/:id', protect, getLiveClass);
 router.post('/:id/join', protect, joinLiveClass);
 router.post('/:id/chat', protect, sendChatMessage);
+router.put('/:id/chat/mark-read', protect, markChatMessagesAsRead);
 router.put('/:id/mute', protect, toggleMute);
 router.put('/:id/video', protect, toggleVideo);
 
 // Student routes
 router.get('/student/live-classes', protect, authorize('student'), getStudentLiveClasses);
+router.get('/student/upcoming', protect, authorize('student'), getUpcomingLiveClasses);
 router.put('/:id/hand-raise', protect, authorize('student'), toggleHandRaise);
 router.get('/student/recordings', protect, authorize('student'), getStudentRecordings);
 
