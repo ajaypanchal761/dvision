@@ -58,18 +58,18 @@ exports.getMyLiveClasses = asyncHandler(async (req, res) => {
       const year = parseInt(dateParts[0], 10);
       const month = parseInt(dateParts[1], 10) - 1; // Month is 0-indexed
       const day = parseInt(dateParts[2], 10);
-      
+
       // Create UTC date for start of selected day (00:00:00 UTC)
       const selectedDate = new Date(Date.UTC(year, month, day, 0, 0, 0, 0));
       // Create UTC date for start of next day (00:00:00 UTC)
       const nextDate = new Date(Date.UTC(year, month, day + 1, 0, 0, 0, 0));
-      
+
       console.log('[LiveClass] Teacher date filter:', {
         dateParam: date,
         selectedDateUTC: selectedDate.toISOString(),
         nextDateUTC: nextDate.toISOString()
       });
-      
+
       query.scheduledStartTime = {
         $gte: selectedDate,
         $lt: nextDate
@@ -84,7 +84,7 @@ exports.getMyLiveClasses = asyncHandler(async (req, res) => {
         const day = selectedDate.getUTCDate();
         const startDate = new Date(Date.UTC(year, month, day, 0, 0, 0, 0));
         const endDate = new Date(Date.UTC(year, month, day + 1, 0, 0, 0, 0));
-        
+
         query.scheduledStartTime = {
           $gte: startDate,
           $lt: endDate
@@ -97,10 +97,10 @@ exports.getMyLiveClasses = asyncHandler(async (req, res) => {
     const year = now.getUTCFullYear();
     const month = now.getUTCMonth();
     const day = now.getUTCDate();
-    
+
     const today = new Date(Date.UTC(year, month, day, 0, 0, 0, 0));
     const tomorrow = new Date(Date.UTC(year, month, day + 1, 0, 0, 0, 0));
-    
+
     query.scheduledStartTime = {
       $gte: today,
       $lt: tomorrow
@@ -118,11 +118,11 @@ exports.getMyLiveClasses = asyncHandler(async (req, res) => {
   if (search && search.trim()) {
     const searchLower = search.toLowerCase().trim();
     console.log('[LiveClass] Teacher applying search filter:', searchLower);
-    
+
     liveClasses = liveClasses.filter(liveClass => {
       const titleMatch = liveClass.title?.toLowerCase().includes(searchLower);
       const subjectMatch = liveClass.subjectId?.name?.toLowerCase().includes(searchLower);
-      
+
       // Also search in date string
       const classDate = new Date(liveClass.scheduledStartTime);
       const dateStr = classDate.toLocaleDateString('en-IN', {
@@ -131,10 +131,10 @@ exports.getMyLiveClasses = asyncHandler(async (req, res) => {
         day: 'numeric'
       });
       const dateMatch = dateStr.toLowerCase().includes(searchLower);
-      
+
       return titleMatch || subjectMatch || dateMatch;
     });
-    
+
     console.log('[LiveClass] Teacher search results count:', liveClasses.length);
   }
 
@@ -154,26 +154,44 @@ exports.getTeacherClassStatistics = asyncHandler(async (req, res) => {
   const teacherId = req.user._id;
   const now = new Date();
 
-  // Get all live classes created by this teacher
-  const allClasses = await LiveClass.find({ teacherId })
-    .select('status scheduledStartTime endTime');
+  // UTC start & end of today
+  const startOfDay = new Date(Date.UTC(
+    now.getUTCFullYear(),
+    now.getUTCMonth(),
+    now.getUTCDate(),
+    0, 0, 0, 0
+  ));
 
-  // Calculate statistics
-  const totalClasses = allClasses.length;
-  
-  // Completed: classes with status 'ended'
-  const completed = allClasses.filter(cls => cls.status === 'ended').length;
-  
-  // Upcoming: classes with status 'scheduled' and scheduledStartTime >= now
-  const upcoming = allClasses.filter(cls => 
-    cls.status === 'scheduled' && 
-    cls.scheduledStartTime && 
-    new Date(cls.scheduledStartTime) >= now
+  const endOfDay = new Date(Date.UTC(
+    now.getUTCFullYear(),
+    now.getUTCMonth(),
+    now.getUTCDate(),
+    23, 59, 59, 999
+  ));
+
+  const todayClasses = await LiveClass.find({
+    teacherId,
+    scheduledStartTime: {
+      $gte: startOfDay,
+      $lte: endOfDay
+    }
+  }).select('status scheduledStartTime');
+
+  const totalClasses = todayClasses.length;
+
+  const completed = todayClasses.filter(
+    cls => cls.status === 'ended'
+  ).length;
+
+  // 🔥 FIX HERE
+  const upcoming = todayClasses.filter(
+    cls => cls.status === 'scheduled'
   ).length;
 
   res.status(200).json({
     success: true,
     data: {
+      dateUTC: startOfDay.toISOString().split('T')[0],
       statistics: {
         totalClasses,
         completed,
@@ -183,29 +201,32 @@ exports.getTeacherClassStatistics = asyncHandler(async (req, res) => {
   });
 });
 
+
+
+
 // @desc    Get live classes for student's class
 // @route   GET /api/student/live-classes
 // @access  Private/Student
 exports.getStudentLiveClasses = asyncHandler(async (req, res) => {
   const Payment = require('../models/Payment');
   const { date, search } = req.query;
-  
+
   console.log('[LiveClass] getStudentLiveClasses called with query params:', { date, search, query: req.query });
-  
+
   const student = await Student.findById(req.user._id);
-  
+
   if (!student || !student.class || !student.board) {
     throw new ErrorResponse('Student class or board not found', 404);
   }
 
   // Check active subscriptions from both sources
   const now = new Date();
-  
+
   // Get from activeSubscriptions array
-  const activeSubsFromArray = (student.activeSubscriptions || []).filter(sub => 
+  const activeSubsFromArray = (student.activeSubscriptions || []).filter(sub =>
     new Date(sub.endDate) >= now
   );
-  
+
   // Get from Payment records
   const activePayments = await Payment.find({
     studentId: student._id,
@@ -221,27 +242,27 @@ exports.getStudentLiveClasses = asyncHandler(async (req, res) => {
       }
     });
 
-  const hasActiveClassSubscription = activePayments.some(payment => 
-    payment.subscriptionPlanId && 
+  const hasActiveClassSubscription = activePayments.some(payment =>
+    payment.subscriptionPlanId &&
     payment.subscriptionPlanId.type === 'regular' &&
     payment.subscriptionPlanId.board === student.board &&
     payment.subscriptionPlanId.classes &&
     payment.subscriptionPlanId.classes.includes(student.class)
-  ) || activeSubsFromArray.some(sub => 
-    sub.type === 'regular' && 
-    sub.board === student.board && 
+  ) || activeSubsFromArray.some(sub =>
+    sub.type === 'regular' &&
+    sub.board === student.board &&
     sub.class === student.class
   );
 
   // Get preparation class IDs from active preparation subscriptions
   const prepClassIdsFromPayments = activePayments
-    .filter(payment => 
-      payment.subscriptionPlanId && 
+    .filter(payment =>
+      payment.subscriptionPlanId &&
       payment.subscriptionPlanId.type === 'preparation' &&
       payment.subscriptionPlanId.classId
     )
     .map(payment => payment.subscriptionPlanId.classId._id || payment.subscriptionPlanId.classId);
-  
+
   const prepClassIdsFromArray = activeSubsFromArray
     .filter(sub => sub.type === 'preparation' && sub.classId)
     .map(sub => {
@@ -249,14 +270,14 @@ exports.getStudentLiveClasses = asyncHandler(async (req, res) => {
       return classId ? classId.toString() : null;
     })
     .filter(Boolean);
-  
+
   // Combine and remove duplicates
   const mongoose = require('mongoose');
   const allPrepClassIds = [...new Set([
     ...prepClassIdsFromPayments.map(id => id.toString()),
     ...prepClassIdsFromArray
   ])];
-  
+
   const preparationClassIds = allPrepClassIds
     .filter(id => mongoose.Types.ObjectId.isValid(id))
     .map(id => new mongoose.Types.ObjectId(id));
@@ -307,12 +328,12 @@ exports.getStudentLiveClasses = asyncHandler(async (req, res) => {
       const year = parseInt(dateParts[0], 10);
       const month = parseInt(dateParts[1], 10) - 1; // Month is 0-indexed
       const day = parseInt(dateParts[2], 10);
-      
+
       // Create UTC date for start of selected day (00:00:00 UTC)
       const selectedDate = new Date(Date.UTC(year, month, day, 0, 0, 0, 0));
       // Create UTC date for start of next day (00:00:00 UTC)
       const nextDate = new Date(Date.UTC(year, month, day + 1, 0, 0, 0, 0));
-      
+
       console.log('[LiveClass] Date filter:', {
         dateParam: date,
         selectedDateUTC: selectedDate.toISOString(),
@@ -320,7 +341,7 @@ exports.getStudentLiveClasses = asyncHandler(async (req, res) => {
         selectedDateLocal: selectedDate.toLocaleString(),
         nextDateLocal: nextDate.toLocaleString()
       });
-      
+
       query.scheduledStartTime = {
         $gte: selectedDate,
         $lt: nextDate
@@ -335,7 +356,7 @@ exports.getStudentLiveClasses = asyncHandler(async (req, res) => {
         const day = selectedDate.getUTCDate();
         const startDate = new Date(Date.UTC(year, month, day, 0, 0, 0, 0));
         const endDate = new Date(Date.UTC(year, month, day + 1, 0, 0, 0, 0));
-        
+
         query.scheduledStartTime = {
           $gte: startDate,
           $lt: endDate
@@ -348,17 +369,17 @@ exports.getStudentLiveClasses = asyncHandler(async (req, res) => {
     const year = now.getUTCFullYear();
     const month = now.getUTCMonth();
     const day = now.getUTCDate();
-    
+
     const today = new Date(Date.UTC(year, month, day, 0, 0, 0, 0));
     const tomorrow = new Date(Date.UTC(year, month, day + 1, 0, 0, 0, 0));
-    
+
     console.log('[LiveClass] Default date filter (today UTC):', {
       todayUTC: today.toISOString(),
       tomorrowUTC: tomorrow.toISOString(),
       todayLocal: today.toLocaleString(),
       tomorrowLocal: tomorrow.toLocaleString()
     });
-    
+
     query.scheduledStartTime = {
       $gte: today,
       $lt: tomorrow
@@ -377,12 +398,12 @@ exports.getStudentLiveClasses = asyncHandler(async (req, res) => {
   if (search && search.trim()) {
     const searchLower = search.toLowerCase().trim();
     console.log('[LiveClass] Applying search filter:', searchLower);
-    
+
     liveClasses = liveClasses.filter(liveClass => {
       const titleMatch = liveClass.title?.toLowerCase().includes(searchLower);
       const subjectMatch = liveClass.subjectId?.name?.toLowerCase().includes(searchLower);
       const teacherMatch = liveClass.teacherId?.name?.toLowerCase().includes(searchLower);
-      
+
       // Also search in date string
       const classDate = new Date(liveClass.scheduledStartTime);
       const dateStr = classDate.toLocaleDateString('en-IN', {
@@ -391,10 +412,10 @@ exports.getStudentLiveClasses = asyncHandler(async (req, res) => {
         day: 'numeric'
       });
       const dateMatch = dateStr.toLowerCase().includes(searchLower);
-      
+
       return titleMatch || subjectMatch || teacherMatch || dateMatch;
     });
-    
+
     console.log('[LiveClass] Search results count:', liveClasses.length);
   }
 
@@ -410,11 +431,11 @@ exports.getStudentLiveClasses = asyncHandler(async (req, res) => {
       endTime = new Date(scheduledTime);
       endTime.setMinutes(endTime.getMinutes() + liveClass.duration);
     }
-    
+
     // Use the actual status from database - don't auto-change based on time
     // Status should only change when teacher explicitly starts/ends the class
     let status = liveClass.status;
-    
+
     // Respect 'ended' status if teacher has explicitly ended the class
     if (liveClass.status === 'ended') {
       status = 'ended';
@@ -431,7 +452,7 @@ exports.getStudentLiveClasses = asyncHandler(async (req, res) => {
     if (liveClass.recording && liveClass.recording.status === 'completed') {
       // Try to find Recording document for this live class to get presigned URL
       let playbackUrl = liveClass.recording.s3Url || liveClass.recording.localPath || null;
-      
+
       // If S3 is configured and we have s3Key, generate presigned URL
       if (s3Service.isConfigured() && liveClass.recording.s3Key) {
         try {
@@ -442,7 +463,7 @@ exports.getStudentLiveClasses = asyncHandler(async (req, res) => {
           playbackUrl = liveClass.recording.s3Url || liveClass.recording.localPath || null;
         }
       }
-      
+
       recording = {
         ...liveClass.recording.toObject ? liveClass.recording.toObject() : liveClass.recording,
         isAvailable: true,
@@ -477,21 +498,21 @@ exports.getStudentLiveClasses = asyncHandler(async (req, res) => {
 // @access  Private/Student
 exports.getUpcomingLiveClasses = asyncHandler(async (req, res) => {
   const Payment = require('../models/Payment');
-  
+
   const student = await Student.findById(req.user._id);
-  
+
   if (!student || !student.class || !student.board) {
     throw new ErrorResponse('Student class or board not found', 404);
   }
 
   // Check active subscriptions from both sources
   const now = new Date();
-  
+
   // Get from activeSubscriptions array
-  const activeSubsFromArray = (student.activeSubscriptions || []).filter(sub => 
+  const activeSubsFromArray = (student.activeSubscriptions || []).filter(sub =>
     new Date(sub.endDate) >= now
   );
-  
+
   // Get from Payment records
   const activePayments = await Payment.find({
     studentId: student._id,
@@ -507,27 +528,27 @@ exports.getUpcomingLiveClasses = asyncHandler(async (req, res) => {
       }
     });
 
-  const hasActiveClassSubscription = activePayments.some(payment => 
-    payment.subscriptionPlanId && 
+  const hasActiveClassSubscription = activePayments.some(payment =>
+    payment.subscriptionPlanId &&
     payment.subscriptionPlanId.type === 'regular' &&
     payment.subscriptionPlanId.board === student.board &&
     payment.subscriptionPlanId.classes &&
     payment.subscriptionPlanId.classes.includes(student.class)
-  ) || activeSubsFromArray.some(sub => 
-    sub.type === 'regular' && 
-    sub.board === student.board && 
+  ) || activeSubsFromArray.some(sub =>
+    sub.type === 'regular' &&
+    sub.board === student.board &&
     sub.class === student.class
   );
 
   // Get preparation class IDs from active preparation subscriptions
   const prepClassIdsFromPayments = activePayments
-    .filter(payment => 
-      payment.subscriptionPlanId && 
+    .filter(payment =>
+      payment.subscriptionPlanId &&
       payment.subscriptionPlanId.type === 'preparation' &&
       payment.subscriptionPlanId.classId
     )
     .map(payment => payment.subscriptionPlanId.classId._id || payment.subscriptionPlanId.classId);
-  
+
   const prepClassIdsFromArray = activeSubsFromArray
     .filter(sub => sub.type === 'preparation' && sub.classId)
     .map(sub => {
@@ -535,14 +556,14 @@ exports.getUpcomingLiveClasses = asyncHandler(async (req, res) => {
       return classId ? classId.toString() : null;
     })
     .filter(Boolean);
-  
+
   // Combine and remove duplicates
   const mongoose = require('mongoose');
   const allPrepClassIds = [...new Set([
     ...prepClassIdsFromPayments.map(id => id.toString()),
     ...prepClassIdsFromArray
   ])];
-  
+
   const preparationClassIds = allPrepClassIds
     .filter(id => mongoose.Types.ObjectId.isValid(id))
     .map(id => new mongoose.Types.ObjectId(id));
@@ -585,11 +606,11 @@ exports.getUpcomingLiveClasses = asyncHandler(async (req, res) => {
   const year = today.getUTCFullYear();
   const month = today.getUTCMonth();
   const day = today.getUTCDate();
-  
+
   // Create UTC date range for today (start and end of today in UTC)
   const todayStart = new Date(Date.UTC(year, month, day, 0, 0, 0, 0));
   const todayEnd = new Date(Date.UTC(year, month, day + 1, 0, 0, 0, 0));
-  
+
   const query = {
     classId: { $in: classIds },
     status: 'scheduled', // Only scheduled classes (not started yet)
@@ -652,7 +673,7 @@ exports.getAssignedOptions = asyncHandler(async (req, res) => {
     if (timetable.classId && timetable.subjectId) {
       const classId = timetable.classId._id.toString();
       const subjectId = timetable.subjectId._id.toString();
-      
+
       // Store class
       if (!classesMap.has(classId)) {
         classesMap.set(classId, {
@@ -664,7 +685,7 @@ exports.getAssignedOptions = asyncHandler(async (req, res) => {
           classCode: timetable.classId.classCode
         });
       }
-      
+
       // Store class-subject combination
       if (!classSubjectMap.has(classId)) {
         classSubjectMap.set(classId, new Set());
@@ -674,7 +695,7 @@ exports.getAssignedOptions = asyncHandler(async (req, res) => {
   });
 
   const classes = Array.from(classesMap.values());
-  
+
   // Get all unique subjects (will be filtered on frontend based on selected class)
   const subjectsMap = new Map();
   timetables.forEach(timetable => {
@@ -689,7 +710,7 @@ exports.getAssignedOptions = asyncHandler(async (req, res) => {
     }
   });
   const subjects = Array.from(subjectsMap.values());
-  
+
   // Get unique boards
   const boardsSet = new Set();
   classes.forEach(cls => {
@@ -751,7 +772,7 @@ exports.createLiveClass = asyncHandler(async (req, res) => {
 
   // Generate temporary channel name first (will be updated with actual ID after creation)
   const tempChannelName = `temp_${Date.now()}_${Math.random().toString(36).substring(7)}`;
-  
+
   // Create live class (timetableId is optional now - can be null)
   const liveClass = await LiveClass.create({
     timetableId: assignedTimetable._id, // Optional - for reference
@@ -768,7 +789,7 @@ exports.createLiveClass = asyncHandler(async (req, res) => {
 
   // Generate Agora channel name using live class ID
   const agoraChannelName = agoraService.generateChannelName(liveClass._id.toString());
-  
+
   // Update with actual channel name
   liveClass.agoraChannelName = agoraChannelName;
   await liveClass.save();
@@ -955,7 +976,7 @@ exports.joinLiveClass = asyncHandler(async (req, res) => {
 
   // Check if user is already a participant (remove duplicates first)
   const userIdStr = userId.toString();
-  
+
   // Remove any duplicate entries for this user
   liveClass.participants = liveClass.participants.filter(
     (p, index, self) => {
@@ -964,7 +985,7 @@ exports.joinLiveClass = asyncHandler(async (req, res) => {
       return self.findIndex(pp => (pp.userId?.toString() || pp.userId) === pUserIdStr) === index;
     }
   );
-  
+
   // Find existing participant
   let participant = liveClass.participants.find(
     p => {
@@ -1011,7 +1032,7 @@ exports.joinLiveClass = asyncHandler(async (req, res) => {
     const msgUserIdStr = msg.userId?.toString() || msg.userId;
     const isOwnMessage = msgUserIdStr === userIdStr;
     if (isOwnMessage) return false; // Own messages are always considered read
-    
+
     const hasRead = msg.readBy && msg.readBy.some(
       read => read.userId?.toString() === userIdStr
     );
@@ -1105,289 +1126,289 @@ exports.endLiveClass = asyncHandler(async (req, res) => {
     // Process recording asynchronously without blocking
     (async () => {
       try {
-      // Verify recording was actually started before trying to stop
-      if (!liveClass.recording?.resourceId || !liveClass.recording?.sid) {
-        console.warn('[LiveClass] Recording not started, skipping stop', {
+        // Verify recording was actually started before trying to stop
+        if (!liveClass.recording?.resourceId || !liveClass.recording?.sid) {
+          console.warn('[LiveClass] Recording not started, skipping stop', {
+            liveClassId: liveClass._id.toString(),
+            hasResourceId: !!liveClass.recording?.resourceId,
+            hasSid: !!liveClass.recording?.sid
+          });
+          liveClass.recording = {
+            ...liveClass.recording,
+            status: 'failed',
+            error: 'Recording was not started successfully'
+          };
+          await liveClass.save();
+          return; // Exit async function
+        }
+
+        // Use the same UID that started the recording (required by Agora stop API)
+        const recorderUid = liveClass.recording.recorderUid || parseInt(liveClass.teacherId.toString().slice(-8), 16) || 0;
+
+        const stopRes = await agoraRecordingService.stop(
+          liveClass.recording.resourceId,
+          liveClass.recording.sid,
+          liveClass.agoraChannelName,
+          recorderUid
+        );
+        console.log('[LiveClass] Recording stop response', {
           liveClassId: liveClass._id.toString(),
-          hasResourceId: !!liveClass.recording?.resourceId,
-          hasSid: !!liveClass.recording?.sid
-        });
-        liveClass.recording = {
-          ...liveClass.recording,
-          status: 'failed',
-          error: 'Recording was not started successfully'
-        };
-        await liveClass.save();
-        return; // Exit async function
-      }
-      
-      // Use the same UID that started the recording (required by Agora stop API)
-      const recorderUid = liveClass.recording.recorderUid || parseInt(liveClass.teacherId.toString().slice(-8), 16) || 0;
-
-      const stopRes = await agoraRecordingService.stop(
-        liveClass.recording.resourceId,
-        liveClass.recording.sid,
-        liveClass.agoraChannelName,
-        recorderUid
-      );
-      console.log('[LiveClass] Recording stop response', {
-        liveClassId: liveClass._id.toString(),
-        resourceId: liveClass.recording.resourceId,
-        sid: liveClass.recording.sid,
-        recorderUid,
-        stopRes
-      });
-
-      // If Agora explicitly reports no data (e.g., code 435), fail fast
-      if (stopRes?.code === 435 || /no recorded data/i.test(stopRes?.reason || '')) {
-        liveClass.recording = {
-          ...liveClass.recording,
-          status: 'failed',
-          error: stopRes?.reason || 'No recorded data returned by Agora'
-        };
-        await liveClass.save();
-        console.warn('[LiveClass] Recording failed: no data from Agora', {
-          liveClassId: liveClass._id.toString(),
-          stopRes
-        });
-        return; // Exit async function, response already sent
-      }
-
-      // Extract file list; if missing, try querying a few times (handles Agora code 65/request not completed)
-      let fileList = stopRes?.fileList || stopRes?.serverResponse?.fileList;
-      if (!fileList) {
-        console.log('[Recording] No fileList in stop response, querying Agora...');
-        for (let attempt = 1; attempt <= 5; attempt++) {
-          try {
-            const queryRes = await agoraRecordingService.query(
-              liveClass.recording.resourceId,
-              liveClass.recording.sid
-            );
-            
-            // Check recording status
-            const status = queryRes?.serverResponse?.status;
-            console.log('[Recording] Query response status:', status, { attempt });
-            
-            // Status: 0=idle, 1=recording, 2=stopped, 3=error
-            if (status === 3) {
-              console.error('[Recording] Recording status is error');
-              throw new Error('Recording status is error');
-            }
-            
-            // If still recording, wait longer
-            if (status === 1) {
-              console.log('[Recording] Still recording, waiting...');
-              await new Promise(r => setTimeout(r, 5000));
-              continue;
-            }
-            
-            fileList = queryRes?.fileList || queryRes?.serverResponse?.fileList;
-            if (fileList) {
-              console.log('[Recording] Retrieved fileList via query', { attempt, fileList });
-              break;
-            } else {
-              console.log('[Recording] No fileList in query response, waiting...', { attempt });
-              await new Promise(r => setTimeout(r, 5000));
-            }
-          } catch (qErr) {
-            // If 404, recording doesn't exist
-            if (qErr?.response?.status === 404) {
-              console.error('[Recording] Query returned 404 - recording session not found', {
-                attempt,
-                resourceId: liveClass.recording.resourceId,
-                sid: liveClass.recording.sid,
-                error: qErr?.message || qErr
-              });
-              // If it's the last attempt, mark as failed
-              if (attempt === 5) {
-                liveClass.recording = {
-                  ...liveClass.recording,
-                  status: 'failed',
-                  error: 'Recording session not found. Recording may not have been started successfully.'
-                };
-                await liveClass.save();
-                console.warn('[LiveClass] Recording failed: session not found', { liveClassId: liveClass._id.toString() });
-                return; // Exit async function
-              }
-              // Wait longer before retrying 404
-              await new Promise(r => setTimeout(r, 10000));
-            } else {
-              console.warn('[Recording] Query after missing fileList failed', { attempt, error: qErr?.message || qErr });
-              await new Promise(r => setTimeout(r, 5000));
-            }
-          }
-        }
-      }
-
-      // If still no fileList, mark failed with detail and return
-      if (!fileList) {
-        liveClass.recording = {
-          ...liveClass.recording,
-          status: 'failed',
-          error: stopRes?.reason || 'No recording file returned from Agora after multiple queries'
-        };
-        await liveClass.save();
-        console.warn('[LiveClass] Recording failed: no fileUrl', { liveClassId: liveClass._id.toString(), stopRes });
-        return; // Exit async function, response already sent
-      }
-      // fileList can be a string (comma-separated or single name) or array of file objects
-      if (typeof fileList === 'string') {
-        // When no 3rd party storage, Agora returns file name as string (e.g., *.m3u8)
-        fileList = fileList.split(',').map(f => f.trim()).filter(Boolean);
-      }
-      const firstFile =
-        Array.isArray(fileList) && fileList.length > 0
-          ? fileList[0]
-          : null;
-
-      // Build download URL from Agora cloud if we don't have a direct URL
-      const fileName =
-        typeof firstFile === 'string'
-          ? firstFile
-          : firstFile?.fileUrl || firstFile?.file_name || firstFile?.fileName || firstFile?.url;
-
-      if (fileName) {
-        // Ensure local folder
-        const recordingsDir = path.join(__dirname, '..', 'uploads', 'recordings', liveClass._id.toString());
-        if (!fs.existsSync(recordingsDir)) {
-          fs.mkdirSync(recordingsDir, { recursive: true });
-        }
-
-        const safeFileName = path.basename(fileName) || `recording_${Date.now()}.m3u8`;
-        const localPath = path.join(recordingsDir, safeFileName);
-
-        const bucket = process.env.AWS_BUCKET_NAME || process.env.AWS_S3_BUCKET;
-        const recordFolder = process.env.AWS_S3_RECORDINGS_FOLDER || 'recordings';
-        const s3Key = `${recordFolder}/${liveClass._id.toString()}/${safeFileName}`;
-        const s3Url = `https://${bucket || ''}.s3.${process.env.AWS_REGION || 'ap-south-1'}.amazonaws.com/${s3Key}`;
-
-        let downloaded = false;
-
-        // Give Agora more time to finalize artifacts to reduce early 404s
-        await new Promise(r => setTimeout(r, 20000));
-
-        // First try to pull from S3 if it should already be there (storageConfig direct upload)
-        if (s3Service.isConfigured() && bucket) {
-          try {
-            let exists = false;
-            // Poll a bit longer before falling back to Agora (avoid 404 from Agora OSS)
-            for (let i = 0; i < 12; i++) {
-              exists = await s3Service.objectExists(s3Key);
-              if (exists) break;
-              await new Promise(r => setTimeout(r, 6000));
-            }
-            if (exists) {
-              await s3Service.downloadToFile(s3Key, localPath);
-              downloaded = true;
-              console.log('[LiveClass] Local copy downloaded from S3', { liveClassId: liveClass._id.toString(), localPath });
-            } else {
-              console.warn('[LiveClass] S3 object not found after wait, will try Agora download', { liveClassId: liveClass._id.toString(), s3Key });
-            }
-          } catch (s3dlErr) {
-            console.warn('[LiveClass] Failed S3 download attempt, will try Agora', s3dlErr?.message || s3dlErr);
-          }
-        }
-
-        // If not downloaded, fetch from Agora
-        if (!downloaded) {
-          if (firstFile?.fileUrl || firstFile?.url) {
-            const directUrl = firstFile.fileUrl || firstFile.url;
-            await agoraRecordingService.downloadFile(directUrl, localPath);
-          } else {
-            await agoraRecordingService.downloadRecordingWithRetry({
-              resourceId: liveClass.recording.resourceId,
-              sid: liveClass.recording.sid,
-              fileName: safeFileName,
-              destPath: localPath,
-              maxAttempts: 15,
-              delayMs: 10000
-            });
-          }
-          downloaded = true;
-          console.log('[LiveClass] Recording downloaded from Agora', { liveClassId: liveClass._id.toString(), localPath });
-        }
-
-        // Upload to S3 (preserve original filename) if configured and not already present
-        let finalS3Url = s3Service.isConfigured() ? s3Url : null;
-        let finalS3Key = s3Service.isConfigured() ? s3Key : null;
-        let uploadedNow = false;
-        if (s3Service.isConfigured() && bucket) {
-          const exists = await s3Service.objectExists(s3Key).catch(() => false);
-          if (!exists && downloaded) {
-            const contentType = safeFileName.endsWith('.m3u8')
-              ? 'application/vnd.apple.mpegurl'
-              : 'video/mp4';
-            try {
-              const uploaded = await s3Service.uploadFile(localPath, s3Key, contentType);
-              finalS3Url = uploaded.s3Url;
-              finalS3Key = uploaded.s3Key;
-              uploadedNow = true;
-              console.log('[LiveClass] Recording uploaded to S3 (manual)', { liveClassId: liveClass._id.toString(), finalS3Key });
-            } catch (uploadErr) {
-              console.error('Failed to upload recording to S3:', uploadErr);
-            }
-          }
-        }
-
-        const stats = fs.statSync(localPath);
-        const fileSize = stats.size;
-
-        // Update live class recording info
-        liveClass.recording = {
-          status: finalS3Url ? 'completed' : 'processing',
-          localPath,
-          s3Url: finalS3Url,
-          s3Key: finalS3Key,
-          fileSize,
-          duration: liveClass.duration ? liveClass.duration * 60 : undefined,
-          uploadedAt: finalS3Url ? new Date() : undefined,
           resourceId: liveClass.recording.resourceId,
           sid: liveClass.recording.sid,
-          // Keep track of the raw file name returned by Agora for reference
-          remoteUrl: safeFileName
-        };
-        await liveClass.save();
-
-        // Create Recording document
-        await Recording.create({
-          liveClassId: liveClass._id,
-          timetableId: liveClass.timetableId,
-          classId: liveClass.classId,
-          subjectId: liveClass.subjectId,
-          teacherId: liveClass.teacherId,
-          title: liveClass.title,
-          description: liveClass.description,
-          localPath,
-          s3Url: finalS3Url,
-          s3Key: finalS3Key,
-          status: finalS3Url ? 'completed' : 'processing',
-          duration: liveClass.duration ? liveClass.duration * 60 : undefined,
-          fileSize,
-          uploadedAt: finalS3Url ? new Date() : undefined
+          recorderUid,
+          stopRes
         });
 
-        // Remove local file after upload
-        if (s3Url) {
-          try {
-            fs.unlinkSync(localPath);
-            const dirFiles = fs.readdirSync(recordingsDir);
-            if (dirFiles.length === 0) {
-              fs.rmdirSync(recordingsDir, { recursive: true });
+        // If Agora explicitly reports no data (e.g., code 435), fail fast
+        if (stopRes?.code === 435 || /no recorded data/i.test(stopRes?.reason || '')) {
+          liveClass.recording = {
+            ...liveClass.recording,
+            status: 'failed',
+            error: stopRes?.reason || 'No recorded data returned by Agora'
+          };
+          await liveClass.save();
+          console.warn('[LiveClass] Recording failed: no data from Agora', {
+            liveClassId: liveClass._id.toString(),
+            stopRes
+          });
+          return; // Exit async function, response already sent
+        }
+
+        // Extract file list; if missing, try querying a few times (handles Agora code 65/request not completed)
+        let fileList = stopRes?.fileList || stopRes?.serverResponse?.fileList;
+        if (!fileList) {
+          console.log('[Recording] No fileList in stop response, querying Agora...');
+          for (let attempt = 1; attempt <= 5; attempt++) {
+            try {
+              const queryRes = await agoraRecordingService.query(
+                liveClass.recording.resourceId,
+                liveClass.recording.sid
+              );
+
+              // Check recording status
+              const status = queryRes?.serverResponse?.status;
+              console.log('[Recording] Query response status:', status, { attempt });
+
+              // Status: 0=idle, 1=recording, 2=stopped, 3=error
+              if (status === 3) {
+                console.error('[Recording] Recording status is error');
+                throw new Error('Recording status is error');
+              }
+
+              // If still recording, wait longer
+              if (status === 1) {
+                console.log('[Recording] Still recording, waiting...');
+                await new Promise(r => setTimeout(r, 5000));
+                continue;
+              }
+
+              fileList = queryRes?.fileList || queryRes?.serverResponse?.fileList;
+              if (fileList) {
+                console.log('[Recording] Retrieved fileList via query', { attempt, fileList });
+                break;
+              } else {
+                console.log('[Recording] No fileList in query response, waiting...', { attempt });
+                await new Promise(r => setTimeout(r, 5000));
+              }
+            } catch (qErr) {
+              // If 404, recording doesn't exist
+              if (qErr?.response?.status === 404) {
+                console.error('[Recording] Query returned 404 - recording session not found', {
+                  attempt,
+                  resourceId: liveClass.recording.resourceId,
+                  sid: liveClass.recording.sid,
+                  error: qErr?.message || qErr
+                });
+                // If it's the last attempt, mark as failed
+                if (attempt === 5) {
+                  liveClass.recording = {
+                    ...liveClass.recording,
+                    status: 'failed',
+                    error: 'Recording session not found. Recording may not have been started successfully.'
+                  };
+                  await liveClass.save();
+                  console.warn('[LiveClass] Recording failed: session not found', { liveClassId: liveClass._id.toString() });
+                  return; // Exit async function
+                }
+                // Wait longer before retrying 404
+                await new Promise(r => setTimeout(r, 10000));
+              } else {
+                console.warn('[Recording] Query after missing fileList failed', { attempt, error: qErr?.message || qErr });
+                await new Promise(r => setTimeout(r, 5000));
+              }
             }
-            console.log('[LiveClass] Local recording cleaned', { liveClassId: liveClass._id.toString(), localPath });
-          } catch (cleanupErr) {
-            console.warn('Failed to clean up local recording:', cleanupErr);
           }
         }
-      } else {
-        liveClass.recording = {
-          ...liveClass.recording,
-          status: 'failed',
-          error: 'No recording file returned from Agora'
-        };
-        await liveClass.save();
-        console.warn('[LiveClass] Recording failed: no fileUrl', { liveClassId: liveClass._id.toString(), stopRes });
-      }
+
+        // If still no fileList, mark failed with detail and return
+        if (!fileList) {
+          liveClass.recording = {
+            ...liveClass.recording,
+            status: 'failed',
+            error: stopRes?.reason || 'No recording file returned from Agora after multiple queries'
+          };
+          await liveClass.save();
+          console.warn('[LiveClass] Recording failed: no fileUrl', { liveClassId: liveClass._id.toString(), stopRes });
+          return; // Exit async function, response already sent
+        }
+        // fileList can be a string (comma-separated or single name) or array of file objects
+        if (typeof fileList === 'string') {
+          // When no 3rd party storage, Agora returns file name as string (e.g., *.m3u8)
+          fileList = fileList.split(',').map(f => f.trim()).filter(Boolean);
+        }
+        const firstFile =
+          Array.isArray(fileList) && fileList.length > 0
+            ? fileList[0]
+            : null;
+
+        // Build download URL from Agora cloud if we don't have a direct URL
+        const fileName =
+          typeof firstFile === 'string'
+            ? firstFile
+            : firstFile?.fileUrl || firstFile?.file_name || firstFile?.fileName || firstFile?.url;
+
+        if (fileName) {
+          // Ensure local folder
+          const recordingsDir = path.join(__dirname, '..', 'uploads', 'recordings', liveClass._id.toString());
+          if (!fs.existsSync(recordingsDir)) {
+            fs.mkdirSync(recordingsDir, { recursive: true });
+          }
+
+          const safeFileName = path.basename(fileName) || `recording_${Date.now()}.m3u8`;
+          const localPath = path.join(recordingsDir, safeFileName);
+
+          const bucket = process.env.AWS_BUCKET_NAME || process.env.AWS_S3_BUCKET;
+          const recordFolder = process.env.AWS_S3_RECORDINGS_FOLDER || 'recordings';
+          const s3Key = `${recordFolder}/${liveClass._id.toString()}/${safeFileName}`;
+          const s3Url = `https://${bucket || ''}.s3.${process.env.AWS_REGION || 'ap-south-1'}.amazonaws.com/${s3Key}`;
+
+          let downloaded = false;
+
+          // Give Agora more time to finalize artifacts to reduce early 404s
+          await new Promise(r => setTimeout(r, 20000));
+
+          // First try to pull from S3 if it should already be there (storageConfig direct upload)
+          if (s3Service.isConfigured() && bucket) {
+            try {
+              let exists = false;
+              // Poll a bit longer before falling back to Agora (avoid 404 from Agora OSS)
+              for (let i = 0; i < 12; i++) {
+                exists = await s3Service.objectExists(s3Key);
+                if (exists) break;
+                await new Promise(r => setTimeout(r, 6000));
+              }
+              if (exists) {
+                await s3Service.downloadToFile(s3Key, localPath);
+                downloaded = true;
+                console.log('[LiveClass] Local copy downloaded from S3', { liveClassId: liveClass._id.toString(), localPath });
+              } else {
+                console.warn('[LiveClass] S3 object not found after wait, will try Agora download', { liveClassId: liveClass._id.toString(), s3Key });
+              }
+            } catch (s3dlErr) {
+              console.warn('[LiveClass] Failed S3 download attempt, will try Agora', s3dlErr?.message || s3dlErr);
+            }
+          }
+
+          // If not downloaded, fetch from Agora
+          if (!downloaded) {
+            if (firstFile?.fileUrl || firstFile?.url) {
+              const directUrl = firstFile.fileUrl || firstFile.url;
+              await agoraRecordingService.downloadFile(directUrl, localPath);
+            } else {
+              await agoraRecordingService.downloadRecordingWithRetry({
+                resourceId: liveClass.recording.resourceId,
+                sid: liveClass.recording.sid,
+                fileName: safeFileName,
+                destPath: localPath,
+                maxAttempts: 15,
+                delayMs: 10000
+              });
+            }
+            downloaded = true;
+            console.log('[LiveClass] Recording downloaded from Agora', { liveClassId: liveClass._id.toString(), localPath });
+          }
+
+          // Upload to S3 (preserve original filename) if configured and not already present
+          let finalS3Url = s3Service.isConfigured() ? s3Url : null;
+          let finalS3Key = s3Service.isConfigured() ? s3Key : null;
+          let uploadedNow = false;
+          if (s3Service.isConfigured() && bucket) {
+            const exists = await s3Service.objectExists(s3Key).catch(() => false);
+            if (!exists && downloaded) {
+              const contentType = safeFileName.endsWith('.m3u8')
+                ? 'application/vnd.apple.mpegurl'
+                : 'video/mp4';
+              try {
+                const uploaded = await s3Service.uploadFile(localPath, s3Key, contentType);
+                finalS3Url = uploaded.s3Url;
+                finalS3Key = uploaded.s3Key;
+                uploadedNow = true;
+                console.log('[LiveClass] Recording uploaded to S3 (manual)', { liveClassId: liveClass._id.toString(), finalS3Key });
+              } catch (uploadErr) {
+                console.error('Failed to upload recording to S3:', uploadErr);
+              }
+            }
+          }
+
+          const stats = fs.statSync(localPath);
+          const fileSize = stats.size;
+
+          // Update live class recording info
+          liveClass.recording = {
+            status: finalS3Url ? 'completed' : 'processing',
+            localPath,
+            s3Url: finalS3Url,
+            s3Key: finalS3Key,
+            fileSize,
+            duration: liveClass.duration ? liveClass.duration * 60 : undefined,
+            uploadedAt: finalS3Url ? new Date() : undefined,
+            resourceId: liveClass.recording.resourceId,
+            sid: liveClass.recording.sid,
+            // Keep track of the raw file name returned by Agora for reference
+            remoteUrl: safeFileName
+          };
+          await liveClass.save();
+
+          // Create Recording document
+          await Recording.create({
+            liveClassId: liveClass._id,
+            timetableId: liveClass.timetableId,
+            classId: liveClass.classId,
+            subjectId: liveClass.subjectId,
+            teacherId: liveClass.teacherId,
+            title: liveClass.title,
+            description: liveClass.description,
+            localPath,
+            s3Url: finalS3Url,
+            s3Key: finalS3Key,
+            status: finalS3Url ? 'completed' : 'processing',
+            duration: liveClass.duration ? liveClass.duration * 60 : undefined,
+            fileSize,
+            uploadedAt: finalS3Url ? new Date() : undefined
+          });
+
+          // Remove local file after upload
+          if (s3Url) {
+            try {
+              fs.unlinkSync(localPath);
+              const dirFiles = fs.readdirSync(recordingsDir);
+              if (dirFiles.length === 0) {
+                fs.rmdirSync(recordingsDir, { recursive: true });
+              }
+              console.log('[LiveClass] Local recording cleaned', { liveClassId: liveClass._id.toString(), localPath });
+            } catch (cleanupErr) {
+              console.warn('Failed to clean up local recording:', cleanupErr);
+            }
+          }
+        } else {
+          liveClass.recording = {
+            ...liveClass.recording,
+            status: 'failed',
+            error: 'No recording file returned from Agora'
+          };
+          await liveClass.save();
+          console.warn('[LiveClass] Recording failed: no fileUrl', { liveClassId: liveClass._id.toString(), stopRes });
+        }
       } catch (stopErr) {
         console.error('Failed to stop/process recording:', stopErr);
         liveClass.recording = {
@@ -1466,7 +1487,7 @@ exports.markChatMessagesAsRead = asyncHandler(async (req, res) => {
   liveClass.chatMessages.forEach(msg => {
     const msgUserIdStr = msg.userId?.toString() || msg.userId;
     const isOwnMessage = msgUserIdStr === userIdStr;
-    
+
     // Skip own messages (they're already considered read)
     if (isOwnMessage) return;
 
@@ -1617,7 +1638,7 @@ exports.getLiveClass = asyncHandler(async (req, res) => {
   let recordingInfo = null;
   if (liveClass.recording && liveClass.recording.status === 'completed') {
     let playbackUrl = liveClass.recording.s3Url || liveClass.recording.localPath || null;
-    
+
     // If S3 is configured and we have s3Key, generate presigned URL
     if (s3Service.isConfigured() && liveClass.recording.s3Key) {
       try {
@@ -1628,7 +1649,7 @@ exports.getLiveClass = asyncHandler(async (req, res) => {
         playbackUrl = liveClass.recording.s3Url || liveClass.recording.localPath || null;
       }
     }
-    
+
     recordingInfo = {
       ...liveClass.recording.toObject ? liveClass.recording.toObject() : liveClass.recording,
       isAvailable: true,
@@ -1792,7 +1813,7 @@ exports.getStudentRecordings = asyncHandler(async (req, res) => {
   const Payment = require('../models/Payment');
   const Class = require('../models/Class');
   const student = await Student.findById(req.user._id || req.user.id);
-  
+
   if (!student) {
     throw new ErrorResponse('Student not found', 404);
   }
@@ -1812,8 +1833,8 @@ exports.getStudentRecordings = asyncHandler(async (req, res) => {
   const classIds = [];
 
   // Regular class subscription
-  const hasActiveClassSubscription = activePayments.some(payment => 
-    payment.subscriptionPlanId && 
+  const hasActiveClassSubscription = activePayments.some(payment =>
+    payment.subscriptionPlanId &&
     payment.subscriptionPlanId.type === 'regular' &&
     payment.subscriptionPlanId.board === student.board &&
     payment.subscriptionPlanId.classes &&
@@ -1832,9 +1853,9 @@ exports.getStudentRecordings = asyncHandler(async (req, res) => {
 
   // Preparation classes
   const preparationClassIds = activePayments
-    .filter(payment => 
-      payment.subscriptionPlanId && 
-      payment.subscriptionPlanId.type === 'preparation' && 
+    .filter(payment =>
+      payment.subscriptionPlanId &&
+      payment.subscriptionPlanId.type === 'preparation' &&
       payment.subscriptionPlanId.classId
     )
     .map(payment => payment.subscriptionPlanId.classId._id || payment.subscriptionPlanId.classId);
@@ -1862,7 +1883,7 @@ exports.getStudentRecordings = asyncHandler(async (req, res) => {
   // Generate presigned URLs for all recordings
   const recordingsWithUrls = await Promise.all(recordings.map(async (recording) => {
     let playbackUrl = recording.s3Url || recording.localPath || null;
-    
+
     // If S3 is configured and we have s3Key, generate presigned URL
     if (s3Service.isConfigured() && recording.s3Key) {
       try {
@@ -1873,7 +1894,7 @@ exports.getStudentRecordings = asyncHandler(async (req, res) => {
         playbackUrl = recording.s3Url || recording.localPath || null;
       }
     }
-    
+
     return {
       ...recording.toObject(),
       playbackUrl: playbackUrl

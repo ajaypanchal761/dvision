@@ -43,7 +43,7 @@ router.get('/student/recordings', protect, authorize('student'), getStudentRecor
 
 // Teacher routes
 router.get('/teacher/live-classes', protect, authorize('teacher'), getMyLiveClasses);
-router.get('/teacher/live-classes/statistics', protect, authorize('teacher'), getTeacherClassStatistics);
+router.get('/teacher/statistics', protect, authorize('teacher'), getTeacherClassStatistics);
 router.get('/teacher/live-classes/assigned-options', protect, authorize('teacher'), getAssignedOptions);
 router.post('/teacher/live-classes', protect, authorize('teacher'), createLiveClass);
 router.put('/teacher/live-classes/:id/start', protect, authorize('teacher'), startLiveClass);
