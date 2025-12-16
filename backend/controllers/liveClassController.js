@@ -461,11 +461,12 @@ exports.getUpcomingLiveClasses = asyncHandler(async (req, res) => {
     });
   }
 
-  // Get upcoming scheduled live classes (status = 'scheduled' and scheduledStartTime >= now)
+  // Get upcoming scheduled live classes (status = 'scheduled' only, regardless of time)
+  // This matches the "Starts Soon" section in Live Classes page
   const query = {
     classId: { $in: classIds },
-    status: 'scheduled', // Only scheduled classes
-    scheduledStartTime: { $gte: now } // Only future classes
+    status: 'scheduled' // Only scheduled classes (not started yet)
+    // Don't filter by time - show all scheduled classes until teacher starts them
   };
 
   let liveClasses = await LiveClass.find(query)
