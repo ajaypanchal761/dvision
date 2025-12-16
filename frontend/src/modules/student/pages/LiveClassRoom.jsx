@@ -1280,12 +1280,11 @@ const LiveClassRoom = () => {
   // Mark messages as read
   const markMessagesAsRead = async () => {
     try {
-      if (unreadMessageCount > 0) {
-        const response = await liveClassAPI.markChatAsRead(id);
-        if (response.success) {
-          setUnreadMessageCount(0);
-          // Update local messages to mark them as read
-          setChatMessages(prev => prev.map(msg => {
+      const response = await liveClassAPI.markChatAsRead(id);
+      if (response.success) {
+        // Update local messages to mark them as read
+        setChatMessages(prev => {
+          const updatedMessages = prev.map(msg => {
             const currentUserId = getCurrentUserId();
             const msgUserId = msg.userId?._id?.toString() || msg.userId?.toString() || msg.userId;
             const isOwnMessage = currentUserId && msgUserId && currentUserId.toString() === msgUserId.toString();
@@ -1306,13 +1305,40 @@ const LiveClassRoom = () => {
               };
             }
             return msg;
-          }));
-        }
+          });
+          
+          // Recalculate unread count (should be 0 after marking as read)
+          const unreadCount = calculateUnreadCount(updatedMessages);
+          setUnreadMessageCount(unreadCount);
+          
+          return updatedMessages;
+        });
       }
     } catch (err) {
       console.error('Error marking messages as read:', err);
     }
   };
+  
+  // Recalculate unread count when chat visibility changes
+  useEffect(() => {
+    if (showChat) {
+      // When chat opens, mark messages as read
+      markMessagesAsRead();
+    } else {
+      // When chat closes, recalculate unread count
+      const unreadCount = calculateUnreadCount(chatMessages);
+      setUnreadMessageCount(unreadCount);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showChat]);
+  
+  // Recalculate unread count when messages change (only if chat is closed)
+  useEffect(() => {
+    if (!showChat && chatMessages.length > 0) {
+      const unreadCount = calculateUnreadCount(chatMessages);
+      setUnreadMessageCount(unreadCount);
+    }
+  }, [chatMessages, showChat]);
 
   // Toggle hand raise
   const toggleHandRaise = async () => {
@@ -1531,12 +1557,8 @@ const LiveClassRoom = () => {
         <div className="flex items-center gap-2">
           <button
             onClick={() => {
-              const newShowChat = !showChat;
-              setShowChat(newShowChat);
-              // Mark messages as read when opening chat
-              if (newShowChat && unreadMessageCount > 0) {
-                markMessagesAsRead();
-              }
+              setShowChat(!showChat);
+              // markMessagesAsRead will be called automatically by useEffect when showChat changes
             }}
             className="p-2 hover:bg-gray-700 rounded-lg relative"
           >
