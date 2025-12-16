@@ -10,53 +10,76 @@ import {
   FiX,
   FiSend,
   FiPhone,
-  FiRotateCw,
-  FiHelpCircle
+  FiRotateCw
 } from 'react-icons/fi';
+import { PiHandPalm } from 'react-icons/pi';
 import AgoraRTC from 'agora-rtc-sdk-ng';
 import { io } from 'socket.io-client';
 import { liveClassAPI } from '../services/api';
 
 // Auto-detect API base URL for socket connections
+// Use the same logic as the API service to ensure consistency
 const getApiBaseUrl = () => {
+  // If explicitly set via environment variable, use that
   if (import.meta.env.VITE_API_BASE_URL) {
-    return import.meta.env.VITE_API_BASE_URL.replace('/api', '');
+    const envUrl = import.meta.env.VITE_API_BASE_URL;
+    // Remove trailing slash if present
+    const cleanUrl = envUrl.replace(/\/$/, '');
+    console.log('[Student Socket] Using VITE_API_BASE_URL from env:', cleanUrl);
+    return cleanUrl;
   }
+  
+  // Auto-detect production environment
   if (typeof window !== 'undefined') {
     const hostname = window.location.hostname;
     const isProduction = hostname.includes('dvisionacademy.com');
+    
     if (isProduction) {
+      // Try api subdomain first, fallback to same domain
       const protocol = window.location.protocol;
+      let apiUrl;
       if (hostname.startsWith('www.')) {
-        return `${protocol}//api.${hostname.substring(4)}`;
+        apiUrl = `${protocol}//api.${hostname.substring(4)}/api`;
       } else if (!hostname.startsWith('api.')) {
-        return `${protocol}//api.${hostname}`;
+        apiUrl = `${protocol}//api.${hostname}/api`;
       } else {
-        return `${protocol}//${hostname}`;
+        apiUrl = `${protocol}//${hostname}/api`;
       }
+      console.log('[Student Socket] Production detected. Hostname:', hostname, '→ API URL:', apiUrl);
+      return apiUrl;
+    } else {
+      console.log('[Student Socket] Development mode. Hostname:', hostname);
     }
   }
-  return 'http://localhost:5000';
+  
+  // Default to localhost for development
+  const defaultUrl = 'http://localhost:5000/api';
+  console.log('[Student Socket] Using default API URL:', defaultUrl);
+  return defaultUrl;
 };
 
 const API_BASE_URL = getApiBaseUrl();
 
-// Socket.io connection URL (should be the base URL without /api), same logic as teacher panel
+// Socket.io connection URL (should be the base URL without /api)
 const getSocketUrl = () => {
   try {
     let url = API_BASE_URL;
-    // Remove /api if present
-    url = url.replace('/api', '');
+    // Remove /api if present (handle both /api and /api/)
+    url = url.replace(/\/api\/?$/, '');
     // Remove trailing slash
     url = url.replace(/\/$/, '');
 
-    // If it's a full URL, parse it
+    // If it's a full URL, parse it to get just the origin
     if (url.startsWith('http://') || url.startsWith('https://')) {
       const urlObj = new URL(url);
-      return `${urlObj.protocol}//${urlObj.host}`;
+      const socketUrl = `${urlObj.protocol}//${urlObj.host}`;
+      console.log('[Student Socket] Socket URL determined:', socketUrl, 'from API URL:', API_BASE_URL);
+      return socketUrl;
     }
     // Default fallback
-    return 'http://localhost:5000';
+    const defaultSocket = 'http://localhost:5000';
+    console.log('[Student Socket] Using default socket URL:', defaultSocket);
+    return defaultSocket;
   } catch (error) {
     console.error('[Student Socket] Error parsing URL, using default:', error);
     return 'http://localhost:5000';
@@ -64,6 +87,7 @@ const getSocketUrl = () => {
 };
 
 const SOCKET_URL = getSocketUrl();
+console.log('[Student Socket] Final SOCKET_URL:', SOCKET_URL);
 
 /**
  * Live Class Room Component - Student Panel
@@ -943,91 +967,116 @@ const LiveClassRoom = () => {
   // Toggle mute
   const toggleMute = async () => {
     try {
-      if (clientRef.current) {
-        const newMutedState = !isMuted;
+      // Check if client exists and is connected
+      if (!clientRef.current) {
+        console.warn('Cannot toggle mute: Agora client not initialized');
+        return;
+      }
+
+      // Check connection state
+      const connectionState = clientRef.current.connectionState;
+      if (connectionState !== 'CONNECTED' && connectionState !== 'CONNECTING') {
+        console.warn('Cannot toggle mute: Client not connected. State:', connectionState);
+        return;
+      }
+
+      const newMutedState = !isMuted;
+      
+      // Update state immediately for UI feedback
+      setIsMuted(newMutedState);
+      
+      if (newMutedState) {
+        // Muting: Unpublish and disable track
+        console.log('Muting student audio track...');
         
-        // Update state immediately for UI feedback
-        setIsMuted(newMutedState);
-        
-        if (newMutedState) {
-          // Muting: Unpublish and disable track
-          console.log('Muting student audio track...');
-          
-          if (localAudioTrackRef.current) {
-            // Unpublish the track first
-            try {
+        if (localAudioTrackRef.current) {
+          // Unpublish the track first
+          try {
+            if (clientRef.current && connectionState === 'CONNECTED') {
               await clientRef.current.unpublish([localAudioTrackRef.current]);
-            } catch (unpubErr) {
-              console.warn('Error unpublishing audio track:', unpubErr);
             }
-            
-            // Disable and stop the track
-            try {
-              await localAudioTrackRef.current.setEnabled(false);
-              await localAudioTrackRef.current.setVolume(0);
-            } catch (disableErr) {
-              console.warn('Error disabling audio track:', disableErr);
-            }
+          } catch (unpubErr) {
+            console.warn('Error unpublishing audio track:', unpubErr);
           }
           
-          console.log('Student audio track muted');
-        } else {
-          // Unmuting: Recreate the audio track to ensure it works properly
-          console.log('Unmuting student audio track...');
-          
+          // Disable and stop the track
           try {
-            // Clean up old track if it exists
             if (localAudioTrackRef.current) {
-              try {
+              await localAudioTrackRef.current.setEnabled(false);
+              await localAudioTrackRef.current.setVolume(0);
+            }
+          } catch (disableErr) {
+            console.warn('Error disabling audio track:', disableErr);
+          }
+        }
+        
+        console.log('Student audio track muted');
+      } else {
+        // Unmuting: Recreate the audio track to ensure it works properly
+        console.log('Unmuting student audio track...');
+        
+        try {
+          // Clean up old track if it exists
+          if (localAudioTrackRef.current) {
+            try {
+              if (clientRef.current && connectionState === 'CONNECTED') {
                 await clientRef.current.unpublish([localAudioTrackRef.current]);
-              } catch (unpubErr) {
-                console.warn('Error unpublishing old audio track:', unpubErr);
               }
-              
-              try {
-                localAudioTrackRef.current.stop();
-                localAudioTrackRef.current.close();
-              } catch (closeErr) {
-                console.warn('Error closing old audio track:', closeErr);
-              }
-              localAudioTrackRef.current = null;
+            } catch (unpubErr) {
+              console.warn('Error unpublishing old audio track:', unpubErr);
             }
             
-            // Create a new audio track
-            const audioTrack = await AgoraRTC.createMicrophoneAudioTrack({
-              encoderConfig: 'speech_standard',
-              AEC: true,  // Echo cancellation
-              ANS: true,  // Noise suppression
-              AGC: true   // Auto gain control
-            });
-            
-            // Set volume to 100
-            await audioTrack.setVolume(100);
-            
-            // Store the new track
-            localAudioTrackRef.current = audioTrack;
-            
-            // Wait a bit for track to be ready
-            await new Promise(resolve => setTimeout(resolve, 200));
-            
-            // Publish the new track
+            try {
+              if (localAudioTrackRef.current) {
+                localAudioTrackRef.current.stop();
+                localAudioTrackRef.current.close();
+              }
+            } catch (closeErr) {
+              console.warn('Error closing old audio track:', closeErr);
+            }
+            localAudioTrackRef.current = null;
+          }
+          
+          // Create a new audio track
+          const audioTrack = await AgoraRTC.createMicrophoneAudioTrack({
+            encoderConfig: 'speech_standard',
+            AEC: true,  // Echo cancellation
+            ANS: true,  // Noise suppression
+            AGC: true   // Auto gain control
+          });
+          
+          // Set volume to 100
+          await audioTrack.setVolume(100);
+          
+          // Store the new track
+          localAudioTrackRef.current = audioTrack;
+          
+          // Wait a bit for track to be ready
+          await new Promise(resolve => setTimeout(resolve, 200));
+          
+          // Publish the new track only if client is still connected
+          if (clientRef.current && clientRef.current.connectionState === 'CONNECTED') {
             await clientRef.current.publish([audioTrack]);
             console.log('Audio track recreated and published successfully after unmute');
-          } catch (recreateErr) {
-            console.error('Error recreating audio track:', recreateErr);
+          } else {
+            console.warn('Cannot publish audio track: Client not connected');
             // Revert state on error
             setIsMuted(true);
           }
+        } catch (recreateErr) {
+          console.error('Error recreating audio track:', recreateErr);
+          // Revert state on error
+          setIsMuted(true);
         }
-        
-        // Emit status update
-        if (socketRef.current) {
-          socketRef.current.emit('participant-status', {
-            liveClassId: id,
-            isMuted: newMutedState,
-            isVideoEnabled
-          });
-        }
+      }
+      
+      // Emit status update
+      if (socketRef.current && socketRef.current.connected) {
+        socketRef.current.emit('participant-status', {
+          liveClassId: id,
+          isMuted: newMutedState,
+          isVideoEnabled
+        });
       }
     } catch (err) {
       console.error('Error toggling mute:', err);
@@ -1039,11 +1088,29 @@ const LiveClassRoom = () => {
   // Toggle video
   const toggleVideo = async () => {
     try {
-      if (localVideoTrackRef.current) {
-        const newVideoState = !isVideoEnabled;
-        
-        if (newVideoState) {
-          // Turning video on: Enable first, then play
+      // Check if client exists and is connected
+      if (!clientRef.current) {
+        console.warn('Cannot toggle video: Agora client not initialized');
+        return;
+      }
+
+      // Check connection state
+      const connectionState = clientRef.current.connectionState;
+      if (connectionState !== 'CONNECTED' && connectionState !== 'CONNECTING') {
+        console.warn('Cannot toggle video: Client not connected. State:', connectionState);
+        return;
+      }
+
+      if (!localVideoTrackRef.current) {
+        console.warn('Cannot toggle video: Video track not initialized');
+        return;
+      }
+
+      const newVideoState = !isVideoEnabled;
+      
+      if (newVideoState) {
+        // Turning video on: Enable first, then play
+        try {
           await localVideoTrackRef.current.setEnabled(true);
           setIsVideoEnabled(true);
           
@@ -1051,7 +1118,7 @@ const LiveClassRoom = () => {
           await new Promise(resolve => setTimeout(resolve, 200));
           
           // Play video in container if it exists
-          if (localVideoContainerRef.current && localVideoTrackRef.current.enabled) {
+          if (localVideoContainerRef.current && localVideoTrackRef.current && localVideoTrackRef.current.enabled) {
             try {
               const playPromise = localVideoTrackRef.current.play(localVideoContainerRef.current);
               if (playPromise && typeof playPromise.catch === 'function') {
@@ -1063,8 +1130,13 @@ const LiveClassRoom = () => {
               console.error('Error playing video:', playErr);
             }
           }
-        } else {
-          // Turning video off: Stop playing first, then disable
+        } catch (enableErr) {
+          console.error('Error enabling video track:', enableErr);
+          setIsVideoEnabled(false);
+        }
+      } else {
+        // Turning video off: Stop playing first, then disable
+        try {
           if (localVideoContainerRef.current && localVideoTrackRef.current) {
             try {
               localVideoTrackRef.current.stop();
@@ -1072,17 +1144,22 @@ const LiveClassRoom = () => {
               console.warn('Error stopping video track:', stopErr);
             }
           }
-          await localVideoTrackRef.current.setEnabled(false);
+          if (localVideoTrackRef.current) {
+            await localVideoTrackRef.current.setEnabled(false);
+          }
           setIsVideoEnabled(false);
+        } catch (disableErr) {
+          console.error('Error disabling video track:', disableErr);
+          // Don't revert state if we're already trying to disable
         }
-        
-        if (socketRef.current) {
-          socketRef.current.emit('participant-status', {
-            liveClassId: id,
-            isMuted,
-            isVideoEnabled: newVideoState
-          });
-        }
+      }
+      
+      if (socketRef.current && socketRef.current.connected) {
+        socketRef.current.emit('participant-status', {
+          liveClassId: id,
+          isMuted,
+          isVideoEnabled: newVideoState
+        });
       }
     } catch (err) {
       console.error('Error toggling video:', err);
@@ -1538,7 +1615,7 @@ const LiveClassRoom = () => {
           className={`p-3 rounded-full ${hasRaisedHand ? 'bg-yellow-600' : 'bg-gray-700'} hover:bg-opacity-80`}
           title={hasRaisedHand ? 'Lower hand' : 'Raise hand'}
         >
-          <FiHelpCircle className="text-xl" />
+          <PiHandPalm className="text-xl" />
         </button>
         <button
           onClick={leaveClass}

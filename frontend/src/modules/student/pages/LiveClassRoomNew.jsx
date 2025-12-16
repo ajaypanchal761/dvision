@@ -10,9 +10,9 @@ import {
   FiX,
   FiSend,
   FiPhone,
-  FiRotateCw,
-  FiHelpCircle
+  FiRotateCw
 } from 'react-icons/fi';
+import { PiHandPalm } from 'react-icons/pi';
 import AgoraRTC from 'agora-rtc-sdk-ng';
 import { io } from 'socket.io-client';
 import { liveClassAPI } from '../services/api';
@@ -707,7 +707,7 @@ const LiveClassRoom = () => {
           className={`p-3 rounded-full ${hasRaisedHand ? 'bg-yellow-600' : 'bg-gray-700'} hover:bg-opacity-80`}
           title={hasRaisedHand ? 'Lower hand' : 'Raise hand'}
         >
-          <FiHelpCircle className="text-xl" />
+          <PiHandPalm className="text-xl" />
         </button>
         <button
           onClick={leaveClass}

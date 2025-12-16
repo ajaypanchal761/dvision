@@ -17,6 +17,7 @@ import {
   FiVolume2,
   FiVolumeX
 } from 'react-icons/fi';
+import { PiHandPalm } from 'react-icons/pi';
 import AgoraRTC from 'agora-rtc-sdk-ng';
 import { io } from 'socket.io-client';
 import { liveClassAPI } from '../services/api';
@@ -690,7 +691,7 @@ const LiveClassRoom = () => {
         <div className="flex items-center gap-2">
           {raisedHandCount > 0 && (
             <div className="bg-yellow-500 text-black px-3 py-1 rounded-lg font-bold flex items-center gap-2">
-              <span>✋</span> {raisedHandCount} Hand{raisedHandCount > 1 ? 's' : ''} Raised
+              <PiHandPalm className="text-lg" /> {raisedHandCount} Hand{raisedHandCount > 1 ? 's' : ''} Raised
             </div>
           )}
           <button
@@ -799,8 +800,8 @@ const LiveClassRoom = () => {
                     </div>
                     <div className="flex items-center gap-1">
                       {hasRaisedHand && (
-                        <div className="bg-yellow-500 px-2 py-1 rounded text-xs font-bold text-black">
-                          ✋
+                        <div className="bg-yellow-500 px-2 py-1 rounded text-xs font-bold text-black flex items-center">
+                          <PiHandPalm className="text-sm" />
                         </div>
                       )}
                       <button

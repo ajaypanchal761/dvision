@@ -12,6 +12,7 @@ import {
   FiSend,
   FiPhone
 } from 'react-icons/fi';
+import { PiHandPalm } from 'react-icons/pi';
 import AgoraRTC from 'agora-rtc-sdk-ng';
 import { liveClassAPI } from '../services/api';
 
@@ -382,7 +383,7 @@ const LiveClassRoom = () => {
                   </div>
                   {participantInfo?.hasRaisedHand && (
                     <div className="absolute top-2 right-2 bg-yellow-500 px-2 py-1 rounded text-xs font-bold flex items-center gap-1">
-                      <span>✋</span> Hand Raised
+                      <PiHandPalm className="text-sm" /> Hand Raised
                     </div>
                   )}
                 </div>

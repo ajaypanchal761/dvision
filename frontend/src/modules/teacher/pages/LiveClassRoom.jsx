@@ -15,56 +15,82 @@ import {
   FiVolume2,
   FiVolumeX
 } from 'react-icons/fi';
+import { PiHandPalm } from 'react-icons/pi';
 import AgoraRTC from 'agora-rtc-sdk-ng';
 import { io } from 'socket.io-client';
 import { liveClassAPI } from '../services/api';
 
 // Auto-detect API base URL for socket connections
+// Use the same logic as the API service to ensure consistency
 const getApiBaseUrl = () => {
+  // If explicitly set via environment variable, use that
   if (import.meta.env.VITE_API_BASE_URL) {
-    return import.meta.env.VITE_API_BASE_URL.replace('/api', '');
+    const envUrl = import.meta.env.VITE_API_BASE_URL;
+    // Remove trailing slash if present
+    const cleanUrl = envUrl.replace(/\/$/, '');
+    console.log('[Teacher Socket] Using VITE_API_BASE_URL from env:', cleanUrl);
+    return cleanUrl;
   }
+  
+  // Auto-detect production environment
   if (typeof window !== 'undefined') {
     const hostname = window.location.hostname;
     const isProduction = hostname.includes('dvisionacademy.com');
+    
     if (isProduction) {
+      // Try api subdomain first, fallback to same domain
       const protocol = window.location.protocol;
+      let apiUrl;
       if (hostname.startsWith('www.')) {
-        return `${protocol}//api.${hostname.substring(4)}`;
+        apiUrl = `${protocol}//api.${hostname.substring(4)}/api`;
       } else if (!hostname.startsWith('api.')) {
-        return `${protocol}//api.${hostname}`;
+        apiUrl = `${protocol}//api.${hostname}/api`;
       } else {
-        return `${protocol}//${hostname}`;
+        apiUrl = `${protocol}//${hostname}/api`;
       }
+      console.log('[Teacher Socket] Production detected. Hostname:', hostname, '→ API URL:', apiUrl);
+      return apiUrl;
+    } else {
+      console.log('[Teacher Socket] Development mode. Hostname:', hostname);
     }
   }
-  return 'http://localhost:5000';
+  
+  // Default to localhost for development
+  const defaultUrl = 'http://localhost:5000/api';
+  console.log('[Teacher Socket] Using default API URL:', defaultUrl);
+  return defaultUrl;
 };
 
 const API_BASE_URL = getApiBaseUrl();
+
 // Socket.io connection URL (should be the base URL without /api)
-// Parse the URL to get just the origin (protocol + host + port)
 const getSocketUrl = () => {
   try {
     let url = API_BASE_URL;
-    // Remove /api if present
-    url = url.replace('/api', '');
+    // Remove /api if present (handle both /api and /api/)
+    url = url.replace(/\/api\/?$/, '');
     // Remove trailing slash
     url = url.replace(/\/$/, '');
 
-    // If it's a full URL, parse it
+    // If it's a full URL, parse it to get just the origin
     if (url.startsWith('http://') || url.startsWith('https://')) {
       const urlObj = new URL(url);
-      return `${urlObj.protocol}//${urlObj.host}`;
+      const socketUrl = `${urlObj.protocol}//${urlObj.host}`;
+      console.log('[Teacher Socket] Socket URL determined:', socketUrl, 'from API URL:', API_BASE_URL);
+      return socketUrl;
     }
     // Default fallback
-    return 'http://localhost:5000';
+    const defaultSocket = 'http://localhost:5000';
+    console.log('[Teacher Socket] Using default socket URL:', defaultSocket);
+    return defaultSocket;
   } catch (error) {
-    console.error('[Socket] Error parsing URL, using default:', error);
+    console.error('[Teacher Socket] Error parsing URL, using default:', error);
     return 'http://localhost:5000';
   }
 };
+
 const SOCKET_URL = getSocketUrl();
+console.log('[Teacher Socket] Final SOCKET_URL:', SOCKET_URL);
 
 /**
  * Live Class Room Component - Teacher Panel
@@ -1624,7 +1650,7 @@ const LiveClassRoom = () => {
         <div className="flex items-center gap-2">
           {raisedHandCount > 0 && (
             <div className="bg-yellow-500 text-black px-3 py-1 rounded-lg font-bold flex items-center gap-2">
-              <span>✋</span> {raisedHandCount} Hand{raisedHandCount > 1 ? 's' : ''} Raised
+              <PiHandPalm className="text-lg" /> {raisedHandCount} Hand{raisedHandCount > 1 ? 's' : ''} Raised
             </div>
           )}
           <button
@@ -1755,8 +1781,8 @@ const LiveClassRoom = () => {
                     </div>
                     <div className="flex items-center gap-1">
                       {hasRaisedHand && (
-                        <div className="bg-yellow-500 px-2 py-1 rounded text-xs font-bold text-black">
-                          ✋
+                        <div className="bg-yellow-500 px-2 py-1 rounded text-xs font-bold text-black flex items-center">
+                          <PiHandPalm className="text-sm" />
                         </div>
                       )}
                       <button
