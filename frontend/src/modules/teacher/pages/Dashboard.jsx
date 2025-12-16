@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { FiBell, FiClock, FiCheckCircle, FiCalendar, FiUser, FiVideo, FiBookOpen, FiFileText, FiMessageCircle, FiArrowRight, FiEye } from 'react-icons/fi';
 import { ROUTES } from '../constants/routes';
 import BottomNav from '../components/common/BottomNav';
-import { teacherAPI, quizAPI, doubtAPI, notificationAPI, teacherAttendanceAPI } from '../services/api';
+import { teacherAPI, quizAPI, doubtAPI, notificationAPI, teacherAttendanceAPI, liveClassAPI } from '../services/api';
 
 /**
  * Teacher Dashboard Page
@@ -22,6 +22,11 @@ const Dashboard = () => {
   const [doubts, setDoubts] = useState([]);
   const [liveClasses, setLiveClasses] = useState([]);
   const [loadingStats, setLoadingStats] = useState(true);
+  const [classStats, setClassStats] = useState({
+    totalClasses: 0,
+    completed: 0,
+    upcoming: 0
+  });
   const [todayAttendance, setTodayAttendance] = useState({
     status: 'unknown', // 'present' | 'absent' | 'unknown'
     loading: true,
@@ -51,6 +56,7 @@ const Dashboard = () => {
     fetchDashboardData();
     fetchTodayAttendance();
     fetchUnreadCount();
+    fetchClassStatistics();
   }, []);
 
   const fetchTodayAttendance = async () => {
@@ -90,35 +96,44 @@ const Dashboard = () => {
   const fetchDashboardData = async () => {
     try {
       setLoadingStats(true);
-      
+
       // Fetch quizzes
       const quizzesResponse = await quizAPI.getAll();
       if (quizzesResponse.success && quizzesResponse.data?.quizzes) {
         setQuizzes(quizzesResponse.data.quizzes);
       }
-      
+
       // Fetch doubts
       const doubtsResponse = await doubtAPI.getAllDoubts();
       if (doubtsResponse.success && doubtsResponse.data?.doubts) {
         setDoubts(doubtsResponse.data.doubts);
       }
-      
-      // Fetch live classes from localStorage
-      const savedClasses = localStorage.getItem('teacher_live_classes');
-      if (savedClasses) {
-        const classes = JSON.parse(savedClasses);
-        // Filter upcoming classes
-        const now = new Date();
-        const upcoming = classes.filter(cls => {
-          if (!cls.date || !cls.startTime) return false;
-          const classDateTime = new Date(`${cls.date}T${cls.startTime}`);
-          return classDateTime >= now;
-        }).sort((a, b) => {
-          const dateA = new Date(`${a.date}T${a.startTime}`);
-          const dateB = new Date(`${b.date}T${b.startTime}`);
-          return dateA - dateB;
-        }).slice(0, 3);
-        setLiveClasses(upcoming);
+
+      // Fetch upcoming live classes for current date
+      try {
+        const today = new Date();
+        const year = today.getFullYear();
+        const month = String(today.getMonth() + 1).padStart(2, '0');
+        const day = String(today.getDate()).padStart(2, '0');
+        const dateParam = `${year}-${month}-${day}`;
+
+        const liveClassesResponse = await liveClassAPI.getMyLiveClasses(dateParam, null, 'scheduled');
+        if (liveClassesResponse.success && liveClassesResponse.data?.liveClasses) {
+          const upcoming = liveClassesResponse.data.liveClasses
+            .filter(cls => {
+              const scheduledTime = new Date(cls.scheduledStartTime);
+              return scheduledTime >= today;
+            })
+            .sort((a, b) => {
+              const dateA = new Date(a.scheduledStartTime);
+              const dateB = new Date(b.scheduledStartTime);
+              return dateA - dateB;
+            })
+            .slice(0, 3);
+          setLiveClasses(upcoming);
+        }
+      } catch (liveClassError) {
+        console.error('Error fetching live classes:', liveClassError);
       }
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
@@ -127,10 +142,15 @@ const Dashboard = () => {
     }
   };
 
-  const classStats = {
-    totalClasses: liveClasses.length + (JSON.parse(localStorage.getItem('teacher_live_classes') || '[]').length - liveClasses.length),
-    completed: JSON.parse(localStorage.getItem('teacher_live_classes') || '[]').length - liveClasses.length,
-    upcoming: liveClasses.length,
+  const fetchClassStatistics = async () => {
+    try {
+      const response = await liveClassAPI.getClassStatistics();
+      if (response.success && response.data?.statistics) {
+        setClassStats(response.data.statistics);
+      }
+    } catch (error) {
+      console.error('Error fetching class statistics:', error);
+    }
   };
 
   const quizStats = {
@@ -161,8 +181,8 @@ const Dashboard = () => {
   const formatDate = (dateString) => {
     if (!dateString) return '';
     const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { 
-      month: 'short', 
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
       day: 'numeric',
       year: 'numeric'
     });
@@ -569,7 +589,7 @@ const Dashboard = () => {
               "
             </span>
           </div>
-          
+
           {/* Quote Content */}
           <div className="relative z-10">
             <div className="flex items-center gap-1 sm:gap-1.5 md:gap-2 mb-1.5 sm:mb-2 md:mb-3">

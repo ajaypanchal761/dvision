@@ -8,12 +8,12 @@ const getApiBaseUrl = () => {
     console.log('[Teacher API] Using VITE_API_BASE_URL from env:', cleanUrl);
     return cleanUrl;
   }
-  
+
   // Auto-detect production environment
   if (typeof window !== 'undefined') {
     const hostname = window.location.hostname;
     const isProduction = hostname.includes('dvisionacademy.com');
-    
+
     if (isProduction) {
       // Try api subdomain first, fallback to same domain
       const protocol = window.location.protocol;
@@ -31,7 +31,7 @@ const getApiBaseUrl = () => {
       console.log('[Teacher API] Development mode. Hostname:', hostname);
     }
   }
-  
+
   // Default to localhost for development
   const defaultUrl = 'http://localhost:5000/api';
   console.log('[Teacher API] Using default API URL:', defaultUrl);
@@ -74,7 +74,7 @@ const apiRequest = async (endpoint, options = {}) => {
   const method = options.method || 'GET';
 
   try {
-    
+
     console.log(`[Teacher API] ${method} Request:`, {
       endpoint,
       fullUrl,
@@ -83,16 +83,16 @@ const apiRequest = async (endpoint, options = {}) => {
       isFormData,
       hasSignal: !!options.signal
     });
-    
+
     if (options.body && typeof options.body === 'object' && !isFormData) {
       console.log('[Teacher API] Request Body:', options.body);
     }
-    
+
     // Add signal to config if provided (for timeout handling)
     if (options.signal) {
       config.signal = options.signal;
     }
-    
+
     console.log('[Teacher API] Sending request to:', fullUrl);
     const response = await fetch(fullUrl, config);
     console.log('[Teacher API] Response received:', {
@@ -167,7 +167,7 @@ const apiRequest = async (endpoint, options = {}) => {
       });
       throw new Error('Request timeout. The upload is taking too long. Please try again.');
     }
-    
+
     // Handle network errors
     if (error.name === 'TypeError' && error.message.includes('fetch')) {
       console.error('[Teacher API] Network Error:', {
@@ -177,12 +177,12 @@ const apiRequest = async (endpoint, options = {}) => {
         errorName: error.name,
         stack: error.stack
       });
-      
+
       // Provide more helpful error message for uploads
       if (endpoint.includes('upload-recording')) {
         throw new Error('Network error while uploading recording. Please check your internet connection and try again. If the file is very large, it may take several minutes to upload.');
       }
-      
+
       throw new Error('Network error. Please check if the server is running.');
     }
     console.error('[Teacher API] Request Error:', {
@@ -501,6 +501,12 @@ export const notificationAPI = {
 
 // Live Class API functions
 export const liveClassAPI = {
+  // Get class statistics
+  getClassStatistics: async () => {
+    return apiRequest('/live-classes/teacher/statistics', {
+      method: 'GET',
+    });
+  },
   // Get my live classes
   getMyLiveClasses: async (date = null, search = null, status = null) => {
     const params = new URLSearchParams();
@@ -581,22 +587,22 @@ export const liveClassAPI = {
   uploadRecording: async (id, file) => {
     const formData = new FormData();
     formData.append('recording', file);
-    
+
     // For large file uploads, use a longer timeout (30 minutes for 500MB files)
     const fileSizeMB = file.size / (1024 * 1024);
     const timeoutMs = Math.max(600000, fileSizeMB * 60000); // At least 10 minutes, or 1 minute per MB
-    
+
     console.log('[Teacher API] Uploading recording:', {
       fileSize: file.size,
       fileSizeMB: fileSizeMB.toFixed(2),
       timeoutMs: timeoutMs / 1000 / 60 + ' minutes',
       fileName: file.name
     });
-    
+
     // Create AbortController for timeout
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-    
+
     try {
       const result = await apiRequest(`/live-classes/teacher/live-classes/${id}/upload-recording`, {
         method: 'POST',

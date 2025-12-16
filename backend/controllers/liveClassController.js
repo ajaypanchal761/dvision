@@ -147,6 +147,42 @@ exports.getMyLiveClasses = asyncHandler(async (req, res) => {
   });
 });
 
+// @desc    Get class statistics for teacher dashboard
+// @route   GET /api/live-classes/teacher/statistics
+// @access  Private/Teacher
+exports.getTeacherClassStatistics = asyncHandler(async (req, res) => {
+  const teacherId = req.user._id;
+  const now = new Date();
+
+  // Get all live classes created by this teacher
+  const allClasses = await LiveClass.find({ teacherId })
+    .select('status scheduledStartTime endTime');
+
+  // Calculate statistics
+  const totalClasses = allClasses.length;
+  
+  // Completed: classes with status 'ended'
+  const completed = allClasses.filter(cls => cls.status === 'ended').length;
+  
+  // Upcoming: classes with status 'scheduled' and scheduledStartTime >= now
+  const upcoming = allClasses.filter(cls => 
+    cls.status === 'scheduled' && 
+    cls.scheduledStartTime && 
+    new Date(cls.scheduledStartTime) >= now
+  ).length;
+
+  res.status(200).json({
+    success: true,
+    data: {
+      statistics: {
+        totalClasses,
+        completed,
+        upcoming
+      }
+    }
+  });
+});
+
 // @desc    Get live classes for student's class
 // @route   GET /api/student/live-classes
 // @access  Private/Student
