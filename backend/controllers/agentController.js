@@ -289,7 +289,7 @@ exports.getReferralLink = asyncHandler(async (req, res) => {
 
   // Generate referral link
   // Use explicit student app URL if provided, otherwise default to current live site.
-  const baseUrl = process.env.STUDENT_APP_URL || process.env.FRONTEND_URL || 'https://dvisionacademy.com';
+  const baseUrl = process.env.STUDENT_APP_URL || 'https://dvisionacademy.com';
   // Allow overriding the registration path; default to /registration which matches the student web route.
   const registrationPath = process.env.STUDENT_REGISTRATION_PATH || '/registration';
   const referralLink = `${baseUrl.replace(/\/$/, '')}${registrationPath}?ref=${agent._id}`;
