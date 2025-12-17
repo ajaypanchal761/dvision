@@ -3,12 +3,22 @@ const axios = require('axios');
 // Cashfree API configuration (Test + Live using CF_ENV)
 // CF_ENV: 'TEST' or 'PROD'
 const getCashfreeConfig = () => {
-  const env = process.env.CF_ENV || 'TEST'; // TEST or PROD
-  const isProd = env === 'PROD';
+  let env = process.env.CF_ENV || 'TEST'; // TEST or PROD
+  let isProd = env === 'PROD';
 
   // In TEST mode use TEST_CF_*; in PROD use CF_*
-  const clientId = isProd ? process.env.CF_CLIENT_ID : process.env.TEST_CF_CLIENT_ID;
-  const secretKey = isProd ? process.env.CF_SECRET : process.env.TEST_CF_SECRET;
+  let clientId = isProd ? process.env.CF_CLIENT_ID : process.env.TEST_CF_CLIENT_ID;
+  let secretKey = isProd ? process.env.CF_SECRET : process.env.TEST_CF_SECRET;
+
+  // Safety: if env is PROD but credentials look like TEST, fall back to TEST mode
+  if (isProd && clientId && clientId.startsWith('TEST')) {
+    console.warn('Cashfree credentials look like TEST in PROD env. Falling back to TEST mode.');
+    env = 'TEST';
+    isProd = false;
+    clientId = process.env.TEST_CF_CLIENT_ID || clientId;
+    secretKey = process.env.TEST_CF_SECRET || secretKey;
+  }
+
   const environment = env;
 
   if (!clientId || !secretKey) {

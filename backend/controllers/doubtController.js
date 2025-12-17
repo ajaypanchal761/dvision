@@ -69,18 +69,25 @@ exports.createDoubt = asyncHandler(async (req, res) => {
       select: 'type board classes classId'
     });
 
+  // Also honor activeSubscriptions stored on the student document
+  const activeSubsFromArray = (student.activeSubscriptions || []).filter(sub => new Date(sub.endDate) >= now);
+
   const hasActiveClassSubscription = activePayments.some(payment => 
     payment.subscriptionPlanId && 
     payment.subscriptionPlanId.type === 'regular' &&
     payment.subscriptionPlanId.board === student.board &&
     payment.subscriptionPlanId.classes &&
     payment.subscriptionPlanId.classes.includes(student.class)
+  ) || activeSubsFromArray.some(sub =>
+    sub.type === 'regular' &&
+    sub.board === student.board &&
+    sub.class === student.class
   );
 
   const hasActivePreparationSubscription = activePayments.some(payment => 
     payment.subscriptionPlanId && 
     payment.subscriptionPlanId.type === 'preparation'
-  );
+  ) || activeSubsFromArray.some(sub => sub.type === 'preparation');
 
   if (!hasActiveClassSubscription && !hasActivePreparationSubscription) {
     throw new ErrorResponse('You need an active subscription to submit doubts. Please subscribe to a plan.', 403);

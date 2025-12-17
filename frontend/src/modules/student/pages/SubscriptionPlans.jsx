@@ -235,11 +235,15 @@ const SubscriptionPlans = () => {
       try {
         // Initialize Cashfree checkout - use new keyword like vintagebeauty
         const CashfreeSDK = window.Cashfree || window.cashfree;
-        const cashfreeMode = environment === 'PROD'
-          ? 'production'
-          : environment === 'TEST'
-            ? 'sandbox'
-            : (import.meta.env.VITE_CASHFREE_MODE || (import.meta.env.PROD ? 'production' : 'sandbox'));
+
+        // Derive mode safely: if clientId looks like TEST, force sandbox to match session env
+        const cashfreeMode = (() => {
+          if (clientId && clientId.startsWith('TEST')) return 'sandbox';
+          if (environment === 'PROD') return 'production';
+          if (environment === 'TEST') return 'sandbox';
+          if (import.meta.env.VITE_CASHFREE_MODE) return import.meta.env.VITE_CASHFREE_MODE;
+          return import.meta.env.PROD ? 'production' : 'sandbox';
+        })();
         const cashfree = new CashfreeSDK({
           mode: cashfreeMode
         });

@@ -107,22 +107,34 @@ exports.getMyClassTimetable = asyncHandler(async (req, res) => {
       }
     });
 
+  // Also honor activeSubscriptions saved on the student document (for cases where payments are not stored)
+  const activeSubsFromArray = (student.activeSubscriptions || []).filter(sub => new Date(sub.endDate) >= now);
+
   const hasActiveClassSubscription = activePayments.some(payment => 
     payment.subscriptionPlanId && 
     payment.subscriptionPlanId.type === 'regular' &&
     payment.subscriptionPlanId.board === student.board &&
     payment.subscriptionPlanId.classes &&
     payment.subscriptionPlanId.classes.includes(student.class)
+  ) || activeSubsFromArray.some(sub =>
+    sub.type === 'regular' &&
+    sub.board === student.board &&
+    sub.class === student.class
   );
 
   // Get preparation class IDs from active preparation subscriptions
-  const preparationClassIds = activePayments
-    .filter(payment => 
-      payment.subscriptionPlanId && 
-      payment.subscriptionPlanId.type === 'preparation' &&
-      payment.subscriptionPlanId.classId
-    )
-    .map(payment => payment.subscriptionPlanId.classId._id || payment.subscriptionPlanId.classId);
+  const preparationClassIds = [
+    ...activePayments
+      .filter(payment => 
+        payment.subscriptionPlanId && 
+        payment.subscriptionPlanId.type === 'preparation' &&
+        payment.subscriptionPlanId.classId
+      )
+      .map(payment => payment.subscriptionPlanId.classId._id || payment.subscriptionPlanId.classId),
+    ...activeSubsFromArray
+      .filter(sub => sub.type === 'preparation' && sub.classId)
+      .map(sub => sub.classId._id || sub.classId)
+  ].map(id => id.toString());
 
   const { dayOfWeek } = req.query;
   const allTimetables = [];

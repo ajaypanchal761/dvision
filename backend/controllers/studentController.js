@@ -773,22 +773,39 @@ exports.getCourses = asyncHandler(async (req, res) => {
       }
     });
 
+  // Also honor activeSubscriptions stored on the student record (used when payments are not present)
+  const activeSubsFromArray = (student.activeSubscriptions || []).filter(sub => new Date(sub.endDate) >= now);
+
   const hasActiveClassSubscription = activePayments.some(payment =>
     payment.subscriptionPlanId &&
     payment.subscriptionPlanId.type === 'regular' &&
     payment.subscriptionPlanId.board === student.board &&
     payment.subscriptionPlanId.classes &&
     payment.subscriptionPlanId.classes.includes(student.class)
+  ) || activeSubsFromArray.some(sub =>
+    sub.type === 'regular' &&
+    sub.board === student.board &&
+    sub.class === student.class
   );
 
   // Get preparation class IDs from active preparation subscriptions
-  const preparationClassIds = activePayments
+  const prepClassIdsFromPayments = activePayments
     .filter(payment =>
       payment.subscriptionPlanId &&
       payment.subscriptionPlanId.type === 'preparation' &&
       payment.subscriptionPlanId.classId
     )
     .map(payment => payment.subscriptionPlanId.classId._id || payment.subscriptionPlanId.classId);
+
+  const prepClassIdsFromArray = activeSubsFromArray
+    .filter(sub => sub.type === 'preparation' && sub.classId)
+    .map(sub => sub.classId._id || sub.classId);
+
+  // Merge and de-duplicate preparation class IDs
+  const preparationClassIds = [...new Set([
+    ...prepClassIdsFromPayments.map(id => id.toString()),
+    ...prepClassIdsFromArray.map(id => id.toString())
+  ])];
 
   // Get preparation classes
   const preparationClasses = preparationClassIds.length > 0
@@ -884,6 +901,9 @@ exports.getCourseById = asyncHandler(async (req, res) => {
       }
     });
 
+  // Also honor activeSubscriptions array (when payments aren't present)
+  const activeSubsFromArray = (student.activeSubscriptions || []).filter(sub => new Date(sub.endDate) >= now);
+
   let hasAccess = false;
 
   // Check if it's a regular course
@@ -894,6 +914,10 @@ exports.getCourseById = asyncHandler(async (req, res) => {
       payment.subscriptionPlanId.board === student.board &&
       payment.subscriptionPlanId.classes &&
       payment.subscriptionPlanId.classes.includes(student.class)
+    ) || activeSubsFromArray.some(sub =>
+      sub.type === 'regular' &&
+      sub.board === student.board &&
+      sub.class === student.class
     );
 
     if (course.class === student.class && course.board === student.board && hasActiveClassSubscription) {
@@ -903,13 +927,18 @@ exports.getCourseById = asyncHandler(async (req, res) => {
 
   // Check if it's a preparation course
   if (course.classId) {
-    const preparationClassIds = activePayments
+    const preparationClassIds = [
+      ...activePayments
       .filter(payment =>
         payment.subscriptionPlanId &&
         payment.subscriptionPlanId.type === 'preparation' &&
         payment.subscriptionPlanId.classId
       )
-      .map(payment => payment.subscriptionPlanId.classId._id || payment.subscriptionPlanId.classId);
+        .map(payment => payment.subscriptionPlanId.classId._id || payment.subscriptionPlanId.classId),
+      ...activeSubsFromArray
+        .filter(sub => sub.type === 'preparation' && sub.classId)
+        .map(sub => sub.classId._id || sub.classId)
+    ].map(id => id.toString());
 
     const courseClassId = course.classId._id?.toString() || course.classId.toString();
     if (preparationClassIds.some(id => (id._id?.toString() || id.toString()) === courseClassId)) {
