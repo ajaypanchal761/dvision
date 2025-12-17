@@ -267,6 +267,8 @@ const LiveClassRoom = () => {
     const token = localStorage.getItem('dvision_token');
     if (!token) {
       console.error('No auth token found');
+      setError('Session expired. Please log in again.');
+      navigate('/login', { replace: true });
       return;
     }
 

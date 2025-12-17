@@ -104,6 +104,8 @@ const LiveClassRoom = () => {
     const token = localStorage.getItem('dvision_token');
     if (!token) {
       console.error('No auth token found');
+      setError('Session expired. Please log in again.');
+      navigate('/login', { replace: true });
       return;
     }
 
@@ -490,6 +492,14 @@ const LiveClassRoom = () => {
     if (!newMessage.trim()) return;
 
     try {
+      // If session expired, navigate away
+      const token = localStorage.getItem('dvision_token');
+      if (!token) {
+        setError('Session expired. Please log in again.');
+        navigate('/login', { replace: true });
+        return;
+      }
+
       if (!socketRef.current) {
         console.error('Socket not initialized, re-initializing...');
         initializeSocket();

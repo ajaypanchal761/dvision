@@ -108,9 +108,11 @@ const LiveClassRoom = () => {
 
   // Initialize Socket.io
   const initializeSocket = useCallback(() => {
-    const token = localStorage.getItem('dvision_token');
+    const token = localStorage.getItem('dvision_teacher_token');
     if (!token) {
       console.error('No auth token found');
+      setError('Session expired. Please log in again.');
+      navigate('/teacher/login', { replace: true });
       return;
     }
 
@@ -596,6 +598,13 @@ const LiveClassRoom = () => {
     if (!newMessage.trim()) return;
 
     try {
+      const token = localStorage.getItem('dvision_teacher_token');
+      if (!token) {
+        setError('Session expired. Please log in again.');
+        navigate('/teacher/login', { replace: true });
+        return;
+      }
+
       if (!socketRef.current) {
         console.error('Socket not initialized, re-initializing...');
         initializeSocket();
