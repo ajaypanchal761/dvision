@@ -1217,64 +1217,29 @@ const LiveClassRoom = () => {
   // Switch camera (front/back)
   const switchCamera = async () => {
     try {
-      if (localVideoTrackRef.current) {
-        const devices = await AgoraRTC.getCameras();
+      if (!localVideoTrackRef.current) return;
 
-        if (devices.length < 2) {
-          console.warn('Only one camera available');
-          return;
-        }
+      const devices = await AgoraRTC.getCameras();
+      const currentSettings = localVideoTrackRef.current.getMediaStreamTrack()?.getSettings();
+      const currentDeviceId = currentSettings?.deviceId || localVideoTrackRef.current.getDeviceId?.();
 
-        // Get current device ID
-        const currentDeviceId = localVideoTrackRef.current.getDeviceId();
-        const currentDevice = devices.find(d => d.deviceId === currentDeviceId);
+      // Prefer the next device that differs from current
+      let nextDevice = devices.find(d => d.deviceId && d.deviceId !== currentDeviceId);
 
-        // Find the other camera (front/back)
-        // On mobile: 'user' = front, 'environment' = back
-        let nextDevice;
+      // If none found and multiple devices exist, pick the first alternative
+      if (!nextDevice && devices.length > 1) {
+        nextDevice = devices.find(d => d.deviceId !== currentDeviceId) || devices[0];
+      }
 
-        if (cameraFacing === 'user') {
-          // Currently using front camera, switch to back
-          nextDevice = devices.find(d =>
-            d.deviceId !== currentDeviceId &&
-            (d.label.toLowerCase().includes('back') ||
-              d.label.toLowerCase().includes('rear') ||
-              d.label.toLowerCase().includes('environment'))
-          ) || devices.find(d => d.deviceId !== currentDeviceId);
-        } else {
-          // Currently using back camera, switch to front
-          nextDevice = devices.find(d =>
-            d.deviceId !== currentDeviceId &&
-            (d.label.toLowerCase().includes('front') ||
-              d.label.toLowerCase().includes('user') ||
-              d.label.toLowerCase().includes('facing'))
-          ) || devices.find(d => d.deviceId !== currentDeviceId);
-        }
-
-        if (nextDevice) {
-          await localVideoTrackRef.current.setDevice(nextDevice.deviceId);
-          setCameraFacing(cameraFacing === 'user' ? 'environment' : 'user');
-          console.log(`Switched to ${cameraFacing === 'user' ? 'back' : 'front'} camera`);
-        } else {
-          console.warn('Could not find alternative camera');
-        }
+      if (nextDevice) {
+        await localVideoTrackRef.current.setDevice(nextDevice.deviceId);
+        setCameraFacing(prev => prev === 'user' ? 'environment' : 'user');
+        console.log('Switched camera to device:', nextDevice.label || nextDevice.deviceId);
+      } else {
+        console.warn('No alternative camera found to switch');
       }
     } catch (err) {
       console.error('Error switching camera:', err);
-      // Try fallback method
-      try {
-        if (localVideoTrackRef.current) {
-          const devices = await AgoraRTC.getCameras();
-          const currentDeviceId = localVideoTrackRef.current.getDeviceId();
-          const nextDevice = devices.find(d => d.deviceId !== currentDeviceId);
-          if (nextDevice) {
-            await localVideoTrackRef.current.setDevice(nextDevice.deviceId);
-            setCameraFacing(cameraFacing === 'user' ? 'environment' : 'user');
-          }
-        }
-      } catch (fallbackErr) {
-        console.error('Fallback camera switch also failed:', fallbackErr);
-      }
     }
   };
 

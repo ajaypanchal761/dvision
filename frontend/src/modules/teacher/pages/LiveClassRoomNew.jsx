@@ -509,15 +509,22 @@ const LiveClassRoom = () => {
   // Switch camera
   const switchCamera = async () => {
     try {
-      if (localVideoTrackRef.current) {
-        const devices = await AgoraRTC.getCameras();
-        const currentDevice = devices.find(d => d.deviceId === localVideoTrackRef.current.getTrackId());
-        const nextDevice = devices.find(d => d.deviceId !== currentDevice?.deviceId);
-        
-        if (nextDevice) {
-          await localVideoTrackRef.current.setDevice(nextDevice.deviceId);
-          setCameraFacing(cameraFacing === 'user' ? 'environment' : 'user');
-        }
+      if (!localVideoTrackRef.current) return;
+
+      const devices = await AgoraRTC.getCameras();
+      const currentSettings = localVideoTrackRef.current.getMediaStreamTrack()?.getSettings();
+      const currentDeviceId = currentSettings?.deviceId;
+
+      let nextDevice = devices.find(d => d.deviceId && d.deviceId !== currentDeviceId);
+      if (!nextDevice && devices.length > 1) {
+        nextDevice = devices.find(d => d.deviceId !== currentDeviceId) || devices[0];
+      }
+
+      if (nextDevice) {
+        await localVideoTrackRef.current.setDevice(nextDevice.deviceId);
+        setCameraFacing(prev => prev === 'user' ? 'environment' : 'user');
+      } else {
+        console.warn('No alternative camera found to switch');
       }
     } catch (err) {
       console.error('Error switching camera:', err);
