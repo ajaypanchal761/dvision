@@ -205,7 +205,7 @@ const SubscriptionPlans = () => {
         throw new Error('Invalid response from server');
       }
 
-      const { orderId, paymentSessionId, amount, currency, clientId } = orderResponse.data;
+      const { orderId, paymentSessionId, amount, currency, clientId, environment } = orderResponse.data;
       
       if (!orderId || !paymentSessionId || !amount || !clientId) {
         console.error('Missing required payment data:', { orderId, paymentSessionId, amount, clientId });
@@ -235,8 +235,13 @@ const SubscriptionPlans = () => {
       try {
         // Initialize Cashfree checkout - use new keyword like vintagebeauty
         const CashfreeSDK = window.Cashfree || window.cashfree;
+        const cashfreeMode = environment === 'PROD'
+          ? 'production'
+          : environment === 'TEST'
+            ? 'sandbox'
+            : (import.meta.env.VITE_CASHFREE_MODE || (import.meta.env.PROD ? 'production' : 'sandbox'));
         const cashfree = new CashfreeSDK({
-          mode: process.env.NODE_ENV === 'production' ? 'production' : 'sandbox'
+          mode: cashfreeMode
         });
 
         const checkoutOptions = {
