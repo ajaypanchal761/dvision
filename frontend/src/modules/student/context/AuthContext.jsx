@@ -16,11 +16,33 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Helper to decode JWT and get role (defensive)
+  const getTokenRole = (token) => {
+    try {
+      const payload = token.split('.')[1];
+      const decoded = JSON.parse(atob(payload));
+      return decoded.role;
+    } catch (e) {
+      return null;
+    }
+  };
+
   // Load user from localStorage on mount
   useEffect(() => {
     const loadUser = async () => {
       const savedToken = localStorage.getItem('dvision_token');
       const savedUser = localStorage.getItem('dvision_user');
+
+      // Guard: if the token is not a student token (e.g., agent/teacher), clear it
+      if (savedToken) {
+        const role = getTokenRole(savedToken);
+        if (role && role !== 'student') {
+          localStorage.removeItem('dvision_token');
+          localStorage.removeItem('dvision_user');
+          setIsLoading(false);
+          return;
+        }
+      }
       
       // Check if we're in the middle of a payment flow
       // Use localStorage instead of sessionStorage (persists across redirects)

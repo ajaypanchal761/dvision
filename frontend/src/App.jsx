@@ -1,130 +1,144 @@
+import React, { Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 
-// Student Module Imports
-import StudentLogin from './modules/student/pages/Login';
-import StudentRegistrationForm from './modules/student/pages/RegistrationForm';
-import StudentFinalOTP from './modules/student/pages/FinalOTP';
-import StudentDashboard from './modules/student/pages/Dashboard';
-import StudentCourseDetails from './modules/student/pages/CourseDetails';
-import StudentNotifications from './modules/student/pages/Notifications';
-import StudentMyCourses from './modules/student/pages/MyCourses';
-import StudentSubscriptionHistory from './modules/student/pages/SubscriptionHistory';
-import StudentSubscriptionPlans from './modules/student/pages/SubscriptionPlans';
-import StudentMySubscriptions from './modules/student/pages/MySubscriptions';
-import StudentContactUs from './modules/student/pages/ContactUs';
-import StudentAboutUs from './modules/student/pages/AboutUs';
-import StudentPrivacyPolicy from './modules/student/pages/PrivacyPolicy';
-import StudentTermsAndConditions from './modules/student/pages/TermsAndConditions';
-import StudentLiveClasses from './modules/student/pages/LiveClasses';
-import StudentLiveClassRoom from './modules/student/pages/LiveClassRoom';
-import StudentRecordings from './modules/student/pages/Recordings';
-import StudentTimetable from './modules/student/pages/Timetable';
-import StudentDoubts from './modules/student/pages/Doubts';
-import StudentQuizzes from './modules/student/pages/Quizzes';
-import StudentTakeQuiz from './modules/student/pages/TakeQuiz';
-import StudentQuizResults from './modules/student/pages/QuizResults';
-import StudentProfile from './modules/student/pages/Profile';
-import StudentPersonalInformation from './modules/student/pages/PersonalInformation';
-import StudentChangePassword from './modules/student/pages/ChangePassword';
-import StudentEditProfile from './modules/student/pages/EditProfile';
-import StudentReferAndEarn from './modules/student/pages/ReferAndEarn';
-import StudentDeleteAccount from './modules/student/pages/DeleteAccount';
-import StudentTeacherDetails from './modules/student/pages/TeacherDetails';
-import StudentSubjectTopics from './modules/student/pages/SubjectTopics';
-import StudentContentView from './modules/student/pages/ContentView';
-import StudentPaymentReturn from './modules/student/pages/PaymentReturn';
+// Protected Routes and constants (non-lazy)
 import StudentProtectedRoute from './modules/student/components/common/ProtectedRoute';
 import { ROUTES as StudentRoutes } from './modules/student/constants/routes';
-
-// Admin Module Imports
-import AdminLayout from './modules/admin/components/Layout/Layout';
-import AdminDashboard from './modules/admin/pages/Dashboard/Dashboard';
-import AdminLogin from './modules/admin/pages/Login/Login';
-import AdminForgotPassword from './modules/admin/pages/ForgotPassword/ForgotPassword';
-import AdminResetPassword from './modules/admin/pages/ResetPassword/ResetPassword';
-import AdminStudents from './modules/admin/pages/Students/Students';
-import AdminAddStudent from './modules/admin/pages/Students/AddStudent';
-import AdminEditStudent from './modules/admin/pages/Students/EditStudent';
-import AdminTeachers from './modules/admin/pages/Teachers/Teachers';
-import AdminAddTeacher from './modules/admin/pages/Teachers/AddTeacher';
-import AdminEditTeacher from './modules/admin/pages/Teachers/EditTeacher';
-import AdminAttendance from './modules/admin/pages/Attendance/Attendance';
-import AdminAddAttendance from './modules/admin/pages/Attendance/AddAttendance';
-import AdminEditAttendance from './modules/admin/pages/Attendance/EditAttendance';
-import AdminMarkAttendance from './modules/admin/pages/Attendance/MarkAttendance';
-import AdminAttendanceReports from './modules/admin/pages/Attendance/AttendanceReports';
-import AdminClasses from './modules/admin/pages/Classes/Classes';
-import AdminAddClass from './modules/admin/pages/Classes/AddClass';
-import AdminEditClass from './modules/admin/pages/Classes/EditClass';
-import AdminSubjects from './modules/admin/pages/Subjects/Subjects';
-import AdminAddSubject from './modules/admin/pages/Subjects/AddSubject';
-import AdminEditSubject from './modules/admin/pages/Subjects/EditSubject';
-import AdminCourses from './modules/admin/pages/Courses/Courses';
-import AdminAddCourse from './modules/admin/pages/Courses/AddCourse';
-import AdminEditCourse from './modules/admin/pages/Courses/EditCourse';
-import AdminQuizzes from './modules/admin/pages/Quizzes/Quizzes';
-import AdminAddQuiz from './modules/admin/pages/Quizzes/AddQuiz';
-import AdminEditQuiz from './modules/admin/pages/Quizzes/EditQuiz';
-import AdminViewQuiz from './modules/admin/pages/Quizzes/ViewQuiz';
-import AdminQuizResults from './modules/admin/pages/Quizzes/QuizResults';
-import AdminSubscriptions from './modules/admin/pages/Subscriptions/Subscriptions';
-import AdminAddSubscription from './modules/admin/pages/Subscriptions/AddSubscription';
-import AdminEditSubscription from './modules/admin/pages/Subscriptions/EditSubscription';
-import AdminTransactions from './modules/admin/pages/Transactions/Transactions';
-import AdminBanners from './modules/admin/pages/Banners/Banners';
-import AdminAddBanner from './modules/admin/pages/Banners/AddBanner';
-import AdminEditBanner from './modules/admin/pages/Banners/EditBanner';
-import AdminTimeTable from './modules/admin/pages/TimeTable/TimeTable';
-import AdminAddTimeTable from './modules/admin/pages/TimeTable/AddTimeTable';
-import AdminEditTimeTable from './modules/admin/pages/TimeTable/EditTimeTable';
-import AdminCourseDetail from './modules/admin/pages/TimeTable/CourseDetail';
-import AdminDoubts from './modules/admin/pages/Doubts/Doubts';
-import AdminEditDoubts from './modules/admin/pages/Doubts/EditDoubts';
-import AdminQuiz from './modules/admin/pages/Quiz/Quiz';
-import AdminAddQuizNew from './modules/admin/pages/Quiz/AddQuiz';
-import AdminEditQuizNew from './modules/admin/pages/Quiz/EditQuiz';
-import AdminContent from './modules/admin/pages/Content/Content';
-import AdminEditContent from './modules/admin/pages/Content/EditContent';
-import AdminReferrals from './modules/admin/pages/Referrals/Referrals';
-import AdminAgents from './modules/admin/pages/Agent/Agents';
-import AdminAgentReferrals from './modules/admin/pages/Agent/AgentReferrals';
-import AdminReferralReports from './modules/admin/pages/Agent/ReferralReports';
-import AdminTeacherClass from './modules/admin/pages/TeacherClass/TeacherClass';
-import AdminRecordedSession from './modules/admin/pages/RecordedSession/RecordedSession';
-import AdminNotificationsList from './modules/admin/pages/Notifications/NotificationsList';
-import AdminAddNotification from './modules/admin/pages/Notifications/AddNotification';
-import AdminMyNotifications from './modules/admin/pages/Notifications/MyNotifications';
 import AdminProtectedRoute from './modules/admin/components/ProtectedRoute/ProtectedRoute';
-
-// Teacher Module Imports
-import TeacherLogin from './modules/teacher/pages/Login';
-import TeacherFinalOTP from './modules/teacher/pages/FinalOTP';
-import TeacherDashboard from './modules/teacher/pages/Dashboard';
-import TeacherAttendance from './modules/teacher/pages/Attendance';
-import TeacherLiveClasses from './modules/teacher/pages/LiveClasses';
-import TeacherSchedule from './modules/teacher/pages/Schedule';
-import TeacherCreateLiveClass from './modules/teacher/pages/CreateLiveClass';
-import TeacherEditLiveClass from './modules/teacher/pages/EditLiveClass';
-import TeacherLiveClassRoom from './modules/teacher/pages/LiveClassRoom';
-import TeacherDoubts from './modules/teacher/pages/Doubts';
-import TeacherProfile from './modules/teacher/pages/Profile';
-import TeacherPersonalInformation from './modules/teacher/pages/PersonalInformation';
-import TeacherNotifications from './modules/teacher/pages/Notifications';
-import TeacherContentView from './modules/teacher/pages/ContentView';
-import TeacherQuizzes from './modules/teacher/pages/Quizzes';
-import TeacherAddQuiz from './modules/teacher/pages/AddQuiz';
-import TeacherEditQuiz from './modules/teacher/pages/EditQuiz';
-import TeacherViewQuiz from './modules/teacher/pages/ViewQuiz';
-import TeacherQuizResults from './modules/teacher/pages/QuizResults';
-import AgentDashboard from './modules/teacher/pages/AgentDashboard';
-import AgentStatistics from './modules/teacher/pages/AgentStatistics';
-import AgentProfile from './modules/teacher/pages/AgentProfile';
 import { ROUTES as TeacherRoutes } from './modules/teacher/constants/routes';
+
+// Student Module (lazy)
+const StudentLogin = lazy(() => import('./modules/student/pages/Login'));
+const StudentRegistrationForm = lazy(() => import('./modules/student/pages/RegistrationForm'));
+const StudentFinalOTP = lazy(() => import('./modules/student/pages/FinalOTP'));
+const StudentDashboard = lazy(() => import('./modules/student/pages/Dashboard'));
+const StudentCourseDetails = lazy(() => import('./modules/student/pages/CourseDetails'));
+const StudentNotifications = lazy(() => import('./modules/student/pages/Notifications'));
+const StudentMyCourses = lazy(() => import('./modules/student/pages/MyCourses'));
+const StudentSubscriptionHistory = lazy(() => import('./modules/student/pages/SubscriptionHistory'));
+const StudentSubscriptionPlans = lazy(() => import('./modules/student/pages/SubscriptionPlans'));
+const StudentMySubscriptions = lazy(() => import('./modules/student/pages/MySubscriptions'));
+const StudentContactUs = lazy(() => import('./modules/student/pages/ContactUs'));
+const StudentAboutUs = lazy(() => import('./modules/student/pages/AboutUs'));
+const StudentPrivacyPolicy = lazy(() => import('./modules/student/pages/PrivacyPolicy'));
+const StudentTermsAndConditions = lazy(() => import('./modules/student/pages/TermsAndConditions'));
+const StudentLiveClasses = lazy(() => import('./modules/student/pages/LiveClasses'));
+const StudentLiveClassRoom = lazy(() => import('./modules/student/pages/LiveClassRoom'));
+const StudentRecordings = lazy(() => import('./modules/student/pages/Recordings'));
+const StudentTimetable = lazy(() => import('./modules/student/pages/Timetable'));
+const StudentDoubts = lazy(() => import('./modules/student/pages/Doubts'));
+const StudentQuizzes = lazy(() => import('./modules/student/pages/Quizzes'));
+const StudentTakeQuiz = lazy(() => import('./modules/student/pages/TakeQuiz'));
+const StudentQuizResults = lazy(() => import('./modules/student/pages/QuizResults'));
+const StudentProfile = lazy(() => import('./modules/student/pages/Profile'));
+const StudentPersonalInformation = lazy(() => import('./modules/student/pages/PersonalInformation'));
+const StudentChangePassword = lazy(() => import('./modules/student/pages/ChangePassword'));
+const StudentEditProfile = lazy(() => import('./modules/student/pages/EditProfile'));
+const StudentReferAndEarn = lazy(() => import('./modules/student/pages/ReferAndEarn'));
+const StudentDeleteAccount = lazy(() => import('./modules/student/pages/DeleteAccount'));
+const StudentTeacherDetails = lazy(() => import('./modules/student/pages/TeacherDetails'));
+const StudentSubjectTopics = lazy(() => import('./modules/student/pages/SubjectTopics'));
+const StudentContentView = lazy(() => import('./modules/student/pages/ContentView'));
+const StudentPaymentReturn = lazy(() => import('./modules/student/pages/PaymentReturn'));
+
+// Admin Module (lazy)
+const AdminLayout = lazy(() => import('./modules/admin/components/Layout/Layout'));
+const AdminDashboard = lazy(() => import('./modules/admin/pages/Dashboard/Dashboard'));
+const AdminLogin = lazy(() => import('./modules/admin/pages/Login/Login'));
+const AdminForgotPassword = lazy(() => import('./modules/admin/pages/ForgotPassword/ForgotPassword'));
+const AdminResetPassword = lazy(() => import('./modules/admin/pages/ResetPassword/ResetPassword'));
+const AdminStudents = lazy(() => import('./modules/admin/pages/Students/Students'));
+const AdminAddStudent = lazy(() => import('./modules/admin/pages/Students/AddStudent'));
+const AdminEditStudent = lazy(() => import('./modules/admin/pages/Students/EditStudent'));
+const AdminTeachers = lazy(() => import('./modules/admin/pages/Teachers/Teachers'));
+const AdminAddTeacher = lazy(() => import('./modules/admin/pages/Teachers/AddTeacher'));
+const AdminEditTeacher = lazy(() => import('./modules/admin/pages/Teachers/EditTeacher'));
+const AdminAttendance = lazy(() => import('./modules/admin/pages/Attendance/Attendance'));
+const AdminAddAttendance = lazy(() => import('./modules/admin/pages/Attendance/AddAttendance'));
+const AdminEditAttendance = lazy(() => import('./modules/admin/pages/Attendance/EditAttendance'));
+const AdminMarkAttendance = lazy(() => import('./modules/admin/pages/Attendance/MarkAttendance'));
+const AdminAttendanceReports = lazy(() => import('./modules/admin/pages/Attendance/AttendanceReports'));
+const AdminClasses = lazy(() => import('./modules/admin/pages/Classes/Classes'));
+const AdminAddClass = lazy(() => import('./modules/admin/pages/Classes/AddClass'));
+const AdminEditClass = lazy(() => import('./modules/admin/pages/Classes/EditClass'));
+const AdminSubjects = lazy(() => import('./modules/admin/pages/Subjects/Subjects'));
+const AdminAddSubject = lazy(() => import('./modules/admin/pages/Subjects/AddSubject'));
+const AdminEditSubject = lazy(() => import('./modules/admin/pages/Subjects/EditSubject'));
+const AdminCourses = lazy(() => import('./modules/admin/pages/Courses/Courses'));
+const AdminAddCourse = lazy(() => import('./modules/admin/pages/Courses/AddCourse'));
+const AdminEditCourse = lazy(() => import('./modules/admin/pages/Courses/EditCourse'));
+const AdminQuizzes = lazy(() => import('./modules/admin/pages/Quizzes/Quizzes'));
+const AdminAddQuiz = lazy(() => import('./modules/admin/pages/Quizzes/AddQuiz'));
+const AdminEditQuiz = lazy(() => import('./modules/admin/pages/Quizzes/EditQuiz'));
+const AdminViewQuiz = lazy(() => import('./modules/admin/pages/Quizzes/ViewQuiz'));
+const AdminQuizResults = lazy(() => import('./modules/admin/pages/Quizzes/QuizResults'));
+const AdminSubscriptions = lazy(() => import('./modules/admin/pages/Subscriptions/Subscriptions'));
+const AdminAddSubscription = lazy(() => import('./modules/admin/pages/Subscriptions/AddSubscription'));
+const AdminEditSubscription = lazy(() => import('./modules/admin/pages/Subscriptions/EditSubscription'));
+const AdminTransactions = lazy(() => import('./modules/admin/pages/Transactions/Transactions'));
+const AdminBanners = lazy(() => import('./modules/admin/pages/Banners/Banners'));
+const AdminAddBanner = lazy(() => import('./modules/admin/pages/Banners/AddBanner'));
+const AdminEditBanner = lazy(() => import('./modules/admin/pages/Banners/EditBanner'));
+const AdminTimeTable = lazy(() => import('./modules/admin/pages/TimeTable/TimeTable'));
+const AdminAddTimeTable = lazy(() => import('./modules/admin/pages/TimeTable/AddTimeTable'));
+const AdminEditTimeTable = lazy(() => import('./modules/admin/pages/TimeTable/EditTimeTable'));
+const AdminCourseDetail = lazy(() => import('./modules/admin/pages/TimeTable/CourseDetail'));
+const AdminDoubts = lazy(() => import('./modules/admin/pages/Doubts/Doubts'));
+const AdminEditDoubts = lazy(() => import('./modules/admin/pages/Doubts/EditDoubts'));
+const AdminQuiz = lazy(() => import('./modules/admin/pages/Quiz/Quiz'));
+const AdminAddQuizNew = lazy(() => import('./modules/admin/pages/Quiz/AddQuiz'));
+const AdminEditQuizNew = lazy(() => import('./modules/admin/pages/Quiz/EditQuiz'));
+const AdminContent = lazy(() => import('./modules/admin/pages/Content/Content'));
+const AdminEditContent = lazy(() => import('./modules/admin/pages/Content/EditContent'));
+const AdminReferrals = lazy(() => import('./modules/admin/pages/Referrals/Referrals'));
+const AdminAgents = lazy(() => import('./modules/admin/pages/Agent/Agents'));
+const AdminAgentReferrals = lazy(() => import('./modules/admin/pages/Agent/AgentReferrals'));
+const AdminReferralReports = lazy(() => import('./modules/admin/pages/Agent/ReferralReports'));
+const AdminTeacherClass = lazy(() => import('./modules/admin/pages/TeacherClass/TeacherClass'));
+const AdminRecordedSession = lazy(() => import('./modules/admin/pages/RecordedSession/RecordedSession'));
+const AdminNotificationsList = lazy(() => import('./modules/admin/pages/Notifications/NotificationsList'));
+const AdminAddNotification = lazy(() => import('./modules/admin/pages/Notifications/AddNotification'));
+const AdminMyNotifications = lazy(() => import('./modules/admin/pages/Notifications/MyNotifications'));
+
+// Teacher/Agent Module (lazy)
+const TeacherLogin = lazy(() => import('./modules/teacher/pages/Login'));
+const TeacherFinalOTP = lazy(() => import('./modules/teacher/pages/FinalOTP'));
+const TeacherDashboard = lazy(() => import('./modules/teacher/pages/Dashboard'));
+const TeacherAttendance = lazy(() => import('./modules/teacher/pages/Attendance'));
+const TeacherLiveClasses = lazy(() => import('./modules/teacher/pages/LiveClasses'));
+const TeacherSchedule = lazy(() => import('./modules/teacher/pages/Schedule'));
+const TeacherCreateLiveClass = lazy(() => import('./modules/teacher/pages/CreateLiveClass'));
+const TeacherEditLiveClass = lazy(() => import('./modules/teacher/pages/EditLiveClass'));
+const TeacherLiveClassRoom = lazy(() => import('./modules/teacher/pages/LiveClassRoom'));
+const TeacherDoubts = lazy(() => import('./modules/teacher/pages/Doubts'));
+const TeacherProfile = lazy(() => import('./modules/teacher/pages/Profile'));
+const TeacherPersonalInformation = lazy(() => import('./modules/teacher/pages/PersonalInformation'));
+const TeacherNotifications = lazy(() => import('./modules/teacher/pages/Notifications'));
+const TeacherContentView = lazy(() => import('./modules/teacher/pages/ContentView'));
+const TeacherQuizzes = lazy(() => import('./modules/teacher/pages/Quizzes'));
+const TeacherAddQuiz = lazy(() => import('./modules/teacher/pages/AddQuiz'));
+const TeacherEditQuiz = lazy(() => import('./modules/teacher/pages/EditQuiz'));
+const TeacherViewQuiz = lazy(() => import('./modules/teacher/pages/ViewQuiz'));
+const TeacherQuizResults = lazy(() => import('./modules/teacher/pages/QuizResults'));
+const AgentDashboard = lazy(() => import('./modules/teacher/pages/AgentDashboard'));
+const AgentStatistics = lazy(() => import('./modules/teacher/pages/AgentStatistics'));
+const AgentProfile = lazy(() => import('./modules/teacher/pages/AgentProfile'));
+const AgentReferrals = lazy(() => import('./modules/teacher/pages/AgentReferrals'));
 
 function App() {
   return (
     <BrowserRouter>
-      <Routes>
+      <Suspense
+        fallback={
+          <div className="min-h-screen flex items-center justify-center">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[var(--app-teal)] mx-auto mb-4"></div>
+              <p className="text-gray-600">Loading...</p>
+            </div>
+          </div>
+        }
+      >
+        <Routes>
         {/* Student Routes - Root paths */}
         <Route path="/login" element={<StudentLogin />} />
         <Route path="/registration" element={<StudentRegistrationForm />} />
@@ -941,12 +955,14 @@ function App() {
         {/* Agent Routes - /teacher/agent/* */}
         <Route path={TeacherRoutes.AGENT_DASHBOARD} element={<AgentDashboard />} />
         <Route path={TeacherRoutes.AGENT_STATISTICS} element={<AgentStatistics />} />
+        <Route path={TeacherRoutes.AGENT_REFERRALS} element={<AgentReferrals />} />
         <Route path={TeacherRoutes.AGENT_PROFILE} element={<AgentProfile />} />
 
         {/* Root redirect - default to login */}
         <Route path="/" element={<Navigate to="/login" replace />} />
         <Route path="*" element={<Navigate to="/login" replace />} />
-      </Routes>
+        </Routes>
+      </Suspense>
     </BrowserRouter>
   );
 }

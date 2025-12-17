@@ -288,8 +288,11 @@ exports.getReferralLink = asyncHandler(async (req, res) => {
   }
 
   // Generate referral link
-  const baseUrl = process.env.FRONTEND_URL || 'https://app.dvisionacademy.com';
-  const referralLink = `${baseUrl}/register?ref=${agent._id}`;
+  // Use explicit student app URL if provided, otherwise default to current live site.
+  const baseUrl = process.env.STUDENT_APP_URL || process.env.FRONTEND_URL || 'https://dvisionacademy.com';
+  // Allow overriding the registration path; default to /registration which matches the student web route.
+  const registrationPath = process.env.STUDENT_REGISTRATION_PATH || '/registration';
+  const referralLink = `${baseUrl.replace(/\/$/, '')}${registrationPath}?ref=${agent._id}`;
 
   // WhatsApp share message
   const whatsappMessage = `Join Dvision Academy! Register here: ${referralLink}`;
@@ -315,22 +318,39 @@ exports.getStatistics = asyncHandler(async (req, res) => {
     throw new ErrorResponse('Agent not found', 404);
   }
 
-  // Get total referrals (students registered via this agent)
-  const totalReferrals = await Student.countDocuments({
+  // Students referred by this agent
+  const referredStudents = await Student.find({
     referralAgentId: agent._id
-  });
+  })
+    .select('name phone email class board referredAt createdAt')
+    .sort({ referredAt: -1, createdAt: -1 })
+    .lean();
 
-  // Get successful subscriptions (ReferralRecords with status 'completed')
+  const totalReferrals = referredStudents.length;
+
+  // Successful subscriptions (ReferralRecords with status 'completed')
   const successfulSubscriptions = await ReferralRecord.countDocuments({
     agentId: agent._id,
     status: 'completed'
   });
 
-  // Get pending commissions (ReferralRecords with status 'completed' but not 'paid')
+  // Pending commissions (completed but unpaid) – keep as existing behavior
   const pendingCommissions = await ReferralRecord.countDocuments({
     agentId: agent._id,
     status: 'completed'
   });
+
+  // Recent completed referral records (legacy view, for detailed cards)
+  const recentReferrals = await ReferralRecord.find({
+    agentId: agent._id,
+    status: 'completed'
+  })
+    .populate('studentId', 'name phone email class board')
+    .populate('subscriptionPlanId', 'name')
+    .sort({ subscriptionDate: -1 })
+    .limit(10)
+    .select('studentId subscriptionPlanId amount subscriptionDate status')
+    .lean();
 
   // Get month-wise breakdown
   const now = new Date();
@@ -366,16 +386,17 @@ exports.getStatistics = asyncHandler(async (req, res) => {
     totalAmount: item.totalAmount
   }));
 
-  // Get recent referrals (last 10)
-  const recentReferrals = await ReferralRecord.find({
-    agentId: agent._id,
-    status: 'completed'
-  })
-    .populate('studentId', 'name phone email')
-    .populate('subscriptionPlanId', 'name')
-    .sort({ subscriptionDate: -1 })
-    .limit(10)
-    .select('studentId subscriptionPlanId amount subscriptionDate status');
+  // Recent referral students (latest 3, regardless of subscription)
+  const recentReferralStudents = referredStudents.slice(0, 3).map((s) => ({
+    _id: s._id,
+    name: s.name,
+    phone: s.phone,
+    email: s.email,
+    class: s.class,
+    board: s.board,
+    referredAt: s.referredAt || s.createdAt,
+    status: 'pending',
+  }));
 
   res.status(200).json({
     success: true,
@@ -386,7 +407,9 @@ exports.getStatistics = asyncHandler(async (req, res) => {
         pendingCommissions
       },
       monthWiseBreakdown,
-      recentReferrals
+      recentReferrals, // completed subscriptions (legacy)
+      recentReferralStudents,
+      referredStudents
     }
   });
 });

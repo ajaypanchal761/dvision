@@ -23,6 +23,7 @@ export const ROUTES = {
   // Agent Routes
   AGENT_DASHBOARD: '/teacher/agent/dashboard',
   AGENT_STATISTICS: '/teacher/agent/statistics',
+  AGENT_REFERRALS: '/teacher/agent/referrals',
   AGENT_PROFILE: '/teacher/agent/profile',
 };
 

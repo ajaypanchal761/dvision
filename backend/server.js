@@ -14,7 +14,7 @@ dotenv.config();
 
 // ===== CONNECT SERVICES =====
 connectDB();
-connectRedis().catch(() => {});
+connectRedis().catch(() => { });
 initializeFirebase();
 s3Service.initialize();
 
@@ -26,7 +26,7 @@ app.use(cors({
   origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps or Postman)
     if (!origin) return callback(null, true);
-    
+
     // In development, allow localhost
     if (process.env.NODE_ENV === 'development') {
       const localhostPatterns = [
@@ -37,14 +37,14 @@ app.use(cors({
         return callback(null, true);
       }
     }
-    
+
     // List of allowed origins
     const allowedOrigins = [
       'https://dvisionacademy.com',
       'https://www.dvisionacademy.com',
       /\.vercel\.app$/
     ];
-    
+
     // Check if origin matches any allowed pattern
     const isAllowed = allowedOrigins.some(allowed => {
       if (typeof allowed === 'string') {
@@ -54,7 +54,7 @@ app.use(cors({
       }
       return false;
     });
-    
+
     if (isAllowed) {
       callback(null, true);
     } else {
@@ -65,9 +65,9 @@ app.use(cors({
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: [
-    'Content-Type', 
-    'Authorization', 
-    'X-Requested-With', 
+    'Content-Type',
+    'Authorization',
+    'X-Requested-With',
     'Accept',
     'Content-Length',
     'X-File-Name',

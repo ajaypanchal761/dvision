@@ -23,7 +23,7 @@ const AgentDashboard = () => {
   });
   const [referralLink, setReferralLink] = useState('');
   const [whatsappUrl, setWhatsappUrl] = useState('');
-  const [recentReferrals, setRecentReferrals] = useState([]);
+  const [recentReferralStudents, setRecentReferralStudents] = useState([]);
   const [monthWiseBreakdown, setMonthWiseBreakdown] = useState([]);
   const [copySuccess, setCopySuccess] = useState(false);
 
@@ -61,7 +61,7 @@ const AgentDashboard = () => {
           successfulSubscriptions: 0,
           pendingCommissions: 0
         });
-        setRecentReferrals(response.data.recentReferrals || []);
+        setRecentReferralStudents(response.data.recentReferralStudents || []);
         setMonthWiseBreakdown(response.data.monthWiseBreakdown || []);
       }
     } catch (err) {
@@ -225,27 +225,19 @@ const AgentDashboard = () => {
               <FiArrowRight className="text-xs" />
             </button>
           </div>
-          {recentReferrals.length > 0 ? (
+          {recentReferralStudents.length > 0 ? (
             <div className="space-y-2 sm:space-y-3">
-              {recentReferrals.map((referral) => (
+              {recentReferralStudents.map((referral) => (
                 <div
                   key={referral._id}
                   className="flex items-center justify-between p-2 sm:p-3 bg-gray-50 rounded-lg sm:rounded-xl"
                 >
                   <div className="flex-1">
                     <p className="text-xs sm:text-sm font-medium text-[var(--app-black)]">
-                      {referral.studentId?.name || 'Student'}
+                      {referral.name || 'Student'}
                     </p>
                     <p className="text-[10px] sm:text-xs text-gray-600">
-                      {referral.subscriptionPlanId?.name || 'Plan'} • {formatDate(referral.subscriptionDate)}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-xs sm:text-sm font-bold text-green-600">
-                      {formatCurrency(referral.amount)}
-                    </p>
-                    <p className="text-[10px] sm:text-xs text-gray-500 capitalize">
-                      {referral.status}
+                      {formatDate(referral.referredAt)}
                     </p>
                   </div>
                 </div>

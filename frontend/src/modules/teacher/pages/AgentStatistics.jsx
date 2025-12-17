@@ -17,6 +17,7 @@ const AgentStatistics = () => {
     successfulSubscriptions: 0,
     pendingCommissions: 0
   });
+  const [referredStudents, setReferredStudents] = useState([]);
   const [monthWiseBreakdown, setMonthWiseBreakdown] = useState([]);
   const [selectedMonth, setSelectedMonth] = useState('');
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
@@ -36,6 +37,7 @@ const AgentStatistics = () => {
           pendingCommissions: 0
         });
         setMonthWiseBreakdown(response.data.monthWiseBreakdown || []);
+        setReferredStudents(response.data.referredStudents || []);
       }
     } catch (err) {
       console.error('Error fetching statistics:', err);
@@ -192,6 +194,45 @@ const AgentStatistics = () => {
             <p className="text-xs sm:text-sm text-gray-500 text-center py-4">
               No data available for the selected period.
             </p>
+          )}
+        </div>
+      </div>
+
+      {/* Referred students list */}
+      <div className="px-3 sm:px-4 md:px-6 mt-3 sm:mt-4 md:mt-5">
+        <div className="bg-white rounded-xl sm:rounded-2xl p-4 sm:p-5 shadow-lg">
+          <h2 className="text-base sm:text-lg md:text-xl font-bold text-[var(--app-black)] mb-3 sm:mb-4">
+            Referred Students
+          </h2>
+          {loading ? (
+            <p className="text-xs sm:text-sm text-gray-500 text-center py-4">Loading...</p>
+          ) : referredStudents.length === 0 ? (
+            <p className="text-xs sm:text-sm text-gray-500 text-center py-4">No referrals yet.</p>
+          ) : (
+            <div className="space-y-2 sm:space-y-3">
+              {referredStudents.map((student) => (
+                <div
+                  key={student._id}
+                  className="flex items-center justify-between p-3 sm:p-4 bg-gray-50 rounded-lg sm:rounded-xl"
+                >
+                  <div>
+                    <p className="text-xs sm:text-sm font-semibold text-[var(--app-black)]">
+                      {student.name || 'Student'}
+                    </p>
+                    <p className="text-[10px] sm:text-xs text-gray-600">
+                      {student.class ? `Class ${student.class}` : ''} {student.board || ''}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-[10px] sm:text-xs text-gray-500">
+                      {student.referredAt
+                        ? new Date(student.referredAt).toLocaleDateString()
+                        : ''}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
           )}
         </div>
       </div>

@@ -46,15 +46,16 @@ const BottomNav = () => {
               <span className="text-[10px] sm:text-xs font-bold whitespace-nowrap">Statistics</span>
             </button>
 
-            {/* Referrals - Elevated Button (Center) */}
+          {/* Referrals */}
             <button
-              onClick={() => navigate(ROUTES.AGENT_STATISTICS)}
-              className="flex flex-col items-center gap-1 px-2 sm:px-3 py-1.5 sm:py-2 rounded-xl transition-all min-w-0 flex-1 relative -mt-4 sm:-mt-5 md:-mt-6"
+            onClick={() => navigate(ROUTES.AGENT_REFERRALS)}
+            className={`flex flex-col items-center gap-1 px-2 sm:px-3 py-1.5 sm:py-2 rounded-xl transition-all min-w-0 flex-1 ${location.pathname === ROUTES.AGENT_REFERRALS
+                ? 'text-[var(--app-dark-blue)] bg-blue-50'
+                : 'text-gray-600 hover:text-[var(--app-dark-blue)]'
+              }`}
             >
-              <div className="bg-[var(--app-dark-blue)] rounded-full p-2.5 sm:p-3 md:p-3.5 shadow-xl border-4 border-white hover:scale-110 transition-transform">
-                <FiUsers className="text-white text-xl sm:text-2xl md:text-3xl flex-shrink-0" />
-              </div>
-              <span className="text-[10px] sm:text-xs font-bold whitespace-nowrap text-gray-600">Referrals</span>
+            <FiUsers className={`text-xl sm:text-2xl flex-shrink-0 ${location.pathname === ROUTES.AGENT_REFERRALS ? 'scale-110' : ''} transition-transform`} />
+            <span className="text-[10px] sm:text-xs font-bold whitespace-nowrap">Referrals</span>
             </button>
 
             {/* Profile */}
