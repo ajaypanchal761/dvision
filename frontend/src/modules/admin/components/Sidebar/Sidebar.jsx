@@ -66,6 +66,15 @@ const Sidebar = ({ isOpen, setIsOpen, isCollapsed }) => {
           ),
           path: '/admin/transactions',
         },
+        {
+          name: 'Agents',
+          icon: (
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2v11a2 2 0 002 2zM12 10V4a2 2 0 00-2-2H6a2 2 0 00-2 2v16a2 2 0 002 2h6a2 2 0 002-2v-6a2 2 0 00-2-2z" />
+            </svg>
+          ),
+          path: '/admin/agents',
+        },
       ],
     },
     {
@@ -239,6 +248,9 @@ const Sidebar = ({ isOpen, setIsOpen, isCollapsed }) => {
     }
     if (path === '/admin/content') {
       return location.pathname.startsWith('/admin/content')
+    }
+    if (path === '/admin/agents') {
+      return location.pathname.startsWith('/admin/agents')
     }
     if (path === '/admin/referrals') {
       return location.pathname.startsWith('/admin/referrals')

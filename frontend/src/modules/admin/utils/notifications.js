@@ -40,7 +40,7 @@ export const saveFcmTokenToBackend = async (fcmToken) => {
       return;
     }
 
-    await adminAPI.updateFcmToken(fcmToken);
+    await adminAPI.updateFcmToken(fcmToken, 'web');
     console.log('FCM token saved to backend');
 
     // Clear pending token if exists

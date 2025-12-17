@@ -86,6 +86,9 @@ import AdminEditQuizNew from './modules/admin/pages/Quiz/EditQuiz';
 import AdminContent from './modules/admin/pages/Content/Content';
 import AdminEditContent from './modules/admin/pages/Content/EditContent';
 import AdminReferrals from './modules/admin/pages/Referrals/Referrals';
+import AdminAgents from './modules/admin/pages/Agent/Agents';
+import AdminAgentReferrals from './modules/admin/pages/Agent/AgentReferrals';
+import AdminReferralReports from './modules/admin/pages/Agent/ReferralReports';
 import AdminTeacherClass from './modules/admin/pages/TeacherClass/TeacherClass';
 import AdminRecordedSession from './modules/admin/pages/RecordedSession/RecordedSession';
 import AdminNotificationsList from './modules/admin/pages/Notifications/NotificationsList';
@@ -814,11 +817,41 @@ function App() {
           }
         />
         <Route
+          path="/admin/agents"
+          element={
+            <AdminProtectedRoute>
+              <AdminLayout>
+                <AdminAgents />
+              </AdminLayout>
+            </AdminProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/agents/:id/referrals"
+          element={
+            <AdminProtectedRoute>
+              <AdminLayout>
+                <AdminAgentReferrals />
+              </AdminLayout>
+            </AdminProtectedRoute>
+          }
+        />
+        <Route
           path="/admin/referrals"
           element={
             <AdminProtectedRoute>
               <AdminLayout>
                 <AdminReferrals />
+              </AdminLayout>
+            </AdminProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/referrals/reports"
+          element={
+            <AdminProtectedRoute>
+              <AdminLayout>
+                <AdminReferralReports />
               </AdminLayout>
             </AdminProtectedRoute>
           }

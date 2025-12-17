@@ -310,11 +310,11 @@ export const studentAPI = {
     return data;
   },
 
-  // Update FCM token
-  updateFcmToken: async (fcmToken) => {
+  // Update FCM token (supports platform: 'web' | 'app')
+  updateFcmToken: async (fcmToken, platform = 'web') => {
     return apiRequest('/student/fcm-token', {
       method: 'PUT',
-      body: { fcmToken },
+      body: { fcmToken, platform },
     });
   },
 

@@ -319,11 +319,11 @@ export const studentAPI = {
     return data;
   },
 
-  // Update FCM token
-  updateFcmToken: async (fcmToken) => {
+  // Update FCM token (supports platform: 'web' | 'app')
+  updateFcmToken: async (fcmToken, platform = 'web') => {
     return apiRequest('/student/fcm-token', {
       method: 'PUT',
-      body: { fcmToken },
+      body: { fcmToken, platform },
     }, 'student');
   },
 
@@ -440,11 +440,11 @@ export const teacherAPI = {
     }, 'student');
   },
 
-  // Update FCM token
-  updateFcmToken: async (fcmToken) => {
+  // Update FCM token (supports platform: 'web' | 'app')
+  updateFcmToken: async (fcmToken, platform = 'web') => {
     return apiRequest('/teacher/fcm-token', {
       method: 'PUT',
-      body: { fcmToken },
+      body: { fcmToken, platform },
     }, 'student');
   },
 
@@ -675,11 +675,11 @@ export const adminAPI = {
     }, 'admin');
   },
 
-  // Update FCM token
-  updateFcmToken: async (fcmToken) => {
+  // Update FCM token (supports platform: 'web' | 'app')
+  updateFcmToken: async (fcmToken, platform = 'web') => {
     return apiRequest('/admin/fcm-token', {
       method: 'PUT',
-      body: { fcmToken },
+      body: { fcmToken, platform },
     }, 'admin');
   },
 

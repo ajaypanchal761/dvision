@@ -252,11 +252,11 @@ export const teacherAPI = {
     });
   },
 
-  // Update FCM token
-  updateFcmToken: async (fcmToken) => {
+  // Update FCM token (supports platform: 'web' | 'app')
+  updateFcmToken: async (fcmToken, platform = 'web') => {
     return apiRequest('/teacher/fcm-token', {
       method: 'PUT',
-      body: { fcmToken },
+      body: { fcmToken, platform },
     });
   },
 
@@ -667,6 +667,13 @@ export const agentAPI = {
   getStatistics: async () => {
     return apiRequest('/agent/statistics', {
       method: 'GET'
+    });
+  },
+  // Update FCM token (supports platform: 'web' | 'app')
+  updateFcmToken: async (fcmToken, platform = 'web') => {
+    return apiRequest('/agent/fcm-token', {
+      method: 'PUT',
+      body: { fcmToken, platform }
     });
   }
 };

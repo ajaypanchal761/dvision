@@ -237,11 +237,11 @@ export const adminAPI = {
     });
   },
 
-  // Update FCM token
-  updateFcmToken: async (fcmToken) => {
+  // Update FCM token (supports platform: 'web' | 'app')
+  updateFcmToken: async (fcmToken, platform = 'web') => {
     return apiRequest('/admin/fcm-token', {
       method: 'PUT',
-      body: { fcmToken },
+      body: { fcmToken, platform },
     });
   },
 

@@ -3,6 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { ROUTES } from '../constants/routes';
 import { teacherAPI, agentAPI } from '../services/api';
 import { initializeNotifications, savePendingFcmToken, setupForegroundMessageListener } from '../utils/notifications';
+import {
+  initializeAgentNotifications,
+  savePendingAgentFcmToken,
+  setupAgentForegroundMessageListener,
+} from '../utils/agentNotifications';
 
 /**
  * Final OTP Verification Page
@@ -107,6 +112,11 @@ const FinalOTP = () => {
           // Clear sessionStorage
           sessionStorage.removeItem('login_phone');
           sessionStorage.removeItem('login_mode');
+
+          // Initialize notifications for agent (web)
+          initializeAgentNotifications();
+          setupAgentForegroundMessageListener();
+          savePendingAgentFcmToken();
 
           // Navigate to agent dashboard on success
           navigate(ROUTES.AGENT_DASHBOARD);

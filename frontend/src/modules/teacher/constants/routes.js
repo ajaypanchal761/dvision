@@ -20,5 +20,9 @@ export const ROUTES = {
   EDIT_QUIZ: '/teacher/quizzes/edit/:id',
   VIEW_QUIZ: '/teacher/quizzes/:id',
   QUIZ_RESULTS: '/teacher/quizzes/:id/results',
+  // Agent Routes
+  AGENT_DASHBOARD: '/teacher/agent/dashboard',
+  AGENT_STATISTICS: '/teacher/agent/statistics',
+  AGENT_PROFILE: '/teacher/agent/profile',
 };
 
