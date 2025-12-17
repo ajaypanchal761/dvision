@@ -23,11 +23,19 @@ import AgoraRTC from 'agora-rtc-sdk-ng';
 import { io } from 'socket.io-client';
 import { liveClassAPI } from '../services/api';
 
-// Auto-detect API base URL for socket connections
-const getApiBaseUrl = () => {
-  if (import.meta.env.VITE_API_BASE_URL) {
-    return import.meta.env.VITE_API_BASE_URL.replace('/api', '');
+// Auto-detect Socket base URL (no /api)
+const getSocketUrl = () => {
+  // 1) Explicit socket URL
+  if (import.meta.env.VITE_SOCKET_URL) {
+    return import.meta.env.VITE_SOCKET_URL.replace(/\/$/, '');
   }
+
+  // 2) Derive from API URL if provided
+  if (import.meta.env.VITE_API_BASE_URL) {
+    return import.meta.env.VITE_API_BASE_URL.replace(/\/api\/?$/, '').replace(/\/$/, '');
+  }
+
+  // 3) Auto-detect production host
   if (typeof window !== 'undefined') {
     const hostname = window.location.hostname;
     const isProduction = hostname.includes('dvisionacademy.com');
@@ -42,11 +50,12 @@ const getApiBaseUrl = () => {
       }
     }
   }
+
+  // 4) Fallback localhost
   return 'http://localhost:5000';
 };
 
-const API_BASE_URL = getApiBaseUrl();
-const SOCKET_URL = API_BASE_URL;
+const SOCKET_URL = getSocketUrl();
 
 /**
  * Live Class Room Component - Teacher Panel
@@ -587,13 +596,30 @@ const LiveClassRoom = () => {
     if (!newMessage.trim()) return;
 
     try {
-      if (socketRef.current) {
-        socketRef.current.emit('chat-message', {
-          liveClassId: id,
-          message: newMessage.trim()
-        });
-        setNewMessage('');
+      if (!socketRef.current) {
+        console.error('Socket not initialized, re-initializing...');
+        initializeSocket();
+        await new Promise(resolve => setTimeout(resolve, 500));
+        if (!socketRef.current || !socketRef.current.connected) {
+          alert('Connection not established. Please refresh the page.');
+          return;
+        }
       }
+
+      if (!socketRef.current.connected) {
+        socketRef.current.connect();
+        await new Promise(resolve => setTimeout(resolve, 500));
+        if (!socketRef.current.connected) {
+          alert('Connection lost. Please refresh the page.');
+          return;
+        }
+      }
+
+      socketRef.current.emit('chat-message', {
+        liveClassId: id,
+        message: newMessage.trim()
+      });
+      setNewMessage('');
     } catch (err) {
       console.error('Error sending message:', err);
     }

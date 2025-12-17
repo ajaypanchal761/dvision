@@ -64,6 +64,15 @@ const API_BASE_URL = getApiBaseUrl();
 // Socket.io connection URL (should be the base URL without /api)
 const getSocketUrl = () => {
   try {
+    // 1) Explicit socket URL wins
+    const envSocket = import.meta.env.VITE_SOCKET_URL;
+    if (envSocket) {
+      const clean = envSocket.replace(/\/$/, '');
+      console.log('[Student Socket] Using VITE_SOCKET_URL:', clean);
+      return clean;
+    }
+
+    // 2) Derive from API base
     let url = API_BASE_URL;
     // Remove /api if present (handle both /api and /api/)
     url = url.replace(/\/api\/?$/, '');
@@ -104,7 +113,7 @@ const LiveClassRoom = () => {
   const [error, setError] = useState('');
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoEnabled, setIsVideoEnabled] = useState(true);
-  const [cameraFacing, setCameraFacing] = useState('user');
+  const [, setCameraFacing] = useState('user');
   const [hasRaisedHand, setHasRaisedHand] = useState(false);
   const [isReconnecting, setIsReconnecting] = useState(false);
   const [isKicked, setIsKicked] = useState(false);
@@ -396,11 +405,11 @@ const LiveClassRoom = () => {
     });
 
     // Participant events
-    socket.on('user-joined', ({ userId, userName, userRole }) => {
+    socket.on('user-joined', ({ userName, userRole }) => {
       console.log(`User joined: ${userName} (${userRole})`);
     });
 
-    socket.on('user-left', ({ userId, userName }) => {
+    socket.on('user-left', ({ userName }) => {
       console.log(`User left: ${userName}`);
     });
 
@@ -553,7 +562,7 @@ const LiveClassRoom = () => {
     });
 
     // Screen share status
-    socket.on('screen-share-status', ({ userId, isSharing }) => {
+    socket.on('screen-share-status', ({ isSharing }) => {
       console.log(`Screen share ${isSharing ? 'started' : 'stopped'}`);
     });
 
@@ -1333,9 +1342,13 @@ const LiveClassRoom = () => {
 
     try {
       if (!socketRef.current) {
-        console.error('Socket not initialized');
-        alert('Connection not established. Please refresh the page.');
-        return;
+        console.error('Socket not initialized, re-initializing...');
+        initializeSocket();
+        await new Promise(resolve => setTimeout(resolve, 500));
+        if (!socketRef.current || !socketRef.current.connected) {
+          alert('Connection not established. Please refresh the page.');
+          return;
+        }
       }
 
       if (!socketRef.current.connected) {
@@ -1632,8 +1645,8 @@ const LiveClassRoom = () => {
                     className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'}`}
                   >
                     <div className={`max-w-[75%] p-2 rounded-lg ${isOwnMessage
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-gray-700 text-white'
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-700 text-white'
                       }`}>
                       {!isOwnMessage && (
                         <p className="text-xs opacity-80 mb-1">{msg.userName}</p>

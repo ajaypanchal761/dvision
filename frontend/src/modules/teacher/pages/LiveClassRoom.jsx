@@ -67,6 +67,13 @@ const API_BASE_URL = getApiBaseUrl();
 // Socket.io connection URL (should be the base URL without /api)
 const getSocketUrl = () => {
   try {
+    // Explicit socket URL takes precedence
+    if (import.meta.env.VITE_SOCKET_URL) {
+      const clean = import.meta.env.VITE_SOCKET_URL.replace(/\/$/, '');
+      console.log('[Teacher Socket] Using VITE_SOCKET_URL:', clean);
+      return clean;
+    }
+
     let url = API_BASE_URL;
     // Remove /api if present (handle both /api and /api/)
     url = url.replace(/\/api\/?$/, '');
@@ -1484,9 +1491,13 @@ const LiveClassRoom = () => {
 
     try {
       if (!socketRef.current) {
-        console.error('Socket not initialized');
-        alert('Connection not established. Please refresh the page.');
-        return;
+        console.error('Socket not initialized, re-initializing...');
+        initializeSocket();
+        await new Promise(resolve => setTimeout(resolve, 500));
+        if (!socketRef.current || !socketRef.current.connected) {
+          alert('Connection not established. Please refresh the page.');
+          return;
+        }
       }
 
       if (!socketRef.current.connected) {
