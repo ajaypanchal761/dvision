@@ -17,6 +17,7 @@ const EditStudent = () => {
     status: 'Active',
     subscriptionStatus: 'none',
     selectedPlanId: '',
+    prepPlanIds: []
   })
   const [isLoading, setIsLoading] = useState(false)
   const [isFetching, setIsFetching] = useState(true)
@@ -24,12 +25,15 @@ const EditStudent = () => {
   const [boards, setBoards] = useState([])
   const [availableClasses, setAvailableClasses] = useState([])
   const [allClassesData, setAllClassesData] = useState([])
+  const [prepClassesMap, setPrepClassesMap] = useState({})
   const [loadingClasses, setLoadingClasses] = useState(true)
   const [selectedCountryCode, setSelectedCountryCode] = useState('+91')
   const [showCountryDropdown, setShowCountryDropdown] = useState(false)
   const [existingStudents, setExistingStudents] = useState([])
   const [subscriptionPlans, setSubscriptionPlans] = useState([])
   const [loadingPlans, setLoadingPlans] = useState(false)
+  const [prepPlans, setPrepPlans] = useState([])
+  const [loadingPrepPlans, setLoadingPrepPlans] = useState(false)
 
   // Popular country codes
   const countryCodes = [
@@ -69,9 +73,16 @@ const EditStudent = () => {
           
           // Store all classes data for filtering
           setAllClassesData(classesData)
+
+          // Prep classes map for display (for prep plans)
+          const prepMap = {}
+          classesData.filter(c => c.type === 'preparation').forEach(c => {
+            prepMap[c._id] = c.name || c.classCode || 'Preparation Class'
+          })
+          setPrepClassesMap(prepMap)
           
-          // Extract unique boards and sort them
-          const uniqueBoards = [...new Set(classesData.map(c => c.board))]
+          // Extract unique boards (regular only) and sort them
+          const uniqueBoards = [...new Set(classesData.filter(c => c.type === 'regular').map(c => c.board))]
             .filter(Boolean)
             .sort()
           
@@ -106,9 +117,9 @@ const EditStudent = () => {
       return
     }
 
-    // Filter classes by selected board
+    // Filter classes by selected board (regular only)
     const classesForBoard = allClassesData
-      .filter(c => c.board === formData.board)
+      .filter(c => c.board === formData.board && c.type === 'regular')
       .map(c => c.class)
       .sort((a, b) => a - b)
 
@@ -159,6 +170,32 @@ const EditStudent = () => {
     fetchPlans()
   }, [formData.subscriptionStatus, formData.class, formData.board])
 
+  // Fetch preparation plans (available globally)
+  useEffect(() => {
+    const fetchPrepPlans = async () => {
+      try {
+        setLoadingPrepPlans(true)
+        const response = await subscriptionPlanAPI.getAll({
+          type: 'preparation',
+          isActive: true
+        })
+        if (response.success && (response.data?.plans || response.data?.subscriptionPlans)) {
+          const plans = response.data.plans || response.data.subscriptionPlans || []
+          setPrepPlans(plans)
+        } else {
+          setPrepPlans([])
+        }
+      } catch (error) {
+        console.error('Error fetching preparation plans:', error)
+        setPrepPlans([])
+      } finally {
+        setLoadingPrepPlans(false)
+      }
+    }
+
+    fetchPrepPlans()
+  }, [])
+
   // Fetch student data from backend
   useEffect(() => {
     const fetchStudent = async () => {
@@ -173,10 +210,15 @@ const EditStudent = () => {
           const { code, number } = extractCountryCode(student.phone || '')
           
           setSelectedCountryCode(code)
-          // Check if student has active subscription
+          // Check if student has active regular subscription
           const hasActiveSubscription = student.subscription && student.subscription.status === 'active' && student.subscription.planId
           const subscriptionStatus = hasActiveSubscription ? 'active' : 'none'
           const selectedPlanId = hasActiveSubscription && student.subscription.planId ? student.subscription.planId.toString() : ''
+
+          // Prep plan IDs from activeSubscriptions
+          const prepPlanIds = Array.isArray(student.activeSubscriptions)
+            ? student.activeSubscriptions.filter(sub => sub.type === 'preparation').map(sub => sub.planId?.toString()).filter(Boolean)
+            : []
 
           setFormData({
             name: student.name || '',
@@ -188,6 +230,7 @@ const EditStudent = () => {
             imagePreview: student.profileImage || null,
             subscriptionStatus,
             selectedPlanId,
+            prepPlanIds,
           })
         } else {
           setError('Student not found')
@@ -278,6 +321,11 @@ const EditStudent = () => {
         studentData.removeSubscription = true
       }
 
+      // Add preparation plans (multiple) if selected
+      if (formData.prepPlanIds && formData.prepPlanIds.length > 0) {
+        studentData.preparationPlanIds = formData.prepPlanIds
+      }
+
       // Add image as base64 if new image is provided
       if (formData.imagePreview && formData.image) {
         studentData.profileImageBase64 = formData.imagePreview
@@ -358,13 +406,13 @@ const EditStudent = () => {
                       className="h-20 w-20 sm:h-24 sm:w-24 rounded-full object-cover border-4 border-[#1e3a5f] shadow-lg"
                     />
                   ) : (
-                    <div className="h-20 w-20 sm:h-24 sm:w-24 rounded-full bg-gradient-to-br from-[#1e3a5f] to-[#2a4a6f] flex items-center justify-center border-4 border-[#1e3a5f] shadow-lg">
+                    <div className="h-20 w-20 sm:h-24 sm:w-24 rounded-full bg-linear-to-br from-[#1e3a5f] to-[#2a4a6f] flex items-center justify-center border-4 border-[#1e3a5f] shadow-lg">
                       <span className="text-white font-bold text-lg sm:text-xl">
                         {getInitials(formData.name)}
                       </span>
                     </div>
                   )}
-                  <label className="absolute bottom-0 right-0 bg-gradient-to-r from-[#1e3a5f] to-[#2a4a6f] hover:from-[#2a4a6f] hover:to-[#1e3a5f] text-white rounded-full p-2 sm:p-2.5 cursor-pointer transition-all duration-200 shadow-lg hover:shadow-xl">
+                <label className="absolute bottom-0 right-0 bg-linear-to-r from-[#1e3a5f] to-[#2a4a6f] hover:from-[#2a4a6f] hover:to-[#1e3a5f] text-white rounded-full p-2 sm:p-2.5 cursor-pointer transition-all duration-200 shadow-lg hover:shadow-xl">
                     <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -418,7 +466,7 @@ const EditStudent = () => {
                   </label>
                   <div className="relative flex items-stretch">
                     {/* Country Code Dropdown */}
-                    <div className="relative flex-shrink-0">
+                  <div className="relative shrink-0">
                       <button
                         type="button"
                         onClick={() => setShowCountryDropdown(!showCountryDropdown)}
@@ -427,7 +475,7 @@ const EditStudent = () => {
                         <span className="text-gray-700 font-medium whitespace-nowrap">
                           {selectedCountryCode}
                         </span>
-                        <FiChevronDown className="text-gray-500 text-xs flex-shrink-0" />
+                        <FiChevronDown className="text-gray-500 text-xs shrink-0" />
                       </button>
                       
                       {/* Dropdown Menu */}
@@ -598,6 +646,32 @@ const EditStudent = () => {
                   </div>
                 )}
               </div>
+
+            {/* Preparation subscriptions */}
+            <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4">
+              <label className="block text-[11px] sm:text-sm font-semibold text-gray-700 mb-1">
+                Preparation Subscriptions (optional)
+              </label>
+              <p className="text-[10px] sm:text-xs text-gray-500 mb-2">Assign one or more preparation plans in addition to the regular plan.</p>
+              <select
+                multiple
+                value={formData.prepPlanIds}
+                onChange={(e) => {
+                  const options = Array.from(e.target.selectedOptions).map(opt => opt.value)
+                  setFormData(prev => ({ ...prev, prepPlanIds: options }))
+                }}
+                className="w-full px-3 sm:px-4 py-2 sm:py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#1e3a5f] focus:border-[#1e3a5f] outline-none transition-all duration-200 bg-white text-sm sm:text-base min-h-[140px]"
+                disabled={isLoading || loadingPrepPlans}
+              >
+                {loadingPrepPlans && <option>Loading preparation plans...</option>}
+                {!loadingPrepPlans && prepPlans.length === 0 && <option disabled>No preparation plans available</option>}
+                {!loadingPrepPlans && prepPlans.map(plan => (
+                  <option key={plan._id} value={plan._id}>
+                    {plan.name} - ₹{plan.price} ({plan.duration}) — {prepClassesMap[plan.classId] || 'Prep Class'}
+                  </option>
+                ))}
+              </select>
+            </div>
             </div>
 
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2 sm:gap-3 pt-3 sm:pt-4">
@@ -612,7 +686,7 @@ const EditStudent = () => {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full sm:w-auto px-4 sm:px-6 py-2 text-xs sm:text-sm bg-gradient-to-r from-[#1e3a5f] to-[#2a4a6f] hover:from-[#2a4a6f] hover:to-[#1e3a5f] text-white rounded-lg font-semibold transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-50"
+                className="w-full sm:w-auto px-4 sm:px-6 py-2 text-xs sm:text-sm bg-linear-to-r from-[#1e3a5f] to-[#2a4a6f] hover:from-[#2a4a6f] hover:to-[#1e3a5f] text-white rounded-lg font-semibold transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-50"
               >
                 {isLoading ? 'Updating...' : 'Update Student'}
               </button>

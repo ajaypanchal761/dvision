@@ -75,7 +75,17 @@ exports.getStudent = asyncHandler(async (req, res) => {
 // @route   POST /api/admin/students
 // @access  Private/Admin
 exports.createStudent = asyncHandler(async (req, res) => {
-  const { name, phone, email, class: studentClass, board, isActive, profileImageBase64, subscriptionPlanId } = req.body;
+  const {
+    name,
+    phone,
+    email,
+    class: studentClass,
+    board,
+    isActive,
+    profileImageBase64,
+    subscriptionPlanId, // regular plan
+    preparationPlanIds = [] // array of prep plan ids
+  } = req.body;
   
   if (!name || !phone || !studentClass || !board) {
     throw new ErrorResponse('Please provide name, phone, class, and board', 400);
@@ -117,22 +127,11 @@ exports.createStudent = asyncHandler(async (req, res) => {
     profileImage: profileImageUrl
   };
 
-  // Handle subscription assignment if provided
-  if (subscriptionPlanId) {
-    const plan = await SubscriptionPlan.findById(subscriptionPlanId);
-    if (!plan) {
-      throw new ErrorResponse('Subscription plan not found', 404);
-    }
-
-    if (!plan.isActive) {
-      throw new ErrorResponse('Cannot assign inactive subscription plan', 400);
-    }
-
-    // Calculate subscription dates based on plan duration
+  // Helper to compute end date
+  const computeEndDate = (duration) => {
     const startDate = new Date();
-    let endDate = new Date();
-
-    switch (plan.duration) {
+    const endDate = new Date(startDate);
+    switch (duration) {
       case 'monthly':
         endDate.setMonth(endDate.getMonth() + 1);
         break;
@@ -145,13 +144,46 @@ exports.createStudent = asyncHandler(async (req, res) => {
       default:
         endDate.setMonth(endDate.getMonth() + 1);
     }
+    return { startDate, endDate };
+  };
 
+  studentData.activeSubscriptions = [];
+
+  // Handle regular subscription (legacy fields + activeSubscriptions entry)
+  if (subscriptionPlanId) {
+    const plan = await SubscriptionPlan.findById(subscriptionPlanId);
+    if (!plan) {
+      throw new ErrorResponse('Subscription plan not found', 404);
+    }
+    if (!plan.isActive) {
+      throw new ErrorResponse('Cannot assign inactive subscription plan', 400);
+    }
+    if (plan.type !== 'regular') {
+      throw new ErrorResponse('Selected plan is not a regular plan', 400);
+    }
+    if (!plan.board || !plan.classes?.length || !plan.classes.includes(parseInt(studentClass))) {
+      throw new ErrorResponse('Selected plan does not match student board/class', 400);
+    }
+
+    const { startDate, endDate } = computeEndDate(plan.duration);
+
+    // Legacy subscription field
     studentData.subscription = {
       status: 'active',
       planId: plan._id,
-      startDate: startDate,
-      endDate: endDate
+      startDate,
+      endDate
     };
+
+    // Active subscriptions array entry
+    studentData.activeSubscriptions.push({
+      planId: plan._id,
+      startDate,
+      endDate,
+      type: 'regular',
+      board: plan.board,
+      class: parseInt(studentClass)
+    });
   } else {
     // Default subscription status
     studentData.subscription = {
@@ -160,6 +192,26 @@ exports.createStudent = asyncHandler(async (req, res) => {
       startDate: undefined,
       endDate: undefined
     };
+  }
+
+  // Handle preparation subscriptions (multiple)
+  const prepIds = Array.isArray(preparationPlanIds) ? preparationPlanIds.filter(Boolean) : [];
+  if (prepIds.length > 0) {
+    const prepPlans = await SubscriptionPlan.find({ _id: { $in: prepIds }, type: 'preparation', isActive: true });
+    if (prepPlans.length !== prepIds.length) {
+      throw new ErrorResponse('One or more preparation plans are invalid or inactive', 400);
+    }
+
+    prepPlans.forEach((plan) => {
+      const { startDate, endDate } = computeEndDate(plan.duration);
+      studentData.activeSubscriptions.push({
+        planId: plan._id,
+        startDate,
+        endDate,
+        type: 'preparation',
+        classId: plan.classId
+      });
+    });
   }
 
   const student = await Student.create(studentData);
@@ -177,7 +229,18 @@ exports.createStudent = asyncHandler(async (req, res) => {
 // @route   PUT /api/admin/students/:id
 // @access  Private/Admin
 exports.updateStudent = asyncHandler(async (req, res) => {
-  const { name, phone, email, class: studentClass, board, isActive, profileImageBase64, subscriptionPlanId, removeSubscription } = req.body;
+  const {
+    name,
+    phone,
+    email,
+    class: studentClass,
+    board,
+    isActive,
+    profileImageBase64,
+    subscriptionPlanId,
+    preparationPlanIds = [],
+    removeSubscription
+  } = req.body;
   
   let student = await Student.findById(req.params.id);
   
@@ -262,31 +325,11 @@ exports.updateStudent = asyncHandler(async (req, res) => {
     }
   }
 
-  // Handle subscription update
-  if (removeSubscription === true || removeSubscription === 'true') {
-    // Remove subscription
-    student.subscription = {
-      status: 'none',
-      planId: undefined,
-      startDate: undefined,
-      endDate: undefined
-    };
-  } else if (subscriptionPlanId) {
-    // Assign or update subscription
-    const plan = await SubscriptionPlan.findById(subscriptionPlanId);
-    if (!plan) {
-      throw new ErrorResponse('Subscription plan not found', 404);
-    }
-
-    if (!plan.isActive) {
-      throw new ErrorResponse('Cannot assign inactive subscription plan', 400);
-    }
-
-    // Calculate subscription dates based on plan duration
+  // Helper to compute start/end based on duration
+  const computeEndDate = (duration) => {
     const startDate = new Date();
-    let endDate = new Date();
-
-    switch (plan.duration) {
+    const endDate = new Date(startDate);
+    switch (duration) {
       case 'monthly':
         endDate.setMonth(endDate.getMonth() + 1);
         break;
@@ -299,13 +342,92 @@ exports.updateStudent = asyncHandler(async (req, res) => {
       default:
         endDate.setMonth(endDate.getMonth() + 1);
     }
+    return { startDate, endDate };
+  };
 
+  // Handle subscription + activeSubscriptions update
+  if (removeSubscription === true || removeSubscription === 'true') {
     student.subscription = {
-      status: 'active',
-      planId: plan._id,
-      startDate: startDate,
-      endDate: endDate
+      status: 'none',
+      planId: undefined,
+      startDate: undefined,
+      endDate: undefined
     };
+    student.activeSubscriptions = [];
+  } else if (subscriptionPlanId || (Array.isArray(preparationPlanIds) && preparationPlanIds.length > 0)) {
+    const newActiveSubs = [];
+
+    // Regular plan handling
+    if (subscriptionPlanId) {
+      const plan = await SubscriptionPlan.findById(subscriptionPlanId);
+      if (!plan) {
+        throw new ErrorResponse('Subscription plan not found', 404);
+      }
+      if (!plan.isActive) {
+        throw new ErrorResponse('Cannot assign inactive subscription plan', 400);
+      }
+      if (plan.type !== 'regular') {
+        throw new ErrorResponse('Selected plan is not a regular plan', 400);
+      }
+      if (!plan.board || !plan.classes?.length || (student.board && !plan.classes.includes(student.class))) {
+        // Re-validate with provided board/class if present in request
+        const boardToCheck = board !== undefined ? board : student.board;
+        const classToCheck = studentClass !== undefined ? parseInt(studentClass) : student.class;
+        if (boardToCheck && plan.board !== boardToCheck) {
+          throw new ErrorResponse('Regular plan does not match student board', 400);
+        }
+        if (classToCheck && !plan.classes.includes(classToCheck)) {
+          throw new ErrorResponse('Regular plan does not match student class', 400);
+        }
+      }
+
+      const { startDate, endDate } = computeEndDate(plan.duration);
+      student.subscription = {
+        status: 'active',
+        planId: plan._id,
+        startDate,
+        endDate
+      };
+      newActiveSubs.push({
+        planId: plan._id,
+        startDate,
+        endDate,
+        type: 'regular',
+        board: student.board,
+        class: student.class
+      });
+    } else {
+      // Keep legacy subscription as-is if no regular plan supplied
+      student.subscription = student.subscription || {
+        status: 'none',
+        planId: undefined,
+        startDate: undefined,
+        endDate: undefined
+      };
+    }
+
+    // Preparation plans handling
+    const prepIds = Array.isArray(preparationPlanIds) ? preparationPlanIds.filter(Boolean) : [];
+    if (prepIds.length > 0) {
+      const prepPlans = await SubscriptionPlan.find({ _id: { $in: prepIds }, type: 'preparation', isActive: true });
+      if (prepPlans.length !== prepIds.length) {
+        throw new ErrorResponse('One or more preparation plans are invalid or inactive', 400);
+      }
+      prepPlans.forEach((plan) => {
+        const { startDate, endDate } = computeEndDate(plan.duration);
+        newActiveSubs.push({
+          planId: plan._id,
+          startDate,
+          endDate,
+          type: 'preparation',
+          classId: plan.classId
+        });
+      });
+    }
+
+    if (newActiveSubs.length > 0) {
+      student.activeSubscriptions = newActiveSubs;
+    }
   }
   
   await student.save();

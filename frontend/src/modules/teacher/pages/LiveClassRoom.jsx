@@ -15,6 +15,7 @@ import {
   FiVolume2,
   FiVolumeX
 } from 'react-icons/fi';
+import { RiCameraSwitchLine } from 'react-icons/ri';
 import { PiHandPalm } from 'react-icons/pi';
 import AgoraRTC from 'agora-rtc-sdk-ng';
 import { io } from 'socket.io-client';
@@ -1981,7 +1982,7 @@ const LiveClassRoom = () => {
           className="p-3 rounded-full bg-gray-700 hover:bg-opacity-80"
           title="Switch camera"
         >
-          <FiRotateCw className="text-xl" />
+          <RiCameraSwitchLine className="text-xl" />
         </button>
         <button
           onClick={handleEndClass}

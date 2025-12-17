@@ -16,18 +16,22 @@ const AddStudent = () => {
     status: 'Active',
     subscriptionStatus: 'none',
     selectedPlanId: '',
+    prepPlanIds: []
   })
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
   const [boards, setBoards] = useState([])
   const [availableClasses, setAvailableClasses] = useState([])
   const [allClassesData, setAllClassesData] = useState([])
+  const [prepClassesMap, setPrepClassesMap] = useState({})
   const [loadingClasses, setLoadingClasses] = useState(true)
   const [selectedCountryCode, setSelectedCountryCode] = useState('+91')
   const [showCountryDropdown, setShowCountryDropdown] = useState(false)
   const [existingStudents, setExistingStudents] = useState([])
   const [subscriptionPlans, setSubscriptionPlans] = useState([])
+  const [prepPlans, setPrepPlans] = useState([])
   const [loadingPlans, setLoadingPlans] = useState(false)
+  const [loadingPrepPlans, setLoadingPrepPlans] = useState(false)
 
   // Popular country codes
   const countryCodes = [
@@ -43,20 +47,27 @@ const AddStudent = () => {
     const fetchData = async () => {
       try {
         setLoadingClasses(true)
-        
+
         // Fetch classes
         const classesResponse = await classAPI.getAll()
         if (classesResponse.success && classesResponse.data?.classes) {
           const classesData = classesResponse.data.classes.filter(c => c.isActive)
-          
+
           // Store all classes data for filtering
           setAllClassesData(classesData)
-          
-          // Extract unique boards and sort them
-          const uniqueBoards = [...new Set(classesData.map(c => c.board))]
+
+          // Prep classes map for display (for preparation plans)
+          const prepMap = {}
+          classesData.filter(c => c.type === 'preparation').forEach(c => {
+            prepMap[c._id] = c.name || c.classCode || 'Preparation Class'
+          })
+          setPrepClassesMap(prepMap)
+
+          // Extract unique boards and sort them (regular only)
+          const uniqueBoards = [...new Set(classesData.filter(c => c.type === 'regular').map(c => c.board))]
             .filter(Boolean)
             .sort()
-          
+
           setBoards(uniqueBoards)
         }
 
@@ -86,9 +97,9 @@ const AddStudent = () => {
       return
     }
 
-    // Filter classes by selected board
+    // Filter classes by selected board (regular classes only)
     const classesForBoard = allClassesData
-      .filter(c => c.board === formData.board)
+      .filter(c => c.board === formData.board && c.type === 'regular')
       .map(c => c.class)
       .sort((a, b) => a - b)
 
@@ -101,7 +112,7 @@ const AddStudent = () => {
         setFormData(prev => ({ ...prev, class: '' }))
       }
     }
-  }, [formData.board, allClassesData])
+  }, [formData.board, allClassesData, formData.class])
 
   // Fetch subscription plans when subscription status is active and class/board are selected
   useEffect(() => {
@@ -137,6 +148,32 @@ const AddStudent = () => {
     fetchPlans()
   }, [formData.subscriptionStatus, formData.class, formData.board])
 
+  // Fetch preparation plans (available globally)
+  useEffect(() => {
+    const fetchPrepPlans = async () => {
+      try {
+        setLoadingPrepPlans(true)
+        const response = await subscriptionPlanAPI.getAll({
+          type: 'preparation',
+          isActive: true
+        })
+        if (response.success && (response.data?.plans || response.data?.subscriptionPlans)) {
+          const plans = response.data.plans || response.data.subscriptionPlans || []
+          setPrepPlans(plans)
+        } else {
+          setPrepPlans([])
+        }
+      } catch (error) {
+        console.error('Error fetching preparation plans:', error)
+        setPrepPlans([])
+      } finally {
+        setLoadingPrepPlans(false)
+      }
+    }
+
+    fetchPrepPlans()
+  }, [])
+
   const handleImageChange = (e) => {
     const file = e.target.files[0]
     if (file) {
@@ -160,7 +197,7 @@ const AddStudent = () => {
     try {
       // Validate phone number
       const phoneNumber = formData.mobile.replace(/\D/g, '')
-      
+
       if (!phoneNumber || phoneNumber.length < 10) {
         setError('Please enter a valid mobile number (minimum 10 digits)')
         setIsLoading(false)
@@ -185,7 +222,7 @@ const AddStudent = () => {
 
       // Parse class number
       const classNumber = parseInt(formData.class)
-      
+
       if (isNaN(classNumber) || !availableClasses.includes(classNumber)) {
         throw new Error('Please select a valid class for the selected board')
       }
@@ -205,13 +242,18 @@ const AddStudent = () => {
         studentData.subscriptionPlanId = formData.selectedPlanId
       }
 
+      // Add preparation plans (multiple) if selected
+      if (formData.prepPlanIds && formData.prepPlanIds.length > 0) {
+        studentData.preparationPlanIds = formData.prepPlanIds
+      }
+
       // Add image as base64 if provided
       if (formData.imagePreview) {
         studentData.profileImageBase64 = formData.imagePreview
       }
 
       const response = await studentAPI.create(studentData)
-      
+
       if (response.success) {
         navigate('/admin/students')
       } else {
@@ -265,272 +307,297 @@ const AddStudent = () => {
         <div className="mt-2 sm:mt-3">
           <div className="bg-white rounded-lg shadow-lg border border-gray-200 p-3 sm:p-4 md:p-5">
             <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
-            {/* Image Upload Section */}
-            <div className="flex items-center justify-center py-2 sm:py-3">
-              <div className="relative">
-                {formData.imagePreview ? (
-                  <img
-                    src={formData.imagePreview}
-                    alt="Preview"
-                    className="h-24 w-24 sm:h-28 sm:w-28 md:h-32 md:w-32 lg:h-36 lg:w-36 rounded-full object-cover border-4 border-[#1e3a5f] shadow-lg"
-                  />
-                ) : (
-                  <div className="h-24 w-24 sm:h-28 sm:w-28 md:h-32 md:w-32 lg:h-36 lg:w-36 rounded-full bg-gradient-to-br from-[#1e3a5f] to-[#2a4a6f] flex items-center justify-center border-4 border-[#1e3a5f] shadow-lg">
-                    <span className="text-white font-bold text-xl sm:text-2xl md:text-3xl">
-                      {getInitials(formData.name)}
-                    </span>
-                  </div>
-                )}
-                <label className="absolute bottom-0 right-0 bg-gradient-to-r from-[#1e3a5f] to-[#2a4a6f] hover:from-[#2a4a6f] hover:to-[#1e3a5f] text-white rounded-full p-2 sm:p-3 md:p-4 cursor-pointer transition-all duration-200 shadow-lg hover:shadow-xl hover:scale-110">
-                  <svg className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleImageChange}
-                    className="hidden"
-                  />
-                </label>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
-              <div>
-                <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1.5 sm:mb-2">
-                  Full Name <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-3 sm:px-4 py-2 sm:py-2.5 md:py-3 border-2 border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-[#1e3a5f] focus:border-[#1e3a5f] outline-none transition-all duration-200 text-sm sm:text-base"
-                  placeholder="Enter full name"
-                  disabled={isLoading}
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1.5 sm:mb-2">
-                  Email
-                </label>
-                <input
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="w-full px-3 sm:px-4 py-2 sm:py-2.5 md:py-3 border-2 border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-[#1e3a5f] focus:border-[#1e3a5f] outline-none transition-all duration-200 text-sm sm:text-base"
-                  placeholder="Enter email address"
-                  disabled={isLoading}
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1.5 sm:mb-2">
-                  Mobile <span className="text-red-500">*</span>
-                </label>
-                <div className="relative flex items-stretch">
-                  {/* Country Code Dropdown */}
-                  <div className="relative flex-shrink-0">
-                    <button
-                      type="button"
-                      onClick={() => setShowCountryDropdown(!showCountryDropdown)}
-                      className="flex items-center justify-center gap-1.5 px-3 sm:px-4 h-full rounded-l-lg sm:rounded-l-xl border-2 border-r-0 border-gray-200 bg-gray-50 hover:bg-gray-100 transition-colors min-h-[42px] sm:min-h-[44px] md:min-h-[48px] w-auto"
-                    >
-                      <span className="text-gray-700 font-medium text-xs sm:text-sm whitespace-nowrap">
-                        {selectedCountryCode}
+              {/* Image Upload Section */}
+              <div className="flex items-center justify-center py-2 sm:py-3">
+                <div className="relative">
+                  {formData.imagePreview ? (
+                    <img
+                      src={formData.imagePreview}
+                      alt="Preview"
+                      className="h-24 w-24 sm:h-28 sm:w-28 md:h-32 md:w-32 lg:h-36 lg:w-36 rounded-full object-cover border-4 border-[#1e3a5f] shadow-lg"
+                    />
+                  ) : (
+                    <div className="h-24 w-24 sm:h-28 sm:w-28 md:h-32 md:w-32 lg:h-36 lg:w-36 rounded-full bg-linear-to-br from-[#1e3a5f] to-[#2a4a6f] flex items-center justify-center border-4 border-[#1e3a5f] shadow-lg">
+                      <span className="text-white font-bold text-xl sm:text-2xl md:text-3xl">
+                        {getInitials(formData.name)}
                       </span>
-                      <FiChevronDown className="text-gray-500 text-xs sm:text-sm flex-shrink-0" />
-                    </button>
-                    
-                    {/* Dropdown Menu */}
-                    {showCountryDropdown && (
-                      <>
-                        <div 
-                          className="fixed inset-0 z-10" 
-                          onClick={() => setShowCountryDropdown(false)}
-                        />
-                        <div className="absolute top-full left-0 mt-1 bg-white border-2 border-gray-200 rounded-lg sm:rounded-xl shadow-2xl z-20 max-h-60 overflow-y-auto w-48 sm:w-56">
-                          {countryCodes.map((country) => (
-                            <button
-                              key={country.code}
-                              type="button"
-                              onClick={() => {
-                                setSelectedCountryCode(country.code)
-                                setShowCountryDropdown(false)
-                              }}
-                              className={`w-full flex items-center gap-2 md:gap-3 px-3 md:px-4 py-2.5 md:py-3 hover:bg-gray-50 transition-colors ${
-                                selectedCountryCode === country.code ? 'bg-[#1e3a5f]/10' : ''
-                              }`}
-                            >
-                              <span className="text-gray-700 font-bold text-xs md:text-sm w-6 md:w-8">
-                                {country.countryCode}
-                              </span>
-                              <span className="text-gray-700 font-medium text-xs md:text-sm">
-                                {country.code}
-                              </span>
-                              <span className="text-gray-500 text-[10px] md:text-xs ml-auto">
-                                {country.country}
-                              </span>
-                            </button>
-                          ))}
-                        </div>
-                      </>
-                    )}
-                  </div>
-                  
-                  {/* Mobile Number Input */}
+                    </div>
+                  )}
+                  <label className="absolute bottom-0 right-0 bg-linear-to-r from-[#1e3a5f] to-[#2a4a6f] hover:from-[#2a4a6f] hover:to-[#1e3a5f] text-white rounded-full p-2 sm:p-3 md:p-4 cursor-pointer transition-all duration-200 shadow-lg hover:shadow-xl hover:scale-110">
+                    <svg className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageChange}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+                <div>
+                  <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1.5 sm:mb-2">
+                    Full Name <span className="text-red-500">*</span>
+                  </label>
                   <input
-                    type="tel"
+                    type="text"
                     required
-                    value={formData.mobile}
-                    onChange={(e) => {
-                      const value = e.target.value.replace(/\D/g, '').slice(0, 15)
-                      setFormData({ ...formData, mobile: value })
-                    }}
-                    autoComplete="off"
-                    autoCapitalize="off"
-                    autoCorrect="off"
-                    spellCheck="false"
-                    inputMode="numeric"
-                    className="flex-1 pl-3 sm:pl-4 pr-3 sm:pr-4 py-2 sm:py-2.5 md:py-3 rounded-r-lg sm:rounded-r-xl border-2 border-gray-200 bg-gray-50 focus:outline-none focus:border-[#1e3a5f] focus:ring-2 focus:ring-[#1e3a5f]/20 focus:bg-white transition-all text-sm sm:text-base text-gray-700 placeholder:text-gray-400 h-full min-h-[42px] sm:min-h-[44px] md:min-h-[48px]"
-                    placeholder="Enter mobile number"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    className="w-full px-3 sm:px-4 py-2 sm:py-2.5 md:py-3 border-2 border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-[#1e3a5f] focus:border-[#1e3a5f] outline-none transition-all duration-200 text-sm sm:text-base"
+                    placeholder="Enter full name"
                     disabled={isLoading}
                   />
                 </div>
-                {formData.mobile && formData.mobile.length < 10 && (
-                  <p className="text-xs text-red-500 mt-1">Mobile number must be at least 10 digits</p>
-                )}
-                {formData.mobile && formData.mobile.length > 15 && (
-                  <p className="text-xs text-red-500 mt-1">Mobile number cannot exceed 15 digits</p>
-                )}
-              </div>
 
-              <div>
-                <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1.5 sm:mb-2">
-                  Board <span className="text-red-500">*</span>
-                </label>
-                <select
-                  required
-                  value={formData.board}
-                  onChange={(e) => {
-                    setFormData({ ...formData, board: e.target.value, class: '' })
-                  }}
-                  className="w-full px-3 sm:px-4 py-2 sm:py-2.5 md:py-3 border-2 border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-[#1e3a5f] focus:border-[#1e3a5f] outline-none transition-all duration-200 bg-white text-sm sm:text-base"
-                  disabled={isLoading || loadingClasses}
-                >
-                  <option value="">Select Board</option>
-                  {boards.map(board => (
-                    <option key={board} value={board}>{board}</option>
-                  ))}
-                </select>
-                {loadingClasses && (
-                  <p className="text-xs text-gray-500 mt-1">Loading boards...</p>
-                )}
-                {!loadingClasses && boards.length === 0 && (
-                  <p className="text-xs text-red-500 mt-1">No boards available. Please create classes first.</p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1.5 sm:mb-2">
-                  Class <span className="text-red-500">*</span>
-                </label>
-                <select
-                  required
-                  value={formData.class}
-                  onChange={(e) => setFormData({ ...formData, class: e.target.value })}
-                  className="w-full px-3 sm:px-4 py-2 sm:py-2.5 md:py-3 border-2 border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-[#1e3a5f] focus:border-[#1e3a5f] outline-none transition-all duration-200 bg-white text-sm sm:text-base"
-                  disabled={isLoading || !formData.board || availableClasses.length === 0}
-                >
-                  <option value="">{formData.board ? 'Select Class' : 'Select Board First'}</option>
-                  {availableClasses.map(c => (
-                    <option key={c} value={c}>Class {c}</option>
-                  ))}
-                </select>
-                {formData.board && availableClasses.length === 0 && !loadingClasses && (
-                  <p className="text-xs text-red-500 mt-1">No classes available for {formData.board}. Please create a class-board combination first.</p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1.5 sm:mb-2">
-                  Status <span className="text-red-500">*</span>
-                </label>
-                <select
-                  required
-                  value={formData.status}
-                  onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                  className="w-full px-3 sm:px-4 py-2 sm:py-2.5 md:py-3 border-2 border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-[#1e3a5f] focus:border-[#1e3a5f] outline-none transition-all duration-200 bg-white text-sm sm:text-base"
-                  disabled={isLoading}
-                >
-                  <option value="Active">Active</option>
-                  <option value="Inactive">Inactive</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-[10px] sm:text-xs font-semibold text-gray-700 mb-0.5 sm:mb-1">
-                  Subscription Status <span className="text-red-500">*</span>
-                </label>
-                <select
-                  required
-                  value={formData.subscriptionStatus}
-                  onChange={(e) => setFormData({ ...formData, subscriptionStatus: e.target.value, selectedPlanId: '' })}
-                  className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-200 rounded-lg focus:ring-1 focus:ring-[#1e3a5f] focus:border-[#1e3a5f] outline-none transition-all duration-200 bg-white text-[10px] sm:text-xs"
-                  disabled={isLoading}
-                >
-                  <option value="none">None</option>
-                  <option value="active">Active</option>
-                </select>
-              </div>
-
-              {formData.subscriptionStatus === 'active' && (
-                <div className="md:col-span-2">
-                  <label className="block text-[10px] sm:text-xs font-semibold text-gray-700 mb-0.5 sm:mb-1">
-                    Subscription Plan {!formData.class || !formData.board ? '(Select Class & Board First)' : ''}
+                <div>
+                  <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1.5 sm:mb-2">
+                    Email
                   </label>
-                  <select
-                    value={formData.selectedPlanId}
-                    onChange={(e) => setFormData({ ...formData, selectedPlanId: e.target.value })}
-                    className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-200 rounded-lg focus:ring-1 focus:ring-[#1e3a5f] focus:border-[#1e3a5f] outline-none transition-all duration-200 bg-white text-[10px] sm:text-xs"
-                    disabled={isLoading || !formData.class || !formData.board || loadingPlans}
-                  >
-                    <option value="">
-                      {loadingPlans ? 'Loading plans...' : !formData.class || !formData.board ? 'Select Class & Board First' : subscriptionPlans.length === 0 ? 'No plans available' : 'Select Subscription Plan'}
-                    </option>
-                    {subscriptionPlans.map(plan => (
-                      <option key={plan._id} value={plan._id}>
-                        {plan.name} - ₹{plan.price} ({plan.duration})
-                      </option>
-                    ))}
-                  </select>
-                  {formData.class && formData.board && subscriptionPlans.length === 0 && !loadingPlans && (
-                    <p className="text-[9px] text-gray-500 mt-0.5">No subscription plans available for Class {formData.class} - {formData.board}</p>
+                  <input
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    className="w-full px-3 sm:px-4 py-2 sm:py-2.5 md:py-3 border-2 border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-[#1e3a5f] focus:border-[#1e3a5f] outline-none transition-all duration-200 text-sm sm:text-base"
+                    placeholder="Enter email address"
+                    disabled={isLoading}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1.5 sm:mb-2">
+                    Mobile <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative flex items-stretch">
+                    {/* Country Code Dropdown */}
+                    <div className="relative shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => setShowCountryDropdown(!showCountryDropdown)}
+                        className="flex items-center justify-center gap-1.5 px-3 sm:px-4 h-full rounded-l-lg sm:rounded-l-xl border-2 border-r-0 border-gray-200 bg-gray-50 hover:bg-gray-100 transition-colors min-h-[42px] sm:min-h-[44px] md:min-h-[48px] w-auto"
+                      >
+                        <span className="text-gray-700 font-medium text-xs sm:text-sm whitespace-nowrap">
+                          {selectedCountryCode}
+                        </span>
+                        <FiChevronDown className="text-gray-500 text-xs sm:text-sm shrink-0" />
+                      </button>
+
+                      {/* Dropdown Menu */}
+                      {showCountryDropdown && (
+                        <>
+                          <div
+                            className="fixed inset-0 z-10"
+                            onClick={() => setShowCountryDropdown(false)}
+                          />
+                          <div className="absolute top-full left-0 mt-1 bg-white border-2 border-gray-200 rounded-lg sm:rounded-xl shadow-2xl z-20 max-h-60 overflow-y-auto w-48 sm:w-56">
+                            {countryCodes.map((country) => (
+                              <button
+                                key={country.code}
+                                type="button"
+                                onClick={() => {
+                                  setSelectedCountryCode(country.code)
+                                  setShowCountryDropdown(false)
+                                }}
+                                className={`w-full flex items-center gap-2 md:gap-3 px-3 md:px-4 py-2.5 md:py-3 hover:bg-gray-50 transition-colors ${selectedCountryCode === country.code ? 'bg-[#1e3a5f]/10' : ''
+                                  }`}
+                              >
+                                <span className="text-gray-700 font-bold text-xs md:text-sm w-6 md:w-8">
+                                  {country.countryCode}
+                                </span>
+                                <span className="text-gray-700 font-medium text-xs md:text-sm">
+                                  {country.code}
+                                </span>
+                                <span className="text-gray-500 text-[10px] md:text-xs ml-auto">
+                                  {country.country}
+                                </span>
+                              </button>
+                            ))}
+                          </div>
+                        </>
+                      )}
+                    </div>
+
+                    {/* Mobile Number Input */}
+                    <input
+                      type="tel"
+                      required
+                      value={formData.mobile}
+                      onChange={(e) => {
+                        const value = e.target.value.replace(/\D/g, '').slice(0, 15)
+                        setFormData({ ...formData, mobile: value })
+                      }}
+                      autoComplete="off"
+                      autoCapitalize="off"
+                      autoCorrect="off"
+                      spellCheck="false"
+                      inputMode="numeric"
+                      className="flex-1 pl-3 sm:pl-4 pr-3 sm:pr-4 py-2 sm:py-2.5 md:py-3 rounded-r-lg sm:rounded-r-xl border-2 border-gray-200 bg-gray-50 focus:outline-none focus:border-[#1e3a5f] focus:ring-2 focus:ring-[#1e3a5f]/20 focus:bg-white transition-all text-sm sm:text-base text-gray-700 placeholder:text-gray-400 h-full min-h-[42px] sm:min-h-[44px] md:min-h-[48px]"
+                      placeholder="Enter mobile number"
+                      disabled={isLoading}
+                    />
+                  </div>
+                  {formData.mobile && formData.mobile.length < 10 && (
+                    <p className="text-xs text-red-500 mt-1">Mobile number must be at least 10 digits</p>
+                  )}
+                  {formData.mobile && formData.mobile.length > 15 && (
+                    <p className="text-xs text-red-500 mt-1">Mobile number cannot exceed 15 digits</p>
                   )}
                 </div>
-              )}
-            </div>
 
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2 sm:gap-3 pt-3 sm:pt-4 border-t-2 border-gray-100">
-              <button
-                type="button"
-                onClick={() => navigate('/admin/students')}
-                disabled={isLoading}
-                className="w-full sm:w-auto px-4 sm:px-6 md:px-8 py-2 sm:py-2.5 md:py-3 border-2 border-gray-300 text-gray-700 rounded-lg sm:rounded-xl font-semibold text-sm sm:text-base hover:bg-gray-50 transition-all duration-200 disabled:opacity-50"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="w-full sm:w-auto px-4 sm:px-6 md:px-8 py-2 sm:py-2.5 md:py-3 bg-gradient-to-r from-[#1e3a5f] to-[#2a4a6f] hover:from-[#2a4a6f] hover:to-[#1e3a5f] text-white rounded-lg sm:rounded-xl font-semibold text-sm sm:text-base transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-50"
-              >
-                {isLoading ? 'Creating...' : 'Add Student'}
-              </button>
-            </div>
-          </form>
+                <div>
+                  <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1.5 sm:mb-2">
+                    Board <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    required
+                    value={formData.board}
+                    onChange={(e) => {
+                      setFormData({ ...formData, board: e.target.value, class: '' })
+                    }}
+                    className="w-full px-3 sm:px-4 py-2 sm:py-2.5 md:py-3 border-2 border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-[#1e3a5f] focus:border-[#1e3a5f] outline-none transition-all duration-200 bg-white text-sm sm:text-base"
+                    disabled={isLoading || loadingClasses}
+                  >
+                    <option value="">Select Board</option>
+                    {boards.map(board => (
+                      <option key={board} value={board}>{board}</option>
+                    ))}
+                  </select>
+                  {loadingClasses && (
+                    <p className="text-xs text-gray-500 mt-1">Loading boards...</p>
+                  )}
+                  {!loadingClasses && boards.length === 0 && (
+                    <p className="text-xs text-red-500 mt-1">No boards available. Please create classes first.</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1.5 sm:mb-2">
+                    Class <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    required
+                    value={formData.class}
+                    onChange={(e) => setFormData({ ...formData, class: e.target.value })}
+                    className="w-full px-3 sm:px-4 py-2 sm:py-2.5 md:py-3 border-2 border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-[#1e3a5f] focus:border-[#1e3a5f] outline-none transition-all duration-200 bg-white text-sm sm:text-base"
+                    disabled={isLoading || !formData.board || availableClasses.length === 0}
+                  >
+                    <option value="">{formData.board ? 'Select Class' : 'Select Board First'}</option>
+                    {availableClasses.map(c => (
+                      <option key={c} value={c}>Class {c}</option>
+                    ))}
+                  </select>
+                  {formData.board && availableClasses.length === 0 && !loadingClasses && (
+                    <p className="text-xs text-red-500 mt-1">No classes available for {formData.board}. Please create a class-board combination first.</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1.5 sm:mb-2">
+                    Status <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    required
+                    value={formData.status}
+                    onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                    className="w-full px-3 sm:px-4 py-2 sm:py-2.5 md:py-3 border-2 border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-[#1e3a5f] focus:border-[#1e3a5f] outline-none transition-all duration-200 bg-white text-sm sm:text-base"
+                    disabled={isLoading}
+                  >
+                    <option value="Active">Active</option>
+                    <option value="Inactive">Inactive</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] sm:text-xs font-semibold text-gray-700 mb-0.5 sm:mb-1">
+                    Subscription Status <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    required
+                    value={formData.subscriptionStatus}
+                    onChange={(e) => setFormData({ ...formData, subscriptionStatus: e.target.value, selectedPlanId: '' })}
+                    className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-200 rounded-lg focus:ring-1 focus:ring-[#1e3a5f] focus:border-[#1e3a5f] outline-none transition-all duration-200 bg-white text-[10px] sm:text-xs"
+                    disabled={isLoading}
+                  >
+                    <option value="none">None</option>
+                    <option value="active">Active</option>
+                  </select>
+                </div>
+
+                {formData.subscriptionStatus === 'active' && (
+                  <div className="md:col-span-2">
+                    <label className="block text-[10px] sm:text-xs font-semibold text-gray-700 mb-0.5 sm:mb-1">
+                      Subscription Plan {!formData.class || !formData.board ? '(Select Class & Board First)' : ''}
+                    </label>
+                    <select
+                      value={formData.selectedPlanId}
+                      onChange={(e) => setFormData({ ...formData, selectedPlanId: e.target.value })}
+                      className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-200 rounded-lg focus:ring-1 focus:ring-[#1e3a5f] focus:border-[#1e3a5f] outline-none transition-all duration-200 bg-white text-[10px] sm:text-xs"
+                      disabled={isLoading || !formData.class || !formData.board || loadingPlans}
+                    >
+                      <option value="">
+                        {loadingPlans ? 'Loading plans...' : !formData.class || !formData.board ? 'Select Class & Board First' : subscriptionPlans.length === 0 ? 'No plans available' : 'Select Subscription Plan'}
+                      </option>
+                      {subscriptionPlans.map(plan => (
+                        <option key={plan._id} value={plan._id}>
+                          {plan.name} - ₹{plan.price} ({plan.duration})
+                        </option>
+                      ))}
+                    </select>
+                    {formData.class && formData.board && subscriptionPlans.length === 0 && !loadingPlans && (
+                      <p className="text-[9px] text-gray-500 mt-0.5">No subscription plans available for Class {formData.class} - {formData.board}</p>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Preparation subscriptions */}
+              <div>
+                <label className="block text-[10px] sm:text-xs font-semibold text-gray-700 mb-1">
+                  Preparation Subscriptions (optional)
+                </label>
+                <p className="text-[10px] text-gray-500 mb-1">Assign one or more preparation plans in addition to the regular subscription.</p>
+                <select
+                  multiple
+                  value={formData.prepPlanIds}
+                  onChange={(e) => {
+                    const options = Array.from(e.target.selectedOptions).map(opt => opt.value)
+                    setFormData(prev => ({ ...prev, prepPlanIds: options }))
+                  }}
+                  className="w-full px-3 sm:px-4 py-2 sm:py-2.5 md:py-3 border-2 border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-[#1e3a5f] focus:border-[#1e3a5f] outline-none transition-all duration-200 bg-white text-sm sm:text-base min-h-[140px]"
+                  disabled={isLoading || loadingPrepPlans}
+                >
+                  {loadingPrepPlans && <option>Loading preparation plans...</option>}
+                  {!loadingPrepPlans && prepPlans.length === 0 && <option disabled>No preparation plans available</option>}
+                  {!loadingPrepPlans && prepPlans.map(plan => (
+                    <option key={plan._id} value={plan._id}>
+                      {plan.name} - ₹{plan.price} ({plan.duration}) — {prepClassesMap[plan.classId] || 'Prep Class'}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2 sm:gap-3 pt-3 sm:pt-4 border-t-2 border-gray-100">
+                <button
+                  type="button"
+                  onClick={() => navigate('/admin/students')}
+                  disabled={isLoading}
+                  className="w-full sm:w-auto px-4 sm:px-6 md:px-8 py-2 sm:py-2.5 md:py-3 border-2 border-gray-300 text-gray-700 rounded-lg sm:rounded-xl font-semibold text-sm sm:text-base hover:bg-gray-50 transition-all duration-200 disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isLoading}
+                  className="w-full sm:w-auto px-4 sm:px-6 md:px-8 py-2 sm:py-2.5 md:py-3 bg-linear-to-r from-[#1e3a5f] to-[#2a4a6f] hover:from-[#2a4a6f] hover:to-[#1e3a5f] text-white rounded-lg sm:rounded-xl font-semibold text-sm sm:text-base transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-50"
+                >
+                  {isLoading ? 'Creating...' : 'Add Student'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       </div>

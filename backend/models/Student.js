@@ -60,8 +60,7 @@ const studentSchema = new mongoose.Schema({
     },
     paymentId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Payment',
-      required: true
+      ref: 'Payment'
     },
     startDate: {
       type: Date,
