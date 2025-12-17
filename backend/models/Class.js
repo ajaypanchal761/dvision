@@ -61,7 +61,6 @@ const classSchema = new mongoose.Schema(
 // Indexes
 classSchema.index({ class: 1, board: 1 });
 classSchema.index({ type: 1 });
-classSchema.index({ classCode: 1 });
 classSchema.index({ isActive: 1 });
 
 module.exports = mongoose.model('Class', classSchema);

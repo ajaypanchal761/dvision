@@ -63,7 +63,7 @@ const Profile = () => {
 
   const handleLogout = () => {
     setShowLogoutConfirm(false);
-    localStorage.removeItem('dvision_token');
+    localStorage.removeItem('dvision_teacher_token');
     localStorage.removeItem('teacher_data');
     sessionStorage.clear();
     navigate(ROUTES.LOGIN, { replace: true });

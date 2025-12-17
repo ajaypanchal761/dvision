@@ -4,7 +4,7 @@ import { FiBell, FiUser, FiSearch, FiVideo, FiBook, FiFileText, FiClock, FiCalen
 import { MdMic } from 'react-icons/md';
 import { ROUTES } from '../constants/routes';
 import { useAuth } from '../context/AuthContext';
-import { notificationAPI, studentAPI, liveClassAPI } from '../services/api';
+import { notificationAPI, studentAPI, liveClassAPI, bannerAPI } from '../services/api';
 import Image from '../components/common/Image';
 import BottomNav from '../components/common/BottomNav';
 
@@ -23,6 +23,7 @@ const Dashboard = () => {
   const [upcomingLiveClasses, setUpcomingLiveClasses] = useState([]);
   const [currentBannerSlide, setCurrentBannerSlide] = useState(0);
   const [failedBannerImages, setFailedBannerImages] = useState(new Set());
+  const [banners, setBanners] = useState([]);
 
   // Fetch unread notification count
   const fetchUnreadCount = async () => {
@@ -44,8 +45,8 @@ const Dashboard = () => {
     return () => clearInterval(pollInterval);
   }, []);
 
-  // Banner images with text content for carousel
-  const bannerData = [
+  // Default banner data fallback
+  const defaultBannerData = useMemo(() => [
     {
       image: 'https://images.unsplash.com/photo-1509228468512-adae6b112b3e?w=1200&h=600&fit=crop&q=80',
       title: 'Excel in Your Studies',
@@ -64,7 +65,38 @@ const Dashboard = () => {
       subtitle: 'Regular quizzes and assessments to track progress',
       description: 'Test your knowledge and improve with every attempt'
     },
-  ];
+  ], []);
+
+  // Fetch banners from backend (public, active). Falls back to defaults if none.
+  const fetchBanners = async () => {
+    try {
+      const response = await bannerAPI.getPublic();
+      if (response.success && response.data?.banners?.length) {
+        setBanners(response.data.banners);
+      } else {
+        setBanners([]);
+      }
+    } catch (err) {
+      console.error('Error fetching banners:', err);
+      setBanners([]);
+    }
+  };
+
+  useEffect(() => {
+    fetchBanners();
+  }, []);
+
+  const bannerData = useMemo(() => {
+    if (banners.length > 0) {
+      return banners.map((b) => ({
+        image: b.image,
+        title: b.title,
+        subtitle: b.description || '',
+        description: ''
+      }));
+    }
+    return defaultBannerData;
+  }, [banners, defaultBannerData]);
 
   // Auto-slide banner
   useEffect(() => {
@@ -91,7 +123,7 @@ const Dashboard = () => {
   };
 
   // Default dummy courses data
-  const defaultCourses = [
+  const defaultCourses = useMemo(() => [
     {
       id: 'default-1',
       name: 'Mathematics - Class 10',
@@ -140,7 +172,7 @@ const Dashboard = () => {
       status: 'Active',
       lectureCount: 12,
     },
-  ];
+  ], []);
 
   // Fetch courses
   useEffect(() => {
@@ -192,7 +224,7 @@ const Dashboard = () => {
       fetchCourses();
       fetchUpcomingLiveClasses();
     }
-  }, [user]);
+  }, [user, defaultCourses]);
 
   // Filter courses based on search and category
   const filteredCourses = useMemo(() => {
@@ -211,7 +243,7 @@ const Dashboard = () => {
     // For now, we'll show all courses as "Available Courses"
 
     return filtered;
-  }, [allCourses, searchQuery, selectedCategory]);
+  }, [allCourses, searchQuery]);
 
   // Use all filtered courses instead of just top 6
   const displayCourses = useMemo(() => {
@@ -349,25 +381,25 @@ const Dashboard = () => {
                     }
                   }}
                   className={`flex flex-col items-center gap-0.5 sm:gap-1 p-2 sm:p-2.5 rounded-lg bg-white border-2 transition-all shadow-md hover:shadow-lg hover:scale-105 active:scale-95 w-[22%] sm:w-[24%] max-w-[90px] sm:max-w-[100px] ${selectedCategory === category.id
-                      ? 'border-[var(--app-dark-blue)] shadow-lg bg-blue-50'
-                      : 'border-gray-200 hover:border-[var(--app-dark-blue)]/30'
+                    ? 'border-[var(--app-dark-blue)] shadow-lg bg-blue-50'
+                    : 'border-gray-200 hover:border-[var(--app-dark-blue)]/30'
                     }`}
                 >
                   <div className={`p-1.5 sm:p-2 rounded-full ${selectedCategory === category.id
-                      ? 'bg-[var(--app-dark-blue)]'
-                      : 'bg-gray-100'
+                    ? 'bg-[var(--app-dark-blue)]'
+                    : 'bg-gray-100'
                     }`}>
                     <IconComponent
                       className={`text-xs sm:text-sm md:text-base ${selectedCategory === category.id
-                          ? 'text-white'
-                          : 'text-gray-600'
+                        ? 'text-white'
+                        : 'text-gray-600'
                         }`}
                     />
                   </div>
                   <span
                     className={`text-[9px] sm:text-[10px] font-bold ${selectedCategory === category.id
-                        ? 'text-[var(--app-dark-blue)]'
-                        : 'text-gray-700'
+                      ? 'text-[var(--app-dark-blue)]'
+                      : 'text-gray-700'
                       }`}
                   >
                     {category.name}
@@ -543,8 +575,8 @@ const Dashboard = () => {
                   key={index}
                   onClick={() => setCurrentBannerSlide(index)}
                   className={`h-2 rounded-full transition-all duration-300 ${index === currentBannerSlide
-                      ? 'bg-white w-8 shadow-md'
-                      : 'bg-white/50 w-2 hover:bg-white/70'
+                    ? 'bg-white w-8 shadow-md'
+                    : 'bg-white/50 w-2 hover:bg-white/70'
                     }`}
                   aria-label={`Go to banner ${index + 1}`}
                 />

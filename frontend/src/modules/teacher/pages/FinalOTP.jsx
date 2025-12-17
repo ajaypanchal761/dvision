@@ -100,9 +100,9 @@ const FinalOTP = () => {
         response = await agentAPI.verifyOTP(phone, otpString);
 
         if (response.success && response.data) {
-          // Store token in localStorage
+          // Store token in localStorage (agent)
           if (response.data.token) {
-            localStorage.setItem('dvision_token', response.data.token);
+            localStorage.setItem('dvision_agent_token', response.data.token);
           }
 
           // Store user role as agent
@@ -128,9 +128,9 @@ const FinalOTP = () => {
         response = await teacherAPI.verifyOTP(phone, otpString);
 
         if (response.success && response.data) {
-          // Store token in localStorage
+          // Store token in localStorage (teacher)
           if (response.data.token) {
-            localStorage.setItem('dvision_token', response.data.token);
+            localStorage.setItem('dvision_teacher_token', response.data.token);
           }
 
           // Store user role as teacher

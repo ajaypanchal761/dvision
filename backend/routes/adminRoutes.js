@@ -61,6 +61,8 @@ const {
   updateReferralStatus,
   getReferralStatistics
 } = require('../controllers/adminReferralController');
+const { getAllLiveClasses, getAdminLiveClassById } = require('../controllers/liveClassController');
+const { getAdminRecordings, getAdminRecordingById } = require('../controllers/liveClassController');
 const { protect, authorize } = require('../middlewares/auth');
 const { uploadCourse } = require('../middlewares/upload');
 
@@ -132,6 +134,14 @@ router.delete('/agents/:id', protect, authorize('admin', 'super_admin'), deleteA
 router.get('/referrals', protect, authorize('admin', 'super_admin'), getAllReferrals);
 router.put('/referrals/:id/status', protect, authorize('admin', 'super_admin'), updateReferralStatus);
 router.get('/referrals/statistics', protect, authorize('admin', 'super_admin'), getReferralStatistics);
+
+// Admin Live Class Routes
+router.get('/live-classes', protect, authorize('admin', 'super_admin'), getAllLiveClasses);
+router.get('/live-classes/:id', protect, authorize('admin', 'super_admin'), getAdminLiveClassById);
+
+// Admin Recording Routes
+router.get('/recordings', protect, authorize('admin', 'super_admin'), getAdminRecordings);
+router.get('/recordings/:id', protect, authorize('admin', 'super_admin'), getAdminRecordingById);
 
 // Super admin only routes
 router.post('/register', protect, authorize('super_admin'), register);

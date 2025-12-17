@@ -34,6 +34,22 @@ const Login = () => {
     if (phoneInput) phoneInput.value = '';
   }, []);
 
+  // If already logged in (student token present), skip login
+  useEffect(() => {
+    const token = localStorage.getItem('dvision_token');
+    if (token) {
+      try {
+        const payload = token.split('.')[1];
+        const decoded = JSON.parse(atob(payload));
+        if (!decoded.role || decoded.role === 'student') {
+          navigate(ROUTES.DASHBOARD, { replace: true });
+        }
+      } catch (e) {
+        // Ignore decode errors and allow normal login
+      }
+    }
+  }, [navigate]);
+
   const handleSendOTP = async (e) => {
     e.preventDefault();
     setError('');

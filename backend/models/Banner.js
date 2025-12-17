@@ -18,10 +18,6 @@ const bannerSchema = new mongoose.Schema(
     imagePublicId: {
       type: String // Cloudinary public ID for deletion
     },
-    link: {
-      type: String,
-      trim: true
-    },
     order: {
       type: Number,
       default: 0

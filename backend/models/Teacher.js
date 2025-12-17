@@ -40,10 +40,6 @@ const teacherSchema = new mongoose.Schema({
     type: Boolean,
     default: true
   },
-  // Legacy single FCM token (for backward compatibility)
-  fcmToken: {
-    type: String
-  },
   // Platform-based FCM tokens (app and web)
   fcmTokens: {
     app: {
@@ -72,7 +68,6 @@ const teacherSchema = new mongoose.Schema({
 });
 
 // Indexes
-teacherSchema.index({ phone: 1 });
 teacherSchema.index({ isActive: 1 });
 
 module.exports = mongoose.model('Teacher', teacherSchema);

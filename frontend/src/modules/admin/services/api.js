@@ -985,4 +985,36 @@ export const referralAPI = {
   },
 };
 
-export default { adminAPI, studentAPI, teacherAPI, bannerAPI, contentAPI, classAPI, subjectAPI, courseAPI, subscriptionPlanAPI, paymentAPI, doubtAPI, quizAPI, timetableAPI, notificationAPI, agentAPI, referralAPI };
+// Admin Live Classes (Teacher Classes) API
+export const liveClassAdminAPI = {
+  // Get all live classes with optional filters
+  getAll: async (params = {}) => {
+    const queryString = new URLSearchParams(params).toString();
+    return apiRequest(`/admin/live-classes${queryString ? `?${queryString}` : ''}`, {
+      method: 'GET',
+    });
+  },
+  // Get single live class with participants
+  getById: async (id) => {
+    return apiRequest(`/admin/live-classes/${id}`, {
+      method: 'GET',
+    });
+  },
+};
+
+// Admin Recording API
+export const recordingAdminAPI = {
+  getAll: async (params = {}) => {
+    const queryString = new URLSearchParams(params).toString();
+    return apiRequest(`/admin/recordings${queryString ? `?${queryString}` : ''}`, {
+      method: 'GET',
+    });
+  },
+  getById: async (id) => {
+    return apiRequest(`/admin/recordings/${id}`, {
+      method: 'GET',
+    });
+  },
+};
+
+export default { adminAPI, studentAPI, teacherAPI, bannerAPI, contentAPI, classAPI, subjectAPI, courseAPI, subscriptionPlanAPI, paymentAPI, doubtAPI, quizAPI, timetableAPI, notificationAPI, agentAPI, referralAPI, liveClassAdminAPI, recordingAdminAPI };

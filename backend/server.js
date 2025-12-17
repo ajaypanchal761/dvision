@@ -5,7 +5,6 @@ const http = require('http');
 const path = require('path');
 
 const connectDB = require('./config/database');
-const { connectRedis } = require('./config/redis');
 const { initializeFirebase } = require('./config/firebase');
 const s3Service = require('./services/s3Service');
 
@@ -14,7 +13,6 @@ dotenv.config();
 
 // ===== CONNECT SERVICES =====
 connectDB();
-connectRedis().catch(() => { });
 initializeFirebase();
 s3Service.initialize();
 

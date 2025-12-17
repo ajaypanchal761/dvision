@@ -1,5 +1,4 @@
 const axios = require('axios');
-const { getRedisClient } = require('../config/redis');
 const ErrorResponse = require('../utils/errorResponse');
 
 class OTPService {
@@ -238,45 +237,20 @@ class OTPService {
    */
   async storeOTPSession(phone, sessionId, isTest = false) {
     try {
-      const redisClient = getRedisClient();
-      
       const sessionData = {
         sessionId,
         phone,
         createdAt: new Date().toISOString(),
         attempts: 0,
-        expiresAt: Date.now() + (this.otpExpiry * 1000),
-        isTest: isTest
-      };
-
-      if (redisClient) {
-        // Use Redis if available
-        const key = `otp:${phone}`;
-        await redisClient.setEx(key, this.otpExpiry, JSON.stringify(sessionData));
-      } else {
-        // Fallback to in-memory storage
-        this.memoryStore.set(phone, sessionData);
-        
-        // Auto-delete after expiry
-        setTimeout(() => {
-          this.memoryStore.delete(phone);
-        }, this.otpExpiry * 1000);
-      }
-    } catch (error) {
-      console.error('Store OTP session error:', error);
-      // Fallback to memory if Redis fails
-      const sessionData = {
-        sessionId,
-        phone,
-        createdAt: new Date().toISOString(),
-        attempts: 0,
-        expiresAt: Date.now() + (this.otpExpiry * 1000),
-        isTest: isTest
+        expiresAt: Date.now() + this.otpExpiry * 1000,
+        isTest
       };
       this.memoryStore.set(phone, sessionData);
       setTimeout(() => {
         this.memoryStore.delete(phone);
       }, this.otpExpiry * 1000);
+    } catch (error) {
+      console.error('Store OTP session error:', error);
     }
   }
 
@@ -287,38 +261,17 @@ class OTPService {
    */
   async getOTPSession(phone) {
     try {
-      const redisClient = getRedisClient();
-
-      if (redisClient) {
-        // Try Redis first
-        const key = `otp:${phone}`;
-        const data = await redisClient.get(key);
-
-        if (data) {
-          const parsed = JSON.parse(data);
-          return parsed.sessionId;
+      const sessionData = this.memoryStore.get(phone);
+      if (sessionData) {
+        if (Date.now() > sessionData.expiresAt) {
+          this.memoryStore.delete(phone);
+          return null;
         }
-      } else {
-        // Fallback to memory
-        const sessionData = this.memoryStore.get(phone);
-        if (sessionData) {
-          // Check if expired
-          if (Date.now() > sessionData.expiresAt) {
-            this.memoryStore.delete(phone);
-            return null;
-          }
-          return sessionData.sessionId;
-        }
+        return sessionData.sessionId;
       }
-
       return null;
     } catch (error) {
       console.error('Get OTP session error:', error);
-      // Fallback to memory on error
-      const sessionData = this.memoryStore.get(phone);
-      if (sessionData && Date.now() <= sessionData.expiresAt) {
-        return sessionData.sessionId;
-      }
       return null;
     }
   }
@@ -329,18 +282,9 @@ class OTPService {
    */
   async deleteOTPSession(phone) {
     try {
-      const redisClient = getRedisClient();
-
-      if (redisClient) {
-        const key = `otp:${phone}`;
-        await redisClient.del(key);
-      } else {
-        // Delete from memory
-        this.memoryStore.delete(phone);
-      }
+      this.memoryStore.delete(phone);
     } catch (error) {
       console.error('Delete OTP session error:', error);
-      // Fallback: delete from memory
       this.memoryStore.delete(phone);
     }
   }
@@ -351,35 +295,12 @@ class OTPService {
    */
   async incrementOTPAttempts(phone) {
     try {
-      const redisClient = getRedisClient();
       const maxAttempts = parseInt(process.env.OTP_MAX_ATTEMPTS || '3');
-
-      if (redisClient) {
-        const key = `otp:${phone}`;
-        const data = await redisClient.get(key);
-
-        if (data) {
-          const parsed = JSON.parse(data);
-          parsed.attempts = (parsed.attempts || 0) + 1;
-
-          // If max attempts exceeded, delete session
-          if (parsed.attempts >= maxAttempts) {
-            await redisClient.del(key);
-          } else {
-            // Update with new attempt count
-            const ttl = await redisClient.ttl(key);
-            await redisClient.setEx(key, ttl > 0 ? ttl : this.otpExpiry, JSON.stringify(parsed));
-          }
-        }
-      } else {
-        // Use memory store
-        const sessionData = this.memoryStore.get(phone);
-        if (sessionData) {
-          sessionData.attempts = (sessionData.attempts || 0) + 1;
-          
-          if (sessionData.attempts >= maxAttempts) {
-            this.memoryStore.delete(phone);
-          }
+      const sessionData = this.memoryStore.get(phone);
+      if (sessionData) {
+        sessionData.attempts = (sessionData.attempts || 0) + 1;
+        if (sessionData.attempts >= maxAttempts) {
+          this.memoryStore.delete(phone);
         }
       }
     } catch (error) {
@@ -394,34 +315,11 @@ class OTPService {
    */
   async canResendOTP(phone) {
     try {
-      const redisClient = getRedisClient();
-
-      if (redisClient) {
-        const key = `otp:resend:${phone}`;
-        const lastSent = await redisClient.get(key);
-
-        if (!lastSent) {
-          return true;
-        }
-
-        const lastSentTime = parseInt(lastSent);
-        const now = Date.now();
-        const cooldownMs = this.resendCooldown * 1000;
-
-        return (now - lastSentTime) >= cooldownMs;
-      } else {
-        // Use memory store
-        const lastSent = this.memoryResendStore.get(phone);
-        if (!lastSent) {
-          return true;
-        }
-
-        const lastSentTime = lastSent.timestamp;
-        const now = Date.now();
-        const cooldownMs = this.resendCooldown * 1000;
-
-        return (now - lastSentTime) >= cooldownMs;
-      }
+      const lastSent = this.memoryResendStore.get(phone);
+      if (!lastSent) return true;
+      const now = Date.now();
+      const cooldownMs = this.resendCooldown * 1000;
+      return (now - lastSent.timestamp) >= cooldownMs;
     } catch (error) {
       console.error('Resend check error:', error);
       return true; // Allow if error
@@ -434,28 +332,13 @@ class OTPService {
    */
   async storeResendCooldown(phone) {
     try {
-      const redisClient = getRedisClient();
       const timestamp = Date.now();
-
-      if (redisClient) {
-        const key = `otp:resend:${phone}`;
-        await redisClient.setEx(key, this.resendCooldown, timestamp.toString());
-      } else {
-        // Use memory store
-        this.memoryResendStore.set(phone, { timestamp });
-        
-        // Auto-delete after cooldown
-        setTimeout(() => {
-          this.memoryResendStore.delete(phone);
-        }, this.resendCooldown * 1000);
-      }
-    } catch (error) {
-      console.error('Store resend cooldown error:', error);
-      // Fallback to memory
-      this.memoryResendStore.set(phone, { timestamp: Date.now() });
+      this.memoryResendStore.set(phone, { timestamp });
       setTimeout(() => {
         this.memoryResendStore.delete(phone);
       }, this.resendCooldown * 1000);
+    } catch (error) {
+      console.error('Store resend cooldown error:', error);
     }
   }
 }

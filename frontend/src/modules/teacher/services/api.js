@@ -40,9 +40,13 @@ const getApiBaseUrl = () => {
 
 const API_BASE_URL = getApiBaseUrl();
 console.log('[Teacher API] Final API_BASE_URL:', API_BASE_URL);
-// Helper function to get auth token
-const getAuthToken = () => {
-  return localStorage.getItem('dvision_token');
+// Helper function to get auth token based on role
+export const getAuthToken = () => {
+  const role = localStorage.getItem('user_role');
+  if (role === 'agent') {
+    return localStorage.getItem('dvision_agent_token');
+  }
+  return localStorage.getItem('dvision_teacher_token');
 };
 
 // Helper function to make API requests

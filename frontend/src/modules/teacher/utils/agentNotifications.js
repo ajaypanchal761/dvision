@@ -2,7 +2,7 @@ import { requestNotificationPermission, onMessageListener, registerServiceWorker
 import { agentAPI } from '../services/api';
 
 // Local storage keys for agent
-const TOKEN_KEY = 'dvision_token'; // shared token key used for teacher/agent
+const TOKEN_KEY = 'dvision_agent_token'; // agent-specific token
 const PENDING_KEY = 'pending_agent_fcm_token';
 
 /**

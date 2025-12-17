@@ -85,10 +85,6 @@ const studentSchema = new mongoose.Schema({
       ref: 'Class'
     }
   }],
-  // Legacy single FCM token (for backward compatibility)
-  fcmToken: {
-    type: String
-  },
   // Platform-based FCM tokens (app and web)
   fcmTokens: {
     app: {
@@ -118,7 +114,6 @@ const studentSchema = new mongoose.Schema({
 });
 
 // Indexes
-studentSchema.index({ phone: 1 });
 studentSchema.index({ 'subscription.status': 1 });
 studentSchema.index({ class: 1, board: 1 });
 studentSchema.index({ 'activeSubscriptions.endDate': 1 });

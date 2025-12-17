@@ -27,10 +27,6 @@ const agentSchema = new mongoose.Schema({
     type: Boolean,
     default: true
   },
-  // Legacy single FCM token (for backward compatibility)
-  fcmToken: {
-    type: String
-  },
   // Platform-based FCM tokens (app and web)
   fcmTokens: {
     app: {
@@ -53,7 +49,6 @@ const agentSchema = new mongoose.Schema({
 });
 
 // Indexes
-agentSchema.index({ phone: 1 });
 agentSchema.index({ isActive: 1 });
 
 module.exports = mongoose.model('Agent', agentSchema);

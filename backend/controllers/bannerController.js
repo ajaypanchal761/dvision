@@ -57,7 +57,7 @@ exports.getBanner = asyncHandler(async (req, res) => {
 // @route   POST /api/admin/banners
 // @access  Private/Admin
 exports.createBanner = asyncHandler(async (req, res) => {
-  const { title, description, imageBase64, link, order, isActive } = req.body;
+  const { title, description, imageBase64, order, isActive } = req.body;
   
   if (!title || !imageBase64) {
     throw new ErrorResponse('Please provide title and image', 400);
@@ -84,7 +84,6 @@ exports.createBanner = asyncHandler(async (req, res) => {
     description,
     image: imageUrl,
     imagePublicId,
-    link,
     order: order || 0,
     isActive: isActive !== undefined ? isActive : true,
     createdBy: req.user._id
@@ -103,7 +102,7 @@ exports.createBanner = asyncHandler(async (req, res) => {
 // @route   PUT /api/admin/banners/:id
 // @access  Private/Admin
 exports.updateBanner = asyncHandler(async (req, res) => {
-  const { title, description, imageBase64, link, order, isActive } = req.body;
+  const { title, description, imageBase64, order, isActive } = req.body;
   
   let banner = await Banner.findById(req.params.id);
   
@@ -113,7 +112,6 @@ exports.updateBanner = asyncHandler(async (req, res) => {
   
   if (title) banner.title = title;
   if (description !== undefined) banner.description = description;
-  if (link !== undefined) banner.link = link;
   if (order !== undefined) banner.order = parseInt(order);
   if (isActive !== undefined) banner.isActive = isActive;
   

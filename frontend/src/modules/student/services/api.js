@@ -476,6 +476,16 @@ export const notificationAPI = {
   },
 };
 
+// Banner API functions (public)
+export const bannerAPI = {
+  // Get all active public banners
+  getPublic: async () => {
+    return apiRequest('/banners', {
+      method: 'GET',
+    });
+  },
+};
+
 // Subscription Plan API functions
 export const subscriptionPlanAPI = {
   // Get subscription plans (public - filtered by board and class)
@@ -645,6 +655,7 @@ export default {
   privacyAPI,
   aboutAPI,
   notificationAPI,
+  bannerAPI,
   subscriptionPlanAPI,
   paymentAPI,
   doubtAPI,

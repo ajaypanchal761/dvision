@@ -90,11 +90,10 @@ const AdminAddQuizNew = lazy(() => import('./modules/admin/pages/Quiz/AddQuiz'))
 const AdminEditQuizNew = lazy(() => import('./modules/admin/pages/Quiz/EditQuiz'));
 const AdminContent = lazy(() => import('./modules/admin/pages/Content/Content'));
 const AdminEditContent = lazy(() => import('./modules/admin/pages/Content/EditContent'));
-const AdminReferrals = lazy(() => import('./modules/admin/pages/Referrals/Referrals'));
 const AdminAgents = lazy(() => import('./modules/admin/pages/Agent/Agents'));
 const AdminAgentReferrals = lazy(() => import('./modules/admin/pages/Agent/AgentReferrals'));
-const AdminReferralReports = lazy(() => import('./modules/admin/pages/Agent/ReferralReports'));
 const AdminTeacherClass = lazy(() => import('./modules/admin/pages/TeacherClass/TeacherClass'));
+const AdminTeacherClassDetail = lazy(() => import('./modules/admin/pages/TeacherClass/TeacherClassDetail'));
 const AdminRecordedSession = lazy(() => import('./modules/admin/pages/RecordedSession/RecordedSession'));
 const AdminNotificationsList = lazy(() => import('./modules/admin/pages/Notifications/NotificationsList'));
 const AdminAddNotification = lazy(() => import('./modules/admin/pages/Notifications/AddNotification'));
@@ -841,41 +840,21 @@ function App() {
           }
         />
         <Route
-          path="/admin/agents/:id/referrals"
-          element={
-            <AdminProtectedRoute>
-              <AdminLayout>
-                <AdminAgentReferrals />
-              </AdminLayout>
-            </AdminProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin/referrals"
-          element={
-            <AdminProtectedRoute>
-              <AdminLayout>
-                <AdminReferrals />
-              </AdminLayout>
-            </AdminProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin/referrals/reports"
-          element={
-            <AdminProtectedRoute>
-              <AdminLayout>
-                <AdminReferralReports />
-              </AdminLayout>
-            </AdminProtectedRoute>
-          }
-        />
-        <Route
           path="/admin/teacher-class"
           element={
             <AdminProtectedRoute>
               <AdminLayout>
                 <AdminTeacherClass />
+              </AdminLayout>
+            </AdminProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/teacher-class/:id"
+          element={
+            <AdminProtectedRoute>
+              <AdminLayout>
+                <AdminTeacherClassDetail />
               </AdminLayout>
             </AdminProtectedRoute>
           }

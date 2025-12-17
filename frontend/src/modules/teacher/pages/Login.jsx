@@ -34,6 +34,19 @@ const Login = () => {
     if (phoneInput) phoneInput.value = '';
   }, []);
 
+  // If already logged in, redirect to respective home
+  useEffect(() => {
+    const agentToken = localStorage.getItem('dvision_agent_token');
+    if (agentToken) {
+      navigate(ROUTES.AGENT_DASHBOARD, { replace: true });
+      return;
+    }
+    const teacherToken = localStorage.getItem('dvision_teacher_token');
+    if (teacherToken) {
+      navigate(ROUTES.DASHBOARD, { replace: true });
+    }
+  }, [navigate]);
+
   const handleSendOTP = async (e) => {
     e.preventDefault();
     setError('');

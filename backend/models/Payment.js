@@ -68,7 +68,6 @@ const paymentSchema = new mongoose.Schema(
 // Indexes
 paymentSchema.index({ studentId: 1 });
 paymentSchema.index({ subscriptionPlanId: 1 });
-paymentSchema.index({ cashfreeOrderId: 1 }, { unique: true, sparse: true });
 paymentSchema.index({ status: 1 });
 paymentSchema.index({ createdAt: -1 });
 paymentSchema.index({ referralAgentId: 1 });

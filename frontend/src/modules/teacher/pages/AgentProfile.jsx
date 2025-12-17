@@ -75,7 +75,7 @@ const AgentProfile = () => {
 
   const handleLogout = () => {
     setShowLogoutConfirm(false);
-    localStorage.removeItem('dvision_token');
+    localStorage.removeItem('dvision_agent_token');
     localStorage.removeItem('agent_data');
     localStorage.removeItem('user_role');
     sessionStorage.clear();

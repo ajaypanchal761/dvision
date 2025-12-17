@@ -13,30 +13,612 @@ const s3Service = require('../services/s3Service');
 const notificationService = require('../services/notificationService');
 const fs = require('fs');
 const path = require('path');
+const mongoose = require('mongoose');
 
-// @desc    Get all live classes (Admin)
+// @desc    Get all live classes with filters (Admin)
 // @route   GET /api/admin/live-classes
 // @access  Private/Admin
 exports.getAllLiveClasses = asyncHandler(async (req, res) => {
-  const { status, classId, teacherId } = req.query;
+  const {
+    status,
+    title,
+    teacherName,
+    className,
+    subjectName,
+    date
+  } = req.query;
 
-  const query = {};
-  if (status) query.status = status;
-  if (classId) query.classId = classId;
-  if (teacherId) query.teacherId = teacherId;
+  const match = {};
 
-  const liveClasses = await LiveClass.find(query)
-    .populate('timetableId', 'dayOfWeek startTime endTime topic')
-    .populate('teacherId', 'name email phone profileImage')
-    .populate('classId', 'type class board name classCode')
-    .populate('subjectId', 'name')
-    .sort({ createdAt: -1 });
+  if (status) {
+    match.status = status;
+  }
+
+  // Default to current UTC date if no date provided
+  let startDate = null;
+  let endDate = null;
+
+  const buildUtcRange = (inputDate) => {
+    const year = inputDate.getUTCFullYear();
+    const month = inputDate.getUTCMonth();
+    const day = inputDate.getUTCDate();
+    return {
+      start: new Date(Date.UTC(year, month, day, 0, 0, 0, 0)),
+      end: new Date(Date.UTC(year, month, day + 1, 0, 0, 0, 0))
+    };
+  };
+
+  if (date) {
+    const parsed = new Date(date);
+    if (!isNaN(parsed.getTime())) {
+      const { start, end } = buildUtcRange(parsed);
+      startDate = start;
+      endDate = end;
+    }
+  }
+
+  if (!startDate || !endDate) {
+    const now = new Date();
+    const { start, end } = buildUtcRange(now);
+    startDate = start;
+    endDate = end;
+  }
+
+  match.scheduledStartTime = {
+    $gte: startDate,
+    $lt: endDate
+  };
+
+  const pipeline = [
+    { $match: match },
+    {
+      $lookup: {
+        from: 'teachers',
+        localField: 'teacherId',
+        foreignField: '_id',
+        as: 'teacher'
+      }
+    },
+    { $unwind: '$teacher' },
+    {
+      $lookup: {
+        from: 'classes',
+        localField: 'classId',
+        foreignField: '_id',
+        as: 'class'
+      }
+    },
+    { $unwind: '$class' },
+    {
+      $lookup: {
+        from: 'subjects',
+        localField: 'subjectId',
+        foreignField: '_id',
+        as: 'subject'
+      }
+    },
+    { $unwind: '$subject' },
+    {
+      $addFields: {
+        participants: { $ifNull: ['$participants', []] },
+        studentParticipants: {
+          $filter: {
+            input: { $ifNull: ['$participants', []] },
+            as: 'p',
+            cond: { $eq: ['$$p.userType', 'Student'] }
+          }
+        },
+        titleLower: { $toLower: '$title' },
+        teacherNameLower: { $toLower: '$teacher.name' },
+        classNameLower: {
+          $toLower: {
+            $ifNull: ['$class.name', '$class.class']
+          }
+        },
+        subjectNameLower: { $toLower: '$subject.name' }
+      }
+    }
+  ];
+
+  if (title && title.trim()) {
+    pipeline.push({
+      $match: {
+        titleLower: { $regex: title.trim().toLowerCase(), $options: 'i' }
+      }
+    });
+  }
+
+  if (teacherName && teacherName.trim()) {
+    pipeline.push({
+      $match: {
+        teacherNameLower: { $regex: teacherName.trim().toLowerCase(), $options: 'i' }
+      }
+    });
+  }
+
+  if (className && className.trim()) {
+    pipeline.push({
+      $match: {
+        classNameLower: { $regex: className.trim().toLowerCase(), $options: 'i' }
+      }
+    });
+  }
+
+  if (subjectName && subjectName.trim()) {
+    pipeline.push({
+      $match: {
+        subjectNameLower: { $regex: subjectName.trim().toLowerCase(), $options: 'i' }
+      }
+    });
+  }
+
+  pipeline.push({
+    $lookup: {
+      from: 'students',
+      let: { studentIds: '$studentParticipants.userId' },
+      pipeline: [
+        {
+          $match: {
+            $expr: { $in: ['$_id', { $ifNull: ['$$studentIds', []] }] }
+          }
+        },
+        {
+          $project: {
+            name: 1,
+            phone: 1,
+            class: 1,
+            board: 1
+          }
+        }
+      ],
+      as: 'studentDetails'
+    }
+  });
+
+  pipeline.push({
+    $addFields: {
+      studentsJoined: {
+        $map: {
+          input: { $ifNull: ['$studentParticipants', []] },
+          as: 'p',
+          in: {
+            userId: '$$p.userId',
+            joinedAt: '$$p.joinedAt',
+            leftAt: '$$p.leftAt',
+            isMuted: '$$p.isMuted',
+            isVideoEnabled: '$$p.isVideoEnabled',
+            hasRaisedHand: '$$p.hasRaisedHand',
+            student: {
+              $first: {
+                $filter: {
+                  input: '$studentDetails',
+                  as: 'stu',
+                  cond: { $eq: ['$$stu._id', '$$p.userId'] }
+                }
+              }
+            }
+          }
+        }
+      },
+      totalParticipants: { $size: { $ifNull: ['$participants', []] } },
+      studentCount: { $size: { $ifNull: ['$studentParticipants', []] } }
+    }
+  });
+
+  pipeline.push({
+    $project: {
+      title: 1,
+      description: 1,
+      status: 1,
+      scheduledStartTime: 1,
+      actualStartTime: 1,
+      endTime: 1,
+      duration: 1,
+      notificationSent: 1,
+      notificationSentAt: 1,
+      teacher: {
+        _id: '$teacher._id',
+        name: '$teacher.name',
+        email: '$teacher.email',
+        phone: '$teacher.phone',
+        profileImage: '$teacher.profileImage'
+      },
+      class: {
+        _id: '$class._id',
+        name: '$class.name',
+        class: '$class.class',
+        board: '$class.board',
+        type: '$class.type',
+        classCode: '$class.classCode'
+      },
+      subject: {
+        _id: '$subject._id',
+        name: '$subject.name'
+      },
+      studentsJoined: 1,
+      studentCount: 1,
+      totalParticipants: 1
+    }
+  });
+
+  pipeline.push({ $sort: { scheduledStartTime: -1 } });
+
+  const liveClasses = await LiveClass.aggregate(pipeline);
 
   res.status(200).json({
     success: true,
     count: liveClasses.length,
     data: {
       liveClasses
+    }
+  });
+});
+
+// @desc    Get single live class with students (Admin)
+// @route   GET /api/admin/live-classes/:id
+// @access  Private/Admin
+exports.getAdminLiveClassById = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new ErrorResponse('Invalid live class id', 400);
+  }
+
+  const pipeline = [
+    { $match: { _id: new mongoose.Types.ObjectId(id) } },
+    {
+      $lookup: {
+        from: 'teachers',
+        localField: 'teacherId',
+        foreignField: '_id',
+        as: 'teacher'
+      }
+    },
+    { $unwind: '$teacher' },
+    {
+      $lookup: {
+        from: 'classes',
+        localField: 'classId',
+        foreignField: '_id',
+        as: 'class'
+      }
+    },
+    { $unwind: '$class' },
+    {
+      $lookup: {
+        from: 'subjects',
+        localField: 'subjectId',
+        foreignField: '_id',
+        as: 'subject'
+      }
+    },
+    { $unwind: '$subject' },
+    {
+      $addFields: {
+        participants: { $ifNull: ['$participants', []] },
+        studentParticipants: {
+          $filter: {
+            input: { $ifNull: ['$participants', []] },
+            as: 'p',
+            cond: { $eq: ['$$p.userType', 'Student'] }
+          }
+        }
+      }
+    },
+    {
+      $lookup: {
+        from: 'students',
+        let: { studentIds: '$studentParticipants.userId' },
+        pipeline: [
+          {
+            $match: {
+              $expr: { $in: ['$_id', { $ifNull: ['$$studentIds', []] }] }
+            }
+          },
+          {
+            $project: {
+              name: 1,
+              phone: 1,
+              class: 1,
+              board: 1
+            }
+          }
+        ],
+        as: 'studentDetails'
+      }
+    },
+    {
+      $addFields: {
+        studentsJoined: {
+          $map: {
+            input: { $ifNull: ['$studentParticipants', []] },
+            as: 'p',
+            in: {
+              userId: '$$p.userId',
+              joinedAt: '$$p.joinedAt',
+              leftAt: '$$p.leftAt',
+              isMuted: '$$p.isMuted',
+              isVideoEnabled: '$$p.isVideoEnabled',
+              hasRaisedHand: '$$p.hasRaisedHand',
+              student: {
+                $first: {
+                  $filter: {
+                    input: '$studentDetails',
+                    as: 'stu',
+                    cond: { $eq: ['$$stu._id', '$$p.userId'] }
+                  }
+                }
+              }
+            }
+          }
+        },
+        totalParticipants: { $size: { $ifNull: ['$participants', []] } },
+        studentCount: { $size: { $ifNull: ['$studentParticipants', []] } }
+      }
+    },
+    {
+      $project: {
+        title: 1,
+        description: 1,
+        status: 1,
+        scheduledStartTime: 1,
+        actualStartTime: 1,
+        endTime: 1,
+        duration: 1,
+        notificationSent: 1,
+        notificationSentAt: 1,
+        teacher: {
+          _id: '$teacher._id',
+          name: '$teacher.name',
+          email: '$teacher.email',
+          phone: '$teacher.phone',
+          profileImage: '$teacher.profileImage'
+        },
+        class: {
+          _id: '$class._id',
+          name: '$class.name',
+          class: '$class.class',
+          board: '$class.board',
+          type: '$class.type',
+          classCode: '$class.classCode'
+        },
+        subject: {
+          _id: '$subject._id',
+          name: '$subject.name'
+        },
+        studentsJoined: 1,
+        studentCount: 1,
+        totalParticipants: 1,
+        participants: 1
+      }
+    }
+  ];
+
+  const results = await LiveClass.aggregate(pipeline);
+  const liveClass = results[0];
+
+  if (!liveClass) {
+    throw new ErrorResponse('Live class not found', 404);
+  }
+
+  res.status(200).json({
+    success: true,
+    data: {
+      liveClass
+    }
+  });
+});
+
+// @desc    Get recordings list for admin with filters
+// @route   GET /api/admin/recordings
+// @access  Private/Admin
+exports.getAdminRecordings = asyncHandler(async (req, res) => {
+  const { title, teacherName, className, subjectName, status, date } = req.query;
+
+  const match = { isActive: true };
+  if (status) match.status = status;
+
+  const buildUtcRange = (inputDate) => {
+    const year = inputDate.getUTCFullYear();
+    const month = inputDate.getUTCMonth();
+    const day = inputDate.getUTCDate();
+    return {
+      start: new Date(Date.UTC(year, month, day, 0, 0, 0, 0)),
+      end: new Date(Date.UTC(year, month, day + 1, 0, 0, 0, 0))
+    };
+  };
+
+  if (date) {
+    const parsed = new Date(date);
+    if (!isNaN(parsed.getTime())) {
+      const { start, end } = buildUtcRange(parsed);
+      match.createdAt = { $gte: start, $lt: end };
+    }
+  }
+
+  const pipeline = [
+    { $match: match },
+    {
+      $lookup: {
+        from: 'teachers',
+        localField: 'teacherId',
+        foreignField: '_id',
+        as: 'teacher'
+      }
+    },
+    { $unwind: '$teacher' },
+    {
+      $lookup: {
+        from: 'classes',
+        localField: 'classId',
+        foreignField: '_id',
+        as: 'class'
+      }
+    },
+    { $unwind: '$class' },
+    {
+      $lookup: {
+        from: 'subjects',
+        localField: 'subjectId',
+        foreignField: '_id',
+        as: 'subject'
+      }
+    },
+    { $unwind: '$subject' },
+    {
+      $addFields: {
+        titleLower: { $toLower: '$title' },
+        teacherNameLower: { $toLower: '$teacher.name' },
+        classNameLower: { $toLower: { $ifNull: ['$class.name', '$class.class'] } },
+        subjectNameLower: { $toLower: '$subject.name' }
+      }
+    }
+  ];
+
+  if (title && title.trim()) {
+    pipeline.push({ $match: { titleLower: { $regex: title.trim().toLowerCase(), $options: 'i' } } });
+  }
+  if (teacherName && teacherName.trim()) {
+    pipeline.push({ $match: { teacherNameLower: { $regex: teacherName.trim().toLowerCase(), $options: 'i' } } });
+  }
+  if (className && className.trim()) {
+    pipeline.push({ $match: { classNameLower: { $regex: className.trim().toLowerCase(), $options: 'i' } } });
+  }
+  if (subjectName && subjectName.trim()) {
+    pipeline.push({ $match: { subjectNameLower: { $regex: subjectName.trim().toLowerCase(), $options: 'i' } } });
+  }
+
+  pipeline.push({
+    $project: {
+      title: 1,
+      description: 1,
+      status: 1,
+      duration: 1,
+      fileSize: 1,
+      createdAt: 1,
+      uploadedAt: 1,
+      localPath: 1,
+      s3Url: 1,
+      s3Key: 1,
+      class: { _id: '$class._id', name: '$class.name', class: '$class.class', board: '$class.board' },
+      subject: { _id: '$subject._id', name: '$subject.name' },
+      teacher: { _id: '$teacher._id', name: '$teacher.name', email: '$teacher.email', phone: '$teacher.phone' }
+    }
+  });
+
+  pipeline.push({ $sort: { createdAt: -1 } });
+
+  const recordings = await Recording.aggregate(pipeline);
+
+  const withPlayback = await Promise.all(
+    recordings.map(async (rec) => {
+      let playbackUrl = rec.s3Url || rec.localPath || null;
+      if (s3Service.isConfigured() && rec.s3Key) {
+        try {
+          playbackUrl = await s3Service.getPresignedUrl(rec.s3Key, 3600);
+        } catch (err) {
+          console.error('Error generating presigned URL for recording', rec._id, err.message || err);
+          playbackUrl = rec.s3Url || rec.localPath || null;
+        }
+      }
+      return {
+        ...rec,
+        playbackUrl
+      };
+    })
+  );
+
+  res.status(200).json({
+    success: true,
+    count: withPlayback.length,
+    data: {
+      recordings: withPlayback
+    }
+  });
+});
+
+// @desc    Get single recording with playback URL (Admin)
+// @route   GET /api/admin/recordings/:id
+// @access  Private/Admin
+exports.getAdminRecordingById = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new ErrorResponse('Invalid recording id', 400);
+  }
+
+  const pipeline = [
+    { $match: { _id: new mongoose.Types.ObjectId(id), isActive: true } },
+    {
+      $lookup: {
+        from: 'teachers',
+        localField: 'teacherId',
+        foreignField: '_id',
+        as: 'teacher'
+      }
+    },
+    { $unwind: '$teacher' },
+    {
+      $lookup: {
+        from: 'classes',
+        localField: 'classId',
+        foreignField: '_id',
+        as: 'class'
+      }
+    },
+    { $unwind: '$class' },
+    {
+      $lookup: {
+        from: 'subjects',
+        localField: 'subjectId',
+        foreignField: '_id',
+        as: 'subject'
+      }
+    },
+    { $unwind: '$subject' },
+    {
+      $project: {
+        title: 1,
+        description: 1,
+        status: 1,
+        duration: 1,
+        fileSize: 1,
+        createdAt: 1,
+        uploadedAt: 1,
+        localPath: 1,
+        s3Url: 1,
+        s3Key: 1,
+        class: { _id: '$class._id', name: '$class.name', class: '$class.class', board: '$class.board' },
+        subject: { _id: '$subject._id', name: '$subject.name' },
+        teacher: { _id: '$teacher._id', name: '$teacher.name', email: '$teacher.email', phone: '$teacher.phone' }
+      }
+    }
+  ];
+
+  const results = await Recording.aggregate(pipeline);
+  const recording = results[0];
+
+  if (!recording) {
+    throw new ErrorResponse('Recording not found', 404);
+  }
+
+  let playbackUrl = recording.s3Url || recording.localPath || null;
+  if (s3Service.isConfigured() && recording.s3Key) {
+    try {
+      playbackUrl = await s3Service.getPresignedUrl(recording.s3Key, 3600);
+    } catch (err) {
+      console.error('Error generating presigned URL for recording', recording._id, err.message || err);
+      playbackUrl = recording.s3Url || recording.localPath || null;
+    }
+  }
+
+  res.status(200).json({
+    success: true,
+    data: {
+      recording: {
+        ...recording,
+        playbackUrl
+      }
     }
   });
 });

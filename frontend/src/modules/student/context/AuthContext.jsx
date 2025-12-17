@@ -43,15 +43,15 @@ export const AuthProvider = ({ children }) => {
           return;
         }
       }
-      
+
       // Check if we're in the middle of a payment flow
       // Use localStorage instead of sessionStorage (persists across redirects)
       const paymentInProgress = localStorage.getItem('payment_in_progress');
       const paymentTimestamp = localStorage.getItem('payment_timestamp');
       const isPaymentReturnPage = window.location.pathname.includes('/payment/return');
-      
+
       // Check if payment flag is still valid (not older than 30 minutes)
-      const isPaymentFlagValid = paymentInProgress && paymentTimestamp && 
+      const isPaymentFlagValid = paymentInProgress && paymentTimestamp &&
         (Date.now() - parseInt(paymentTimestamp)) < 30 * 60 * 1000;
 
       if (savedToken && savedUser) {
@@ -79,7 +79,7 @@ export const AuthProvider = ({ children }) => {
             } catch (parseError) {
               console.error('Error parsing saved user data:', parseError);
             }
-            
+
             // Initialize notifications
             initializeNotifications();
             setupForegroundMessageListener();
@@ -87,14 +87,14 @@ export const AuthProvider = ({ children }) => {
             setIsLoading(false);
             return;
           }
-          
+
           // Normal auth verification (only if not in payment flow)
           // Double-check payment flag hasn't been set during async operation
           const paymentCheck = localStorage.getItem('payment_in_progress');
           const paymentTimestampCheck = localStorage.getItem('payment_timestamp');
-          const isPaymentFlagStillValid = paymentCheck && paymentTimestampCheck && 
+          const isPaymentFlagStillValid = paymentCheck && paymentTimestampCheck &&
             (Date.now() - parseInt(paymentTimestampCheck)) < 30 * 60 * 1000;
-          
+
           if (isPaymentFlagStillValid) {
             console.log('Payment flow detected during normal auth - skipping verification');
             try {
@@ -109,7 +109,7 @@ export const AuthProvider = ({ children }) => {
             setIsLoading(false);
             return;
           }
-          
+
           const response = await studentAPI.getMe();
           if (response.success) {
             setUser(response.data.student);

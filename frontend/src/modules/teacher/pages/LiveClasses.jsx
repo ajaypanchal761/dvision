@@ -63,7 +63,7 @@ const LiveClasses = () => {
       setError('');
       
       // Check if user has teacher token
-      const teacherToken = localStorage.getItem('dvision_token');
+      const teacherToken = localStorage.getItem('dvision_teacher_token');
       if (!teacherToken) {
         setError('Please login as a teacher to access this page');
         navigate('/teacher/login');

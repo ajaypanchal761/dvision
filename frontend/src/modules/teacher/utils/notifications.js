@@ -31,7 +31,7 @@ export const initializeNotifications = async () => {
  */
 export const saveFcmTokenToBackend = async (fcmToken) => {
   try {
-    const token = localStorage.getItem('dvision_token');
+    const token = localStorage.getItem('dvision_teacher_token');
 
     if (!token) {
       console.warn('User not logged in. FCM token will be saved after login.');

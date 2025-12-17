@@ -3,6 +3,7 @@ const router = express.Router();
 const multer = require('multer');
 const {
   getAllLiveClasses,
+  getAdminLiveClassById,
   getMyLiveClasses,
   getStudentLiveClasses,
   getUpcomingLiveClasses,
@@ -75,8 +76,9 @@ router.post('/teacher/live-classes/:id/upload-recording', protect, authorize('te
   });
 }, uploadRecording);
 
-// Admin routes
-router.get('/admin/live-classes', protect, authorize('admin'), getAllLiveClasses);
+// Admin routes (keep before generic :id to avoid conflicts)
+router.get('/admin/live-classes', protect, authorize('admin', 'super_admin'), getAllLiveClasses);
+router.get('/admin/live-classes/:id', protect, authorize('admin', 'super_admin'), getAdminLiveClassById);
 
 // Recording routes
 router.get('/recordings/:id', protect, getRecording);

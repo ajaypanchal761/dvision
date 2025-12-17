@@ -7,7 +7,6 @@ const AddBanner = () => {
   const [formData, setFormData] = useState({
     title: '',
     description: '',
-    link: '',
     order: 0,
     status: 'Active',
   })
@@ -40,7 +39,6 @@ const AddBanner = () => {
       const bannerData = {
         title: formData.title,
         description: formData.description || undefined,
-        link: formData.link || undefined,
         order: parseInt(formData.order) || 0,
         isActive: formData.status === 'Active',
         imageBase64: imagePreview,
@@ -145,20 +143,6 @@ const AddBanner = () => {
                   rows="3"
                   className="w-full px-3 py-2 text-xs sm:text-sm border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-[#1e3a5f] focus:border-[#1e3a5f] outline-none transition-all duration-200"
                   placeholder="Enter banner description"
-                  disabled={isLoading}
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1.5 sm:mb-2">
-                  Link (Optional)
-                </label>
-                <input
-                  type="url"
-                  value={formData.link}
-                  onChange={(e) => setFormData({ ...formData, link: e.target.value })}
-                  className="w-full px-3 py-2 text-xs sm:text-sm border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-[#1e3a5f] focus:border-[#1e3a5f] outline-none transition-all duration-200"
-                  placeholder="https://example.com"
                   disabled={isLoading}
                 />
               </div>
