@@ -714,22 +714,35 @@ const LiveClassRoom = () => {
 
       // Get available cameras and detect initial camera facing
       const cameras = await AgoraRTC.getCameras();
+      
+      // Filter out virtual/screen cameras - only use real physical cameras
+      const physicalCameras = cameras.filter(device => {
+        const label = (device.label || '').toLowerCase();
+        return !label.includes('virtual') && 
+               !label.includes('screen') && 
+               !label.includes('obs') && 
+               !label.includes('capture') &&
+               !label.includes('dshow') &&
+               device.deviceId && 
+               device.deviceId.length > 0;
+      });
+      
       let initialCameraId = undefined;
-      if (cameras.length > 0) {
+      if (physicalCameras.length > 0) {
         // Try to find front camera first, otherwise use first available
-        const frontCamera = cameras.find(cam => {
+        const frontCamera = physicalCameras.find(cam => {
           const label = (cam.label || '').toLowerCase();
           return label.includes('front') || label.includes('user') || 
                  (label.includes('facing') && label.includes('user'));
         });
-        initialCameraId = frontCamera ? frontCamera.deviceId : cameras[0].deviceId;
+        initialCameraId = frontCamera ? frontCamera.deviceId : physicalCameras[0].deviceId;
         
         // Update cameraFacing based on detected camera
         if (frontCamera) {
           setCameraFacing('user');
         } else {
-          const label = (cameras[0].label || '').toLowerCase();
-          const isBack = label.includes('back') || label.includes('rear') || label.includes('environment');
+          const label = (physicalCameras[0].label || '').toLowerCase();
+          const isBack = label.includes('back') || label.includes('rear') || label.includes('environment') || label.includes('world');
           setCameraFacing(isBack ? 'environment' : 'user');
         }
       }
@@ -1353,12 +1366,36 @@ const LiveClassRoom = () => {
       if (!localVideoTrackRef.current) return;
 
       const devices = await AgoraRTC.getCameras();
+      
+      // Filter out virtual/screen cameras - only use real physical cameras
+      const physicalCameras = devices.filter(device => {
+        const label = (device.label || '').toLowerCase();
+        // Exclude virtual cameras, screen captures, and OBS/streaming software cameras
+        return !label.includes('virtual') && 
+               !label.includes('screen') && 
+               !label.includes('obs') && 
+               !label.includes('capture') &&
+               !label.includes('dshow') &&
+               device.deviceId && 
+               device.deviceId.length > 0;
+      });
+      
+      if (physicalCameras.length === 0) {
+        console.warn('No physical cameras found');
+        return;
+      }
+      
       const currentSettings = localVideoTrackRef.current.getMediaStreamTrack()?.getSettings();
       const currentDeviceId = currentSettings?.deviceId || localVideoTrackRef.current.getDeviceId?.();
 
-      let nextDevice = devices.find(d => d.deviceId && d.deviceId !== currentDeviceId);
-      if (!nextDevice && devices.length > 1) {
-        nextDevice = devices.find(d => d.deviceId !== currentDeviceId) || devices[0];
+      // Find the next physical camera
+      let nextDevice = physicalCameras.find(d => d.deviceId && d.deviceId !== currentDeviceId);
+      if (!nextDevice && physicalCameras.length > 1) {
+        nextDevice = physicalCameras.find(d => d.deviceId !== currentDeviceId) || physicalCameras[0];
+      } else if (!nextDevice && physicalCameras.length === 1) {
+        // Only one camera available, can't switch
+        console.warn('Only one camera available, cannot switch');
+        return;
       }
 
       if (nextDevice) {
@@ -1367,14 +1404,22 @@ const LiveClassRoom = () => {
         
         // Detect camera facing from device label (more reliable than state)
         const deviceLabel = (nextDevice.label || '').toLowerCase();
-        const isFrontCamera = deviceLabel.includes('front') || 
-                              deviceLabel.includes('user') || 
-                              deviceLabel.includes('facing') && deviceLabel.includes('user') ||
-                              (!deviceLabel.includes('back') && !deviceLabel.includes('rear') && !deviceLabel.includes('environment'));
         
-        const newFacing = isFrontCamera ? 'user' : 'environment';
+        // More accurate detection: check for back/rear/environment keywords first
+        const isBackCamera = deviceLabel.includes('back') || 
+                            deviceLabel.includes('rear') || 
+                            deviceLabel.includes('environment') ||
+                            deviceLabel.includes('world');
+        
+        // Front camera keywords
+        const isFrontCamera = deviceLabel.includes('front') || 
+                             deviceLabel.includes('user') || 
+                             (deviceLabel.includes('facing') && deviceLabel.includes('user'));
+        
+        // Determine facing: if explicitly back, use environment; if explicitly front, use user; otherwise default to environment (back)
+        const newFacing = isBackCamera ? 'environment' : (isFrontCamera ? 'user' : 'environment');
         setCameraFacing(newFacing);
-        console.log('Switched camera to device:', nextDevice.label || nextDevice.deviceId, 'Facing:', newFacing);
+        console.log('Switched camera to device:', nextDevice.label || nextDevice.deviceId, 'Facing:', newFacing, 'isBack:', isBackCamera);
         
         // Wait a bit for the device to switch
         await new Promise(resolve => setTimeout(resolve, 100));
@@ -1877,7 +1922,9 @@ const LiveClassRoom = () => {
             className="w-full h-full"
             style={{
               objectFit: 'contain',
-              transform: cameraFacing === 'user' ? 'scaleX(-1)' : 'scaleX(1)',
+              // Only apply mirror effect for front camera (user-facing)
+              // Back camera (environment) should show natural, non-mirrored view
+              transform: cameraFacing === 'user' ? 'scaleX(-1)' : 'none',
               transition: 'transform 0.2s ease-in-out',
               width: '100%',
               height: '100%',
