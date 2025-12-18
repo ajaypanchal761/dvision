@@ -146,6 +146,47 @@ const LiveClassRoom = () => {
     };
   }, []);
 
+  // Apply WhatsApp-like video styling and transform when camera facing changes
+  useEffect(() => {
+    const applyVideoStyling = () => {
+      if (localVideoContainerRef.current) {
+        // Find the video element inside the container
+        const videoElement = localVideoContainerRef.current.querySelector('video') ||
+          (localVideoContainerRef.current.tagName === 'VIDEO' ? localVideoContainerRef.current : null);
+        if (videoElement) {
+          // WhatsApp-like behavior: contain mode with black bars, centered
+          videoElement.style.objectFit = 'contain';
+          videoElement.style.width = '100%';
+          videoElement.style.height = '100%';
+          videoElement.style.maxWidth = '100%';
+          videoElement.style.maxHeight = '100%';
+          videoElement.style.position = 'absolute';
+          videoElement.style.top = '50%';
+          videoElement.style.left = '50%';
+          videoElement.style.backgroundColor = 'black';
+          
+          // Apply camera mirror transform
+          // Front camera (user): mirror (scaleX(-1)) for selfie view - left appears as right
+          // Back camera (environment): no mirror (scaleX(1)) for natural view - shows as real eyes see
+          const mirrorTransform = cameraFacing === 'user' ? 'scaleX(-1)' : 'scaleX(1)';
+          videoElement.style.transform = `translate(-50%, -50%) ${mirrorTransform}`;
+          videoElement.style.transition = 'transform 0.2s ease-in-out';
+          console.log('Applied video styling and transform for camera facing:', cameraFacing);
+        }
+      }
+    };
+
+    // Apply styling immediately and also after a short delay to ensure video element exists
+    applyVideoStyling();
+    const timeout = setTimeout(applyVideoStyling, 200);
+    const interval = setInterval(applyVideoStyling, 1000); // Reapply periodically to handle orientation changes
+
+    return () => {
+      clearTimeout(timeout);
+      clearInterval(interval);
+    };
+  }, [cameraFacing, isVideoEnabled, orientation]);
+
   // Initialize class
   useEffect(() => {
     initializeClass();
@@ -994,14 +1035,11 @@ const LiveClassRoom = () => {
           <div className="absolute bottom-4 right-4 w-64 h-48 bg-gray-800 rounded-lg overflow-hidden border-2 border-white">
             <div
               ref={localVideoContainerRef}
-              className="w-full h-full"
+              className="w-full h-full flex items-center justify-center"
               style={{
-                objectFit: 'contain',
+                position: 'relative',
                 width: '100%',
-                height: '100%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
+                height: '100%'
               }}
             />
             {!isVideoEnabled && (

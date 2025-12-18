@@ -257,6 +257,53 @@ const LiveClassRoom = () => {
     };
   }, []);
 
+  // Apply WhatsApp-like video styling (object-fit: contain with black bars)
+  useEffect(() => {
+    const applyVideoStyling = () => {
+      // Style teacher video container
+      if (teacherVideoContainerRef.current) {
+        const videoElement = teacherVideoContainerRef.current.querySelector('video');
+        if (videoElement) {
+          // WhatsApp-like behavior: contain mode with black bars
+          videoElement.style.objectFit = 'contain';
+          videoElement.style.width = '100%';
+          videoElement.style.height = '100%';
+          videoElement.style.maxWidth = '100%';
+          videoElement.style.maxHeight = '100%';
+          videoElement.style.position = 'absolute';
+          videoElement.style.top = '50%';
+          videoElement.style.left = '50%';
+          videoElement.style.transform = 'translate(-50%, -50%)';
+          videoElement.style.backgroundColor = 'black';
+        }
+      }
+      
+      // Style student's own video
+      if (localVideoContainerRef.current) {
+        const videoElement = localVideoContainerRef.current.querySelector('video');
+        if (videoElement) {
+          videoElement.style.objectFit = 'cover';
+          videoElement.style.width = '100%';
+          videoElement.style.height = '100%';
+          // Apply camera mirror transform if needed
+          const currentTransform = cameraFacing === 'user' ? 'scaleX(-1)' : 'scaleX(1)';
+          videoElement.style.transform = `translate(-50%, -50%) ${currentTransform}`;
+          videoElement.style.transition = 'transform 0.2s ease-in-out';
+        }
+      }
+    };
+
+    // Apply styling immediately and on orientation/resize changes
+    applyVideoStyling();
+    const interval = setInterval(applyVideoStyling, 500);
+    const timeout = setTimeout(applyVideoStyling, 200);
+
+    return () => {
+      clearInterval(interval);
+      clearTimeout(timeout);
+    };
+  }, [orientation, cameraFacing, isVideoEnabled, hasTeacherVideo]);
+
   // Handle dragging for own video
   useEffect(() => {
     if (!isDragging) return;
@@ -1656,14 +1703,11 @@ const LiveClassRoom = () => {
           <div
             id="teacher-video-container"
             ref={teacherVideoContainerRef}
-            className="w-full h-full"
+            className="w-full h-full flex items-center justify-center"
             style={{
-              objectFit: 'contain',
+              position: 'relative',
               width: '100%',
-              height: '100%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
+              height: '100%'
             }}
           />
           {!hasTeacherVideo && !isLoading && (
