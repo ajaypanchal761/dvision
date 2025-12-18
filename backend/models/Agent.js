@@ -43,6 +43,37 @@ const agentSchema = new mongoose.Schema({
   },
   profileImage: {
     type: String
+  },
+  // Bank Details
+  bankDetails: {
+    accountHolderName: {
+      type: String,
+      trim: true
+    },
+    accountNumber: {
+      type: String,
+      trim: true
+    },
+    ifscCode: {
+      type: String,
+      trim: true,
+      uppercase: true
+    },
+    bankName: {
+      type: String,
+      trim: true
+    },
+    branchName: {
+      type: String,
+      trim: true
+    }
+  },
+  // UPI ID for payments
+  upiId: {
+    type: String,
+    trim: true,
+    lowercase: true,
+    match: [/^[\w.-]+@[\w.-]+$/, 'Please provide a valid UPI ID (e.g., name@paytm)']
   }
 }, {
   timestamps: true

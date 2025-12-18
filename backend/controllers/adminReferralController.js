@@ -26,6 +26,7 @@ exports.createAgent = asyncHandler(async (req, res) => {
   }
 
   // Create agent with isActive=true by default
+  // Note: Bank details and UPI ID can only be added by the agent themselves
   const agent = await Agent.create({
     name,
     phone,
@@ -215,6 +216,8 @@ exports.updateAgent = asyncHandler(async (req, res) => {
   if (isActive !== undefined) {
     agent.isActive = isActive;
   }
+
+  // Note: Bank details and UPI ID can only be updated by the agent themselves, not by admin
 
   await agent.save();
 

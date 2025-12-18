@@ -20,6 +20,8 @@ const Agents = () => {
     email: '',
     isActive: true
   })
+  const [viewAgentModal, setViewAgentModal] = useState(false)
+  const [viewingAgent, setViewingAgent] = useState(null)
 
   // Fetch agents from backend
   const fetchAgents = async () => {
@@ -69,7 +71,12 @@ const Agents = () => {
       if (response.success) {
         setSuccess('Agent created successfully!')
         setIsCreateModalOpen(false)
-        setFormData({ name: '', phone: '', email: '', isActive: true })
+        setFormData({ 
+          name: '', 
+          phone: '', 
+          email: '', 
+          isActive: true
+        })
         await fetchAgents()
         setTimeout(() => setSuccess(''), 3000)
       } else {
@@ -94,7 +101,12 @@ const Agents = () => {
         setSuccess('Agent updated successfully!')
         setIsEditModalOpen(false)
         setEditingAgent(null)
-        setFormData({ name: '', phone: '', email: '', isActive: true })
+        setFormData({ 
+          name: '', 
+          phone: '', 
+          email: '', 
+          isActive: true
+        })
         await fetchAgents()
         setTimeout(() => setSuccess(''), 3000)
       } else {
@@ -138,6 +150,18 @@ const Agents = () => {
     setIsEditModalOpen(true)
   }
 
+  const handleViewClick = async (agent) => {
+    try {
+      const response = await agentAPI.getById(agent._id)
+      if (response.success && response.data?.agent) {
+        setViewingAgent(response.data.agent)
+        setViewAgentModal(true)
+      }
+    } catch (err) {
+      setError(err.message || 'Failed to load agent details')
+    }
+  }
+
   const filteredAgents = agents.filter(agent =>
     agent.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     (agent.email && agent.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
@@ -173,7 +197,12 @@ const Agents = () => {
             </div>
             <button
               onClick={() => {
-                setFormData({ name: '', phone: '', email: '', isActive: true })
+                setFormData({ 
+                  name: '', 
+                  phone: '', 
+                  email: '', 
+                  isActive: true
+                })
                 setIsCreateModalOpen(true)
               }}
               className="px-3 sm:px-4 md:px-5 lg:px-6 py-2 sm:py-2.5 md:py-3 bg-gradient-to-r from-[#1e3a5f] to-[#2a4a6f] hover:from-[#2a4a6f] hover:to-[#1e3a5f] text-white rounded-lg sm:rounded-xl font-semibold text-xs sm:text-sm md:text-base transition-all duration-200 flex items-center justify-center space-x-2 shadow-md hover:shadow-lg"
@@ -367,13 +396,22 @@ const Agents = () => {
                         <td className="px-2 sm:px-3 py-2 whitespace-nowrap text-right text-xs font-medium">
                           <div className="flex items-center justify-end space-x-1 sm:space-x-2">
                             <button
+                              onClick={() => handleViewClick(agent)}
+                              className="p-1.5 sm:p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-all duration-200"
+                              title="View Details"
+                            >
+                              <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                              </svg>
+                            </button>
+                            <button
                               onClick={() => navigate(`/admin/agents/${agent._id}/referrals`)}
                               className="p-1.5 sm:p-2 text-purple-600 hover:bg-purple-50 rounded-lg transition-all duration-200"
                               title="View Referrals"
                             >
                               <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
                               </svg>
                             </button>
                             <button
@@ -450,7 +488,20 @@ const Agents = () => {
                     type="button"
                     onClick={() => {
                       setIsCreateModalOpen(false)
-                      setFormData({ name: '', phone: '', email: '', isActive: true })
+                      setFormData({ 
+                        name: '', 
+                        phone: '', 
+                        email: '', 
+                        isActive: true,
+                        bankDetails: {
+                          accountHolderName: '',
+                          accountNumber: '',
+                          ifscCode: '',
+                          bankName: '',
+                          branchName: ''
+                        },
+                        upiId: ''
+                      })
                     }}
                     className="px-4 sm:px-5 md:px-6 py-2 sm:py-2.5 md:py-3 border-2 border-gray-300 text-gray-700 rounded-lg sm:rounded-xl font-semibold text-sm sm:text-base hover:bg-gray-50 transition-all duration-200"
                   >
@@ -522,7 +573,20 @@ const Agents = () => {
                     onClick={() => {
                       setIsEditModalOpen(false)
                       setEditingAgent(null)
-                      setFormData({ name: '', phone: '', email: '', isActive: true })
+                      setFormData({ 
+                        name: '', 
+                        phone: '', 
+                        email: '', 
+                        isActive: true,
+                        bankDetails: {
+                          accountHolderName: '',
+                          accountNumber: '',
+                          ifscCode: '',
+                          bankName: '',
+                          branchName: ''
+                        },
+                        upiId: ''
+                      })
                     }}
                     className="px-4 sm:px-5 md:px-6 py-2 sm:py-2.5 md:py-3 border-2 border-gray-300 text-gray-700 rounded-lg sm:rounded-xl font-semibold text-sm sm:text-base hover:bg-gray-50 transition-all duration-200"
                   >
@@ -572,6 +636,147 @@ const Agents = () => {
                   className="px-4 sm:px-5 md:px-6 py-2 sm:py-2.5 md:py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg sm:rounded-xl font-semibold text-sm sm:text-base transition-all duration-200 shadow-lg hover:shadow-xl"
                 >
                   Deactivate
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* View Agent Details Modal */}
+      {viewAgentModal && viewingAgent && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4">
+          <div className="bg-white rounded-lg sm:rounded-xl md:rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto transform transition-all">
+            <div className="p-4 sm:p-6 md:p-8">
+              <div className="flex items-center justify-between mb-4 sm:mb-6">
+                <h3 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900">Agent Details</h3>
+                <button
+                  onClick={() => {
+                    setViewAgentModal(false)
+                    setViewingAgent(null)
+                  }}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              <div className="space-y-4 sm:space-y-5">
+                {/* Basic Information */}
+                <div className="bg-gray-50 rounded-lg p-3 sm:p-4">
+                  <h4 className="text-xs sm:text-sm font-semibold text-gray-700 mb-3">Basic Information</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <p className="text-[10px] sm:text-xs text-gray-500 mb-1">Name</p>
+                      <p className="text-xs sm:text-sm font-medium text-gray-900">{viewingAgent.name || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] sm:text-xs text-gray-500 mb-1">Phone</p>
+                      <p className="text-xs sm:text-sm font-medium text-gray-900">{viewingAgent.phone || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] sm:text-xs text-gray-500 mb-1">Email</p>
+                      <p className="text-xs sm:text-sm font-medium text-gray-900">{viewingAgent.email || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] sm:text-xs text-gray-500 mb-1">Status</p>
+                      <span className={`inline-block px-2 py-1 text-xs font-semibold rounded-full ${viewingAgent.isActive
+                          ? 'bg-green-100 text-green-800'
+                          : 'bg-red-100 text-red-800'
+                        }`}>
+                        {viewingAgent.isActive ? 'Active' : 'Inactive'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Bank Details */}
+                {viewingAgent.bankDetails && (viewingAgent.bankDetails.accountHolderName || viewingAgent.bankDetails.accountNumber) && (
+                  <div className="bg-blue-50 rounded-lg p-3 sm:p-4">
+                    <h4 className="text-xs sm:text-sm font-semibold text-gray-700 mb-3">Bank Details</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {viewingAgent.bankDetails.accountHolderName && (
+                        <div>
+                          <p className="text-[10px] sm:text-xs text-gray-500 mb-1">Account Holder Name</p>
+                          <p className="text-xs sm:text-sm font-medium text-gray-900">{viewingAgent.bankDetails.accountHolderName}</p>
+                        </div>
+                      )}
+                      {viewingAgent.bankDetails.accountNumber && (
+                        <div>
+                          <p className="text-[10px] sm:text-xs text-gray-500 mb-1">Account Number</p>
+                          <p className="text-xs sm:text-sm font-medium text-gray-900">{viewingAgent.bankDetails.accountNumber}</p>
+                        </div>
+                      )}
+                      {viewingAgent.bankDetails.ifscCode && (
+                        <div>
+                          <p className="text-[10px] sm:text-xs text-gray-500 mb-1">IFSC Code</p>
+                          <p className="text-xs sm:text-sm font-medium text-gray-900">{viewingAgent.bankDetails.ifscCode}</p>
+                        </div>
+                      )}
+                      {viewingAgent.bankDetails.bankName && (
+                        <div>
+                          <p className="text-[10px] sm:text-xs text-gray-500 mb-1">Bank Name</p>
+                          <p className="text-xs sm:text-sm font-medium text-gray-900">{viewingAgent.bankDetails.bankName}</p>
+                        </div>
+                      )}
+                      {viewingAgent.bankDetails.branchName && (
+                        <div>
+                          <p className="text-[10px] sm:text-xs text-gray-500 mb-1">Branch Name</p>
+                          <p className="text-xs sm:text-sm font-medium text-gray-900">{viewingAgent.bankDetails.branchName}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* UPI ID */}
+                {viewingAgent.upiId && (
+                  <div className="bg-green-50 rounded-lg p-3 sm:p-4">
+                    <h4 className="text-xs sm:text-sm font-semibold text-gray-700 mb-3">Payment Information</h4>
+                    <div>
+                      <p className="text-[10px] sm:text-xs text-gray-500 mb-1">UPI ID</p>
+                      <p className="text-xs sm:text-sm font-medium text-gray-900">{viewingAgent.upiId}</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Statistics */}
+                {viewingAgent.statistics && (
+                  <div className="bg-purple-50 rounded-lg p-3 sm:p-4">
+                    <h4 className="text-xs sm:text-sm font-semibold text-gray-700 mb-3">Statistics</h4>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      <div>
+                        <p className="text-[10px] sm:text-xs text-gray-500 mb-1">Total Referrals</p>
+                        <p className="text-xs sm:text-sm font-bold text-gray-900">{viewingAgent.statistics.totalReferrals || 0}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] sm:text-xs text-gray-500 mb-1">Subscriptions</p>
+                        <p className="text-xs sm:text-sm font-bold text-gray-900">{viewingAgent.statistics.successfulSubscriptions || 0}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] sm:text-xs text-gray-500 mb-1">Paid</p>
+                        <p className="text-xs sm:text-sm font-bold text-gray-900">{viewingAgent.statistics.paidReferrals || 0}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] sm:text-xs text-gray-500 mb-1">Total Amount</p>
+                        <p className="text-xs sm:text-sm font-bold text-gray-900">₹{viewingAgent.statistics.totalAmount || 0}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center justify-end space-x-3 sm:space-x-4 mt-6">
+                <button
+                  onClick={() => {
+                    setViewAgentModal(false)
+                    setViewingAgent(null)
+                  }}
+                  className="px-4 sm:px-5 md:px-6 py-2 sm:py-2.5 md:py-3 bg-[#1e3a5f] hover:bg-[#2a4a6f] text-white rounded-lg sm:rounded-xl font-semibold text-sm sm:text-base transition-all duration-200 shadow-lg hover:shadow-xl"
+                >
+                  Close
                 </button>
               </div>
             </div>

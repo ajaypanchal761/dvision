@@ -228,7 +228,9 @@ exports.getMe = asyncHandler(async (req, res) => {
         phone: agent.phone,
         email: agent.email,
         isPhoneVerified: agent.isPhoneVerified,
-        profileImage: agent.profileImage
+        profileImage: agent.profileImage,
+        bankDetails: agent.bankDetails,
+        upiId: agent.upiId
       }
     }
   });
@@ -238,7 +240,7 @@ exports.getMe = asyncHandler(async (req, res) => {
 // @route   PUT /api/agent/me
 // @access  Private (Agent)
 exports.updateMe = asyncHandler(async (req, res) => {
-  const { email, profileImage } = req.body;
+  const { email, profileImage, bankDetails, upiId } = req.body;
 
   const agent = await Agent.findById(req.user._id);
 
@@ -246,13 +248,55 @@ exports.updateMe = asyncHandler(async (req, res) => {
     throw new ErrorResponse('Agent not found', 404);
   }
 
-  // Only allow updating email and profileImage
+  // Only allow updating email, profileImage, bankDetails, and upiId
   if (email !== undefined) {
     agent.email = email;
   }
 
   if (profileImage !== undefined) {
     agent.profileImage = profileImage;
+  }
+
+  // Update bank details
+  if (bankDetails !== undefined) {
+    if (bankDetails === null) {
+      // Clear bank details
+      agent.bankDetails = undefined;
+    } else {
+      // Initialize bankDetails if it doesn't exist
+      if (!agent.bankDetails) {
+        agent.bankDetails = {};
+      }
+      
+      if (bankDetails.accountHolderName !== undefined) {
+        agent.bankDetails.accountHolderName = bankDetails.accountHolderName || undefined;
+      }
+      if (bankDetails.accountNumber !== undefined) {
+        agent.bankDetails.accountNumber = bankDetails.accountNumber || undefined;
+      }
+      if (bankDetails.ifscCode !== undefined) {
+        agent.bankDetails.ifscCode = bankDetails.ifscCode ? bankDetails.ifscCode.toUpperCase() : undefined;
+      }
+      if (bankDetails.bankName !== undefined) {
+        agent.bankDetails.bankName = bankDetails.bankName || undefined;
+      }
+      if (bankDetails.branchName !== undefined) {
+        agent.bankDetails.branchName = bankDetails.branchName || undefined;
+      }
+    }
+  }
+
+  // Update UPI ID
+  if (upiId !== undefined) {
+    if (upiId === null || upiId === '') {
+      agent.upiId = undefined;
+    } else {
+      // Validate UPI ID format
+      if (!/^[\w.-]+@[\w.-]+$/.test(upiId)) {
+        throw new ErrorResponse('Please provide a valid UPI ID (e.g., name@paytm)', 400);
+      }
+      agent.upiId = upiId.toLowerCase();
+    }
   }
 
   await agent.save();
@@ -267,7 +311,9 @@ exports.updateMe = asyncHandler(async (req, res) => {
         phone: agent.phone,
         email: agent.email,
         isPhoneVerified: agent.isPhoneVerified,
-        profileImage: agent.profileImage
+        profileImage: agent.profileImage,
+        bankDetails: agent.bankDetails,
+        upiId: agent.upiId
       }
     }
   });
