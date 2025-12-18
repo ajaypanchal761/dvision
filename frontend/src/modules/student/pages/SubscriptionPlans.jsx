@@ -96,7 +96,9 @@ const SubscriptionPlans = () => {
     const labels = {
       monthly: 'Monthly',
       quarterly: 'Quarterly',
-      yearly: 'Yearly'
+      half_yearly: 'Half Yearly',
+      yearly: 'Yearly',
+      demo: 'Demo'
     };
     return labels[duration] || duration;
   };
@@ -341,7 +343,7 @@ const SubscriptionPlans = () => {
     if (a.type !== b.type) {
       return a.type === 'regular' ? -1 : 1;
     }
-    const durationOrder = ['monthly', 'quarterly', 'yearly'];
+    const durationOrder = ['monthly', 'quarterly', 'half_yearly', 'yearly', 'demo'];
     return durationOrder.indexOf(a.duration) - durationOrder.indexOf(b.duration);
   });
 
@@ -521,7 +523,13 @@ const SubscriptionPlans = () => {
                               )}
                             </div>
                             <p className="text-xs text-[var(--app-black)]/60">
-                              per {group.duration === 'monthly' ? 'month' : group.duration === 'quarterly' ? '3 months' : 'year'}
+                              per {
+                                group.duration === 'monthly' ? 'month' : 
+                                group.duration === 'quarterly' ? '3 months' : 
+                                group.duration === 'half_yearly' ? '6 months' :
+                                group.duration === 'demo' ? `${plan.validityDays || 7} days` :
+                                'year'
+                              }
                             </p>
                           </div>
 

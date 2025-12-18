@@ -16,7 +16,8 @@ const EditSubscription = () => {
     originalPrice: '',
     description: '',
     features: [],
-    isActive: true
+    isActive: true,
+    validityDays: null
   })
   const [planType, setPlanType] = useState('regular')
   const [preparationClassName, setPreparationClassName] = useState('') // Store class name separately
@@ -55,7 +56,8 @@ const EditSubscription = () => {
           originalPrice: plan.originalPrice?.toString() || '',
           description: plan.description || '',
           features: plan.features || [],
-          isActive: plan.isActive !== undefined ? plan.isActive : true
+          isActive: plan.isActive !== undefined ? plan.isActive : true,
+          validityDays: plan.validityDays || null
         })
         
         // Store class name separately for display
@@ -140,17 +142,31 @@ const EditSubscription = () => {
       return
     }
 
+    // Validate validityDays for demo plans
+    if (formData.duration === 'demo') {
+      if (!formData.validityDays || parseInt(formData.validityDays) < 1) {
+        setError('Please provide validity days (must be at least 1) for demo plan')
+        return
+      }
+    }
+
     setIsSubmitting(true)
 
     try {
       const updateData = {
         type: planType,
         name: formData.name,
+        duration: formData.duration,
         price: parseFloat(formData.price),
         originalPrice: formData.originalPrice ? parseFloat(formData.originalPrice) : parseFloat(formData.price),
         description: formData.description || '',
         features: formData.features || [],
         isActive: formData.isActive
+      }
+
+      // Add validityDays for demo plans
+      if (formData.duration === 'demo' && formData.validityDays) {
+        updateData.validityDays = parseInt(formData.validityDays);
       }
 
       // Add type-specific fields
@@ -218,7 +234,7 @@ const EditSubscription = () => {
         <div className="mt-2 sm:mt-3">
           <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow-md border border-gray-200 p-3 sm:p-4 md:p-5 space-y-3 sm:space-y-4">
             {/* Read-only info */}
-            <div className={`grid grid-cols-1 ${planType === 'regular' ? 'md:grid-cols-3' : 'md:grid-cols-2'} gap-2 sm:gap-3 p-2 sm:p-3 bg-gray-50 rounded-lg border border-gray-200`}>
+            <div className={`grid grid-cols-1 ${planType === 'regular' ? 'md:grid-cols-4' : 'md:grid-cols-2'} gap-2 sm:gap-3 p-2 sm:p-3 bg-gray-50 rounded-lg border border-gray-200`}>
               {planType === 'regular' ? (
                 <>
                   <div>
@@ -239,6 +255,12 @@ const EditSubscription = () => {
                       {formData.classes?.map(c => `Class ${c}`).join(', ') || 'N/A'}
                     </div>
                   </div>
+                  <div>
+                    <label className="block text-[10px] sm:text-xs font-semibold text-gray-500 mb-0.5 sm:mb-1">Duration</label>
+                    <div className="text-xs sm:text-sm font-medium text-gray-900 capitalize">
+                      {formData.duration === 'half_yearly' ? 'Half Yearly' : formData.duration === 'demo' ? 'Demo' : formData.duration}
+                    </div>
+                  </div>
                 </>
               ) : (
                 <>
@@ -253,7 +275,9 @@ const EditSubscription = () => {
                     </div>
                     <div>
                       <label className="block text-[10px] sm:text-xs font-semibold text-gray-500 mb-0.5 sm:mb-1">Duration</label>
-                      <div className="text-xs sm:text-sm font-medium text-gray-900 capitalize">{formData.duration}</div>
+                      <div className="text-xs sm:text-sm font-medium text-gray-900 capitalize">
+                        {formData.duration === 'half_yearly' ? 'Half Yearly' : formData.duration === 'demo' ? 'Demo' : formData.duration}
+                      </div>
                     </div>
                   </div>
                   <div>
@@ -318,6 +342,25 @@ const EditSubscription = () => {
                   placeholder="Enter original price (for discount)"
                 />
               </div>
+
+              {/* Validity Days for Demo Plans */}
+              {formData.duration === 'demo' && (
+                <div>
+                  <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1">
+                    Validity (Days) <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    required
+                    min="1"
+                    step="1"
+                    value={formData.validityDays || ''}
+                    onChange={(e) => handleChange('validityDays', parseInt(e.target.value) || 7)}
+                    className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-[#1e3a5f] focus:border-[#1e3a5f] outline-none transition-all duration-200"
+                    placeholder="Enter validity in days (e.g., 7, 15, 30)"
+                  />
+                </div>
+              )}
 
               <div className="md:col-span-2">
                 <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1">

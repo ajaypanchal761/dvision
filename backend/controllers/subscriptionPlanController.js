@@ -115,8 +115,8 @@ exports.getClassesByBoard = asyncHandler(async (req, res, next) => {
     }
   });
 
-  // Filter classes: only exclude if class has all 3 durations (monthly, quarterly, yearly)
-  const allDurations = ['monthly', 'quarterly', 'yearly'];
+  // Filter classes: only exclude if class has all 5 durations (monthly, quarterly, half_yearly, yearly, demo)
+  const allDurations = ['monthly', 'quarterly', 'half_yearly', 'yearly', 'demo'];
   const availableClasses = allClasses.map(classItem => {
     const classNum = classItem.class;
     const existingDurations = classDurations[classNum] || new Set();
@@ -178,8 +178,8 @@ exports.getPreparationClasses = asyncHandler(async (req, res, next) => {
     }
   });
 
-  // Filter classes: only exclude if class has all 3 durations
-  const allDurations = ['monthly', 'quarterly', 'yearly'];
+  // Filter classes: only exclude if class has all 5 durations
+  const allDurations = ['monthly', 'quarterly', 'half_yearly', 'yearly', 'demo'];
   const availableClasses = allClasses.map(classItem => {
     const classIdStr = classItem._id.toString();
     const existingDurations = classDurations[classIdStr] || new Set();
@@ -214,13 +214,21 @@ exports.getPreparationClasses = asyncHandler(async (req, res, next) => {
 // @route   POST /api/admin/subscription-plans
 // @access  Private (Admin)
 exports.createSubscriptionPlan = asyncHandler(async (req, res, next) => {
-  const { type, name, board, classes, classId, duration, price, originalPrice, description, features, isActive } = req.body;
+  const { type, name, board, classes, classId, duration, price, originalPrice, description, features, isActive, validityDays } = req.body;
 
   const planType = type || 'regular';
 
   // Validate duration
-  if (!duration || !['monthly', 'quarterly', 'yearly'].includes(duration)) {
-    return next(new ErrorResponse('Invalid duration. Must be monthly, quarterly, or yearly', 400));
+  if (!duration || !['monthly', 'quarterly', 'half_yearly', 'yearly', 'demo'].includes(duration)) {
+    return next(new ErrorResponse('Invalid duration. Must be monthly, quarterly, half_yearly, yearly, or demo', 400));
+  }
+
+  // For demo plans, validate validityDays
+  if (duration === 'demo') {
+    const { validityDays } = req.body;
+    if (!validityDays || !Number.isInteger(validityDays) || validityDays < 1) {
+      return next(new ErrorResponse('For demo plans, please provide validityDays (must be a positive integer)', 400));
+    }
   }
 
   // Validate required fields based on type
@@ -239,6 +247,11 @@ exports.createSubscriptionPlan = asyncHandler(async (req, res, next) => {
     isActive: isActive !== undefined ? isActive : true,
     createdBy: req.user._id
   };
+
+  // Add validityDays for demo plans
+  if (duration === 'demo') {
+    planData.validityDays = validityDays;
+  }
 
   if (planType === 'regular') {
     // Validate regular plan fields
@@ -350,12 +363,20 @@ exports.updateSubscriptionPlan = asyncHandler(async (req, res, next) => {
     return next(new ErrorResponse(`Subscription plan not found with id of ${req.params.id}`, 404));
   }
 
-  const { type, name, board, classes, classId, duration, price, originalPrice, description, features, isActive } = req.body;
+  const { type, name, board, classes, classId, duration, price, originalPrice, description, features, isActive, validityDays } = req.body;
   const planType = type || subscriptionPlan.type;
 
   // Validate duration if provided
-  if (duration && !['monthly', 'quarterly', 'yearly'].includes(duration)) {
-    return next(new ErrorResponse('Invalid duration. Must be monthly, quarterly, or yearly', 400));
+  if (duration && !['monthly', 'quarterly', 'half_yearly', 'yearly', 'demo'].includes(duration)) {
+    return next(new ErrorResponse('Invalid duration. Must be monthly, quarterly, half_yearly, yearly, or demo', 400));
+  }
+
+  // For demo plans, validate validityDays
+  if (duration === 'demo') {
+    const { validityDays } = req.body;
+    if (!validityDays || !Number.isInteger(validityDays) || validityDays < 1) {
+      return next(new ErrorResponse('For demo plans, please provide validityDays (must be a positive integer)', 400));
+    }
   }
 
   // Update type if provided
@@ -426,6 +447,30 @@ exports.updateSubscriptionPlan = asyncHandler(async (req, res, next) => {
     if (description !== undefined) subscriptionPlan.description = description;
     if (features !== undefined) subscriptionPlan.features = features;
     if (isActive !== undefined) subscriptionPlan.isActive = isActive;
+    
+    // Update validityDays for demo plans
+    if (duration === 'demo' && validityDays !== undefined) {
+      if (!Number.isInteger(validityDays) || validityDays < 1) {
+        return next(new ErrorResponse('validityDays must be a positive integer', 400));
+      }
+      subscriptionPlan.validityDays = validityDays;
+    } else if (duration !== 'demo' && duration !== undefined) {
+      // Clear validityDays if changing from demo to another duration
+      subscriptionPlan.validityDays = undefined;
+    }
+  }
+  
+  // Also handle validityDays for regular plans
+  if (planType === 'regular') {
+    if (duration === 'demo' && validityDays !== undefined) {
+      if (!Number.isInteger(validityDays) || validityDays < 1) {
+        return next(new ErrorResponse('validityDays must be a positive integer', 400));
+      }
+      subscriptionPlan.validityDays = validityDays;
+    } else if (duration !== 'demo' && duration !== undefined) {
+      // Clear validityDays if changing from demo to another duration
+      subscriptionPlan.validityDays = undefined;
+    }
   }
 
   await subscriptionPlan.save();

@@ -41,8 +41,16 @@ const subscriptionPlanSchema = new mongoose.Schema(
     duration: {
       type: String,
       required: [true, 'Please provide a duration type'],
-      enum: ['monthly', 'quarterly', 'yearly'],
+      enum: ['monthly', 'quarterly', 'half_yearly', 'yearly', 'demo'],
       trim: true
+    },
+    // For demo plans: custom validity in days (admin decides)
+    validityDays: {
+      type: Number,
+      min: 1,
+      required: function() {
+        return this.duration === 'demo';
+      }
     },
     price: {
       type: Number,

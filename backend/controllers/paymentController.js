@@ -474,8 +474,19 @@ exports.verifyPayment = asyncHandler(async (req, res, next) => {
       case 'quarterly':
         endDate.setMonth(endDate.getMonth() + 3);
         break;
+      case 'half_yearly':
+        endDate.setMonth(endDate.getMonth() + 6);
+        break;
       case 'yearly':
         endDate.setFullYear(endDate.getFullYear() + 1);
+        break;
+      case 'demo':
+        if (plan.validityDays && Number.isInteger(plan.validityDays) && plan.validityDays > 0) {
+          endDate.setDate(endDate.getDate() + plan.validityDays);
+        } else {
+          // Default to 7 days if validityDays not provided
+          endDate.setDate(endDate.getDate() + 7);
+        }
         break;
       default:
         endDate.setMonth(endDate.getMonth() + 1);

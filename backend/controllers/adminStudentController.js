@@ -128,7 +128,7 @@ exports.createStudent = asyncHandler(async (req, res) => {
   };
 
   // Helper to compute end date
-  const computeEndDate = (duration) => {
+  const computeEndDate = (duration, validityDays = null) => {
     const startDate = new Date();
     const endDate = new Date(startDate);
     switch (duration) {
@@ -138,8 +138,19 @@ exports.createStudent = asyncHandler(async (req, res) => {
       case 'quarterly':
         endDate.setMonth(endDate.getMonth() + 3);
         break;
+      case 'half_yearly':
+        endDate.setMonth(endDate.getMonth() + 6);
+        break;
       case 'yearly':
         endDate.setFullYear(endDate.getFullYear() + 1);
+        break;
+      case 'demo':
+        if (validityDays && Number.isInteger(validityDays) && validityDays > 0) {
+          endDate.setDate(endDate.getDate() + validityDays);
+        } else {
+          // Default to 7 days if validityDays not provided
+          endDate.setDate(endDate.getDate() + 7);
+        }
         break;
       default:
         endDate.setMonth(endDate.getMonth() + 1);
@@ -165,7 +176,7 @@ exports.createStudent = asyncHandler(async (req, res) => {
       throw new ErrorResponse('Selected plan does not match student board/class', 400);
     }
 
-    const { startDate, endDate } = computeEndDate(plan.duration);
+    const { startDate, endDate } = computeEndDate(plan.duration, plan.validityDays);
 
     // Legacy subscription field
     studentData.subscription = {
@@ -203,7 +214,7 @@ exports.createStudent = asyncHandler(async (req, res) => {
     }
 
     prepPlans.forEach((plan) => {
-      const { startDate, endDate } = computeEndDate(plan.duration);
+      const { startDate, endDate } = computeEndDate(plan.duration, plan.validityDays);
       studentData.activeSubscriptions.push({
         planId: plan._id,
         startDate,
@@ -381,7 +392,7 @@ exports.updateStudent = asyncHandler(async (req, res) => {
         }
       }
 
-      const { startDate, endDate } = computeEndDate(plan.duration);
+      const { startDate, endDate } = computeEndDate(plan.duration, plan.validityDays);
       student.subscription = {
         status: 'active',
         planId: plan._id,
@@ -414,7 +425,7 @@ exports.updateStudent = asyncHandler(async (req, res) => {
         throw new ErrorResponse('One or more preparation plans are invalid or inactive', 400);
       }
       prepPlans.forEach((plan) => {
-        const { startDate, endDate } = computeEndDate(plan.duration);
+        const { startDate, endDate } = computeEndDate(plan.duration, plan.validityDays);
         newActiveSubs.push({
           planId: plan._id,
           startDate,

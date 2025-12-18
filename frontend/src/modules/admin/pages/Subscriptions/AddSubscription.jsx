@@ -15,11 +15,13 @@ const AddSubscription = () => {
   const [isLoadingClasses, setIsLoadingClasses] = useState(false)
   const [error, setError] = useState('')
   const [plans, setPlans] = useState([
-    { duration: 'monthly', name: '', price: '', originalPrice: '', description: '', features: [] },
-    { duration: 'quarterly', name: '', price: '', originalPrice: '', description: '', features: [] },
-    { duration: 'yearly', name: '', price: '', originalPrice: '', description: '', features: [] }
+    { duration: 'monthly', name: '', price: '', originalPrice: '', description: '', features: [], validityDays: null },
+    { duration: 'quarterly', name: '', price: '', originalPrice: '', description: '', features: [], validityDays: null },
+    { duration: 'half_yearly', name: '', price: '', originalPrice: '', description: '', features: [], validityDays: null },
+    { duration: 'yearly', name: '', price: '', originalPrice: '', description: '', features: [], validityDays: null },
+    { duration: 'demo', name: '', price: '', originalPrice: '', description: '', features: [], validityDays: 7 }
   ])
-  const [featureInputs, setFeatureInputs] = useState(['', '', '']) // One input per plan
+  const [featureInputs, setFeatureInputs] = useState(['', '', '', '', '']) // One input per plan
   const [isSubmitting, setIsSubmitting] = useState(false)
   const addingFeatureRef = useRef({}) // Track which plan is currently adding a feature
 
@@ -210,7 +212,7 @@ const AddSubscription = () => {
           return
         }
         // For preparation class, calculate missing durations
-        const allDurations = ['monthly', 'quarterly', 'yearly']
+        const allDurations = ['monthly', 'quarterly', 'half_yearly', 'yearly', 'demo']
         const missingDurations = classMissingDurations[selectedPrepClassId] || allDurations
         
         setPlans(prev => prev.map(plan => ({
@@ -229,7 +231,7 @@ const AddSubscription = () => {
       
       // Calculate which durations are missing for selected classes
       // A duration is available if at least one selected class is missing it
-      const allDurations = ['monthly', 'quarterly', 'yearly']
+      const allDurations = ['monthly', 'quarterly', 'half_yearly', 'yearly', 'demo']
       const availableDurations = new Set()
       
       selectedClasses.forEach(classNum => {
@@ -259,9 +261,11 @@ const AddSubscription = () => {
       setClassMissingDurations({})
       // Reset plans
       setPlans([
-        { duration: 'monthly', name: '', price: '', originalPrice: '', description: '', features: [] },
-        { duration: 'quarterly', name: '', price: '', originalPrice: '', description: '', features: [] },
-        { duration: 'yearly', name: '', price: '', originalPrice: '', description: '', features: [] }
+        { duration: 'monthly', name: '', price: '', originalPrice: '', description: '', features: [], validityDays: null },
+        { duration: 'quarterly', name: '', price: '', originalPrice: '', description: '', features: [], validityDays: null },
+        { duration: 'half_yearly', name: '', price: '', originalPrice: '', description: '', features: [], validityDays: null },
+        { duration: 'yearly', name: '', price: '', originalPrice: '', description: '', features: [], validityDays: null },
+        { duration: 'demo', name: '', price: '', originalPrice: '', description: '', features: [], validityDays: 7 }
       ])
     } else if (step === 3) {
       setStep(2)
@@ -302,6 +306,13 @@ const AddSubscription = () => {
         setError(`Price must be greater than 0 for ${plan.duration} plan`)
         return
       }
+      // Validate validityDays for demo plans
+      if (plan.duration === 'demo') {
+        if (!plan.validityDays || parseInt(plan.validityDays) < 1) {
+          setError('Please provide validity days (must be at least 1) for demo plan')
+          return
+        }
+      }
     }
 
     setIsSubmitting(true)
@@ -320,6 +331,11 @@ const AddSubscription = () => {
           description: plan.description || '',
           features: plan.features || [],
           isActive: true
+        }
+
+        // Add validityDays for demo plans
+        if (plan.duration === 'demo' && plan.validityDays) {
+          planData.validityDays = parseInt(plan.validityDays);
         }
 
         if (planType === 'regular') {
@@ -675,7 +691,7 @@ const AddSubscription = () => {
                     return (
                     <div key={plan.duration} className="border-2 border-gray-200 rounded-lg sm:rounded-xl p-4 sm:p-6">
                       <h3 className="text-base sm:text-lg md:text-xl font-bold text-gray-900 mb-4 sm:mb-6 capitalize">
-                        {plan.duration} Plan
+                        {plan.duration === 'half_yearly' ? 'Half Yearly' : plan.duration === 'demo' ? 'Demo' : plan.duration.charAt(0).toUpperCase() + plan.duration.slice(1)} Plan
                       </h3>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
                         <div className="md:col-span-2">
@@ -722,6 +738,25 @@ const AddSubscription = () => {
                             placeholder="Enter original price (for discount)"
                           />
               </div>
+
+              {/* Validity Days for Demo Plans */}
+              {plan.duration === 'demo' && (
+                <div>
+                  <label className="block text-xs sm:text-sm md:text-base font-semibold text-gray-700 mb-1.5 sm:mb-2">
+                    Validity (Days) <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    required
+                    min="1"
+                    step="1"
+                    value={plan.validityDays || ''}
+                    onChange={(e) => handlePlanChange(index, 'validityDays', parseInt(e.target.value) || 7)}
+                    className="w-full px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm md:text-base border-2 border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-[#1e3a5f] focus:border-[#1e3a5f] outline-none transition-all duration-200"
+                    placeholder="Enter validity in days (e.g., 7, 15, 30)"
+                  />
+                </div>
+              )}
 
                         <div className="md:col-span-2">
                 <label className="block text-xs sm:text-sm md:text-base font-semibold text-gray-700 mb-1.5 sm:mb-2">
