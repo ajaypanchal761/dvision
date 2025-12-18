@@ -56,7 +56,13 @@ const SubscriptionPlans = () => {
         console.log('Plans fetched successfully:', plansData.length, 'plans');
         
         // Additional client-side filtering to ensure only matching plans are shown
+        // Also exclude demo plans from student view
         const filteredPlans = plansData.filter(plan => {
+          // Exclude demo plans
+          if (plan.duration === 'demo') {
+            return false;
+          }
+          
           if (plan.type === 'regular') {
             // For regular plans, must match board AND class must be in classes array
             return plan.board === userBoard && 
@@ -64,7 +70,7 @@ const SubscriptionPlans = () => {
                    Array.isArray(plan.classes) && 
                    plan.classes.includes(parseInt(userClass));
           } else if (plan.type === 'preparation') {
-            // Preparation plans are shown to all students
+            // Preparation plans are shown to all students (except demo)
             return true;
           }
           return false;

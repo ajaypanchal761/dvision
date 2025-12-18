@@ -232,16 +232,22 @@ exports.createSubscriptionPlan = asyncHandler(async (req, res, next) => {
   }
 
   // Validate required fields based on type
-  if (!name || price === undefined) {
-    return next(new ErrorResponse('Please provide name and price', 400));
+  // For demo plans, price is optional (can be 0 or free)
+  if (!name) {
+    return next(new ErrorResponse('Please provide plan name', 400));
+  }
+  
+  // Price is required for all plans except demo (demo can be free/0)
+  if (duration !== 'demo' && price === undefined) {
+    return next(new ErrorResponse('Please provide price', 400));
   }
 
   let planData = {
     type: planType,
     name,
     duration,
-    price,
-    originalPrice: originalPrice || price,
+    price: duration === 'demo' ? (price !== undefined ? price : 0) : price,
+    originalPrice: originalPrice || (duration === 'demo' ? (price !== undefined ? price : 0) : price),
     description: description || '',
     features: features || [],
     isActive: isActive !== undefined ? isActive : true,
@@ -424,8 +430,16 @@ exports.updateSubscriptionPlan = asyncHandler(async (req, res, next) => {
     if (name !== undefined) subscriptionPlan.name = name;
     if (board !== undefined) subscriptionPlan.board = board;
     if (duration !== undefined) subscriptionPlan.duration = duration;
-    if (price !== undefined) subscriptionPlan.price = price;
-    if (originalPrice !== undefined) subscriptionPlan.originalPrice = originalPrice;
+    if (price !== undefined) {
+      // For demo plans, if price is not provided or is 0, set to 0
+      subscriptionPlan.price = (duration === 'demo' && (price === undefined || price === null || price === '')) ? 0 : price;
+    }
+    if (originalPrice !== undefined) {
+      subscriptionPlan.originalPrice = originalPrice;
+    } else if (duration === 'demo' && price !== undefined) {
+      // If originalPrice not provided for demo, use price (or 0)
+      subscriptionPlan.originalPrice = (price === undefined || price === null || price === '') ? 0 : price;
+    }
     if (description !== undefined) subscriptionPlan.description = description;
     if (features !== undefined) subscriptionPlan.features = features;
     if (isActive !== undefined) subscriptionPlan.isActive = isActive;
@@ -442,8 +456,16 @@ exports.updateSubscriptionPlan = asyncHandler(async (req, res, next) => {
     // Update preparation plan fields
     if (name !== undefined) subscriptionPlan.name = name;
     if (duration !== undefined) subscriptionPlan.duration = duration;
-    if (price !== undefined) subscriptionPlan.price = price;
-    if (originalPrice !== undefined) subscriptionPlan.originalPrice = originalPrice;
+    if (price !== undefined) {
+      // For demo plans, if price is not provided or is 0, set to 0
+      subscriptionPlan.price = (duration === 'demo' && (price === undefined || price === null || price === '')) ? 0 : price;
+    }
+    if (originalPrice !== undefined) {
+      subscriptionPlan.originalPrice = originalPrice;
+    } else if (duration === 'demo' && price !== undefined) {
+      // If originalPrice not provided for demo, use price (or 0)
+      subscriptionPlan.originalPrice = (price === undefined || price === null || price === '') ? 0 : price;
+    }
     if (description !== undefined) subscriptionPlan.description = description;
     if (features !== undefined) subscriptionPlan.features = features;
     if (isActive !== undefined) subscriptionPlan.isActive = isActive;
@@ -585,7 +607,8 @@ exports.getPublicSubscriptionPlans = asyncHandler(async (req, res, next) => {
         isActive: true,
         type: 'regular',
         board: board,
-        classes: { $in: [classNum] } // Check if the student's class is in the plan's classes array
+        classes: { $in: [classNum] }, // Check if the student's class is in the plan's classes array
+        duration: { $ne: 'demo' } // Exclude demo plans from student view
       };
       
       console.log('Regular Query:', regularQuery);
@@ -599,10 +622,11 @@ exports.getPublicSubscriptionPlans = asyncHandler(async (req, res, next) => {
     console.log('Board or class missing, skipping regular plans');
   }
 
-  // Build query for preparation plans (always show all active preparation plans)
+  // Build query for preparation plans (always show all active preparation plans, but exclude demo)
   const preparationQuery = {
     isActive: true,
-    type: 'preparation'
+    type: 'preparation',
+    duration: { $ne: 'demo' } // Exclude demo plans from student view
   };
 
   console.log('Preparation Query:', preparationQuery);

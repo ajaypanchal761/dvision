@@ -298,13 +298,26 @@ const AddSubscription = () => {
     // Validate available plans
     for (let i = 0; i < availablePlans.length; i++) {
       const plan = availablePlans[i]
-      if (!plan.name || !plan.price) {
-        setError(`Please fill all required fields for ${plan.duration} plan`)
+      if (!plan.name) {
+        setError(`Please provide plan name for ${plan.duration} plan`)
         return
       }
-      if (parseFloat(plan.price) <= 0) {
-        setError(`Price must be greater than 0 for ${plan.duration} plan`)
-        return
+      // Price is optional for demo plans (can be 0 or free)
+      if (plan.duration !== 'demo') {
+        if (!plan.price) {
+          setError(`Please provide price for ${plan.duration} plan`)
+          return
+        }
+        if (parseFloat(plan.price) <= 0) {
+          setError(`Price must be greater than 0 for ${plan.duration} plan`)
+          return
+        }
+      } else {
+        // For demo plans, price is optional (default to 0 if not provided)
+        if (plan.price && parseFloat(plan.price) < 0) {
+          setError(`Price cannot be negative for demo plan`)
+          return
+        }
       }
       // Validate validityDays for demo plans
       if (plan.duration === 'demo') {
@@ -326,8 +339,8 @@ const AddSubscription = () => {
           type: planType,
           name: plan.name,
           duration: plan.duration,
-          price: parseFloat(plan.price),
-          originalPrice: plan.originalPrice ? parseFloat(plan.originalPrice) : parseFloat(plan.price),
+          price: plan.duration === 'demo' ? (plan.price ? parseFloat(plan.price) : 0) : parseFloat(plan.price),
+          originalPrice: plan.originalPrice ? parseFloat(plan.originalPrice) : (plan.duration === 'demo' ? (plan.price ? parseFloat(plan.price) : 0) : parseFloat(plan.price)),
           description: plan.description || '',
           features: plan.features || [],
           isActive: true
@@ -710,17 +723,18 @@ const AddSubscription = () => {
 
               <div>
                 <label className="block text-xs sm:text-sm md:text-base font-semibold text-gray-700 mb-1.5 sm:mb-2">
-                            Price (₹) <span className="text-red-500">*</span>
+                            Price (₹) {plan.duration !== 'demo' && <span className="text-red-500">*</span>}
+                            {plan.duration === 'demo' && <span className="text-gray-500 text-xs">(Optional - Default: Free)</span>}
                 </label>
                 <input
                   type="number"
-                  required
+                  required={plan.duration !== 'demo'}
                   min="0"
                   step="0.01"
-                            value={plan.price}
+                            value={plan.price || ''}
                             onChange={(e) => handlePlanChange(index, 'price', e.target.value)}
                             className="w-full px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm md:text-base border-2 border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-[#1e3a5f] focus:border-[#1e3a5f] outline-none transition-all duration-200"
-                            placeholder="Enter price"
+                            placeholder={plan.duration === 'demo' ? "Enter price (optional, default: 0)" : "Enter price"}
                 />
               </div>
 

@@ -132,14 +132,27 @@ const EditSubscription = () => {
     setError('')
 
     // Validate
-    if (!formData.name || !formData.price) {
-      setError('Please fill all required fields')
+    if (!formData.name) {
+      setError('Please provide plan name')
       return
     }
 
-    if (parseFloat(formData.price) <= 0) {
-      setError('Price must be greater than 0')
-      return
+    // Price is optional for demo plans (can be 0 or free)
+    if (formData.duration !== 'demo') {
+      if (!formData.price) {
+        setError('Please provide price')
+        return
+      }
+      if (parseFloat(formData.price) <= 0) {
+        setError('Price must be greater than 0')
+        return
+      }
+    } else {
+      // For demo plans, price is optional but if provided, must be >= 0
+      if (formData.price && parseFloat(formData.price) < 0) {
+        setError('Price cannot be negative')
+        return
+      }
     }
 
     // Validate validityDays for demo plans
@@ -157,8 +170,8 @@ const EditSubscription = () => {
         type: planType,
         name: formData.name,
         duration: formData.duration,
-        price: parseFloat(formData.price),
-        originalPrice: formData.originalPrice ? parseFloat(formData.originalPrice) : parseFloat(formData.price),
+        price: formData.duration === 'demo' ? (formData.price ? parseFloat(formData.price) : 0) : parseFloat(formData.price),
+        originalPrice: formData.originalPrice ? parseFloat(formData.originalPrice) : (formData.duration === 'demo' ? (formData.price ? parseFloat(formData.price) : 0) : parseFloat(formData.price)),
         description: formData.description || '',
         features: formData.features || [],
         isActive: formData.isActive
@@ -314,17 +327,18 @@ const EditSubscription = () => {
 
               <div>
                 <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1">
-                  Price (₹) <span className="text-red-500">*</span>
+                  Price (₹) {formData.duration !== 'demo' && <span className="text-red-500">*</span>}
+                  {formData.duration === 'demo' && <span className="text-gray-500 text-[10px] sm:text-xs">(Optional - Default: Free)</span>}
                 </label>
                 <input
                   type="number"
-                  required
+                  required={formData.duration !== 'demo'}
                   min="0"
                   step="0.01"
-                  value={formData.price}
+                  value={formData.price || ''}
                   onChange={(e) => handleChange('price', e.target.value)}
                   className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-[#1e3a5f] focus:border-[#1e3a5f] outline-none transition-all duration-200"
-                  placeholder="Enter price"
+                  placeholder={formData.duration === 'demo' ? "Enter price (optional, default: 0)" : "Enter price"}
                 />
               </div>
 
