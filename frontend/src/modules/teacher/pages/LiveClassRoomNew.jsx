@@ -552,11 +552,37 @@ const LiveClassRoom = () => {
       }
 
       if (nextDevice) {
+        // Switch device - this updates the video track
         await localVideoTrackRef.current.setDevice(nextDevice.deviceId);
         const newFacing = cameraFacing === 'user' ? 'environment' : 'user';
         setCameraFacing(newFacing);
+        console.log('Switched camera to device:', nextDevice.label || nextDevice.deviceId);
         
-        // Ensure video is playing after device switch to prevent recording freeze
+        // Wait a bit for the device to switch
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        // Republish the video track to ensure recording picks up the new stream
+        if (clientRef.current && localVideoTrackRef.current) {
+          try {
+            // Unpublish and republish the video track to ensure recording service picks up the new stream
+            await clientRef.current.unpublish([localVideoTrackRef.current]);
+            await new Promise(resolve => setTimeout(resolve, 50));
+            await clientRef.current.publish([localVideoTrackRef.current]);
+            console.log('Video track republished after camera switch');
+          } catch (republishErr) {
+            console.warn('Error republishing video track:', republishErr);
+            // If republish fails, try to just ensure video is playing
+            if (localVideoContainerRef.current && localVideoTrackRef.current && localVideoTrackRef.current.enabled) {
+              try {
+                await localVideoTrackRef.current.play(localVideoContainerRef.current);
+              } catch (playErr) {
+                console.error('Error playing video after camera switch:', playErr);
+              }
+            }
+          }
+        }
+        
+        // Ensure video is playing in the container
         if (localVideoContainerRef.current && localVideoTrackRef.current && localVideoTrackRef.current.enabled) {
           try {
             await localVideoTrackRef.current.play(localVideoContainerRef.current);
@@ -822,8 +848,11 @@ const LiveClassRoom = () => {
                 objectFit: 'contain',
                 transform: cameraFacing === 'user' ? 'scaleX(-1)' : 'none',
                 transition: 'transform 0.2s ease-in-out',
-                maxWidth: '100%',
-                maxHeight: '100%'
+                width: '100%',
+                height: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
               }}
             />
             {!isVideoEnabled && (

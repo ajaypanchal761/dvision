@@ -1659,8 +1659,11 @@ const LiveClassRoom = () => {
             className="w-full h-full"
             style={{
               objectFit: 'contain',
-              maxWidth: '100%',
-              maxHeight: '100%'
+              width: '100%',
+              height: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
             }}
           />
           {!hasTeacherVideo && !isLoading && (
@@ -1716,7 +1719,9 @@ const LiveClassRoom = () => {
                 style={{
                   objectFit: 'cover',
                   transform: cameraFacing === 'user' ? 'scaleX(-1)' : 'none',
-                  transition: 'transform 0.2s ease-in-out'
+                  transition: 'transform 0.2s ease-in-out',
+                  width: '100%',
+                  height: '100%'
                 }}
               />
               <div className="absolute bottom-1 left-1 bg-black/70 px-1.5 py-0.5 rounded text-[10px] z-10">
