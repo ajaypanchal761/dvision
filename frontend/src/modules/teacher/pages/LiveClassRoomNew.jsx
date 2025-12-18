@@ -324,6 +324,8 @@ const LiveClassRoom = () => {
       });
       
       let initialCameraId = undefined;
+      let initialFacing = 'user'; // Default to front camera
+      
       if (physicalCameras.length > 0) {
         // Try to find front camera first, otherwise use first available
         const frontCamera = physicalCameras.find(cam => {
@@ -332,15 +334,6 @@ const LiveClassRoom = () => {
                  (label.includes('facing') && label.includes('user'));
         });
         initialCameraId = frontCamera ? frontCamera.deviceId : physicalCameras[0].deviceId;
-        
-        // Update cameraFacing based on detected camera
-        if (frontCamera) {
-          setCameraFacing('user');
-        } else {
-          const label = (physicalCameras[0].label || '').toLowerCase();
-          const isBack = label.includes('back') || label.includes('rear') || label.includes('environment') || label.includes('world');
-          setCameraFacing(isBack ? 'environment' : 'user');
-        }
       }
       
       // Create video track with camera selection
@@ -354,6 +347,25 @@ const LiveClassRoom = () => {
         }
       });
       localVideoTrackRef.current = videoTrack;
+      
+      // Wait a bit for track to initialize, then detect facingMode
+      await new Promise(resolve => setTimeout(resolve, 200));
+      
+      // Detect initial camera facing from track settings
+      const trackSettings = videoTrack.getMediaStreamTrack()?.getSettings();
+      if (trackSettings && trackSettings.facingMode) {
+        initialFacing = trackSettings.facingMode; // 'user' or 'environment'
+        console.log('Initial camera facingMode detected:', initialFacing);
+      } else if (physicalCameras.length > 0) {
+        // Fallback to label detection
+        const selectedCamera = physicalCameras.find(cam => cam.deviceId === initialCameraId) || physicalCameras[0];
+        const label = (selectedCamera.label || '').toLowerCase();
+        const isBack = label.includes('back') || label.includes('rear') || label.includes('environment') || label.includes('world');
+        initialFacing = isBack ? 'environment' : 'user';
+        console.log('Initial camera facingMode from label:', initialFacing);
+      }
+      
+      setCameraFacing(initialFacing);
 
       // Play local video
       if (localVideoContainerRef.current) {
@@ -614,27 +626,40 @@ const LiveClassRoom = () => {
         // Switch device - this updates the video track
         await localVideoTrackRef.current.setDevice(nextDevice.deviceId);
         
-        // Detect camera facing from device label (more reliable than state)
-        const deviceLabel = (nextDevice.label || '').toLowerCase();
+        // Wait for the device to switch and get updated settings
+        await new Promise(resolve => setTimeout(resolve, 150));
         
-        // More accurate detection: check for back/rear/environment keywords first
-        const isBackCamera = deviceLabel.includes('back') || 
-                            deviceLabel.includes('rear') || 
-                            deviceLabel.includes('environment') ||
-                            deviceLabel.includes('world');
+        // Get the actual facingMode from MediaTrackSettings (most reliable method)
+        const trackSettings = localVideoTrackRef.current.getMediaStreamTrack()?.getSettings();
+        let detectedFacing = null;
         
-        // Front camera keywords
-        const isFrontCamera = deviceLabel.includes('front') || 
-                             deviceLabel.includes('user') || 
-                             (deviceLabel.includes('facing') && deviceLabel.includes('user'));
+        if (trackSettings && trackSettings.facingMode) {
+          // facingMode can be 'user' (front) or 'environment' (back)
+          detectedFacing = trackSettings.facingMode;
+          console.log('Detected facingMode from track settings:', detectedFacing);
+        } else {
+          // Fallback to device label detection if facingMode is not available
+          const deviceLabel = (nextDevice.label || '').toLowerCase();
+          
+          // Check for back/rear/environment keywords first
+          const isBackCamera = deviceLabel.includes('back') || 
+                              deviceLabel.includes('rear') || 
+                              deviceLabel.includes('environment') ||
+                              deviceLabel.includes('world');
+          
+          // Front camera keywords
+          const isFrontCamera = deviceLabel.includes('front') || 
+                               deviceLabel.includes('user') || 
+                               (deviceLabel.includes('facing') && deviceLabel.includes('user'));
+          
+          // Determine facing from label
+          detectedFacing = isBackCamera ? 'environment' : (isFrontCamera ? 'user' : 'environment');
+          console.log('Detected facingMode from device label:', detectedFacing, 'Label:', deviceLabel);
+        }
         
-        // Determine facing: if explicitly back, use environment; if explicitly front, use user; otherwise default to environment (back)
-        const newFacing = isBackCamera ? 'environment' : (isFrontCamera ? 'user' : 'environment');
-        setCameraFacing(newFacing);
-        console.log('Switched camera to device:', nextDevice.label || nextDevice.deviceId, 'Facing:', newFacing, 'isBack:', isBackCamera);
-        
-        // Wait a bit for the device to switch
-        await new Promise(resolve => setTimeout(resolve, 100));
+        // Update camera facing state
+        setCameraFacing(detectedFacing);
+        console.log('Switched camera to device:', nextDevice.label || nextDevice.deviceId, 'Facing:', detectedFacing);
         
         // Republish the video track to ensure recording picks up the new stream
         if (clientRef.current && localVideoTrackRef.current) {

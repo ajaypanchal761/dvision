@@ -32,12 +32,12 @@ const getApiBaseUrl = () => {
     console.log('[Teacher Socket] Using VITE_API_BASE_URL from env:', cleanUrl);
     return cleanUrl;
   }
-  
+
   // Auto-detect production environment
   if (typeof window !== 'undefined') {
     const hostname = window.location.hostname;
     const isProduction = hostname.includes('dvisionacademy.com');
-    
+
     if (isProduction) {
       // Try api subdomain first, fallback to same domain
       const protocol = window.location.protocol;
@@ -55,7 +55,7 @@ const getApiBaseUrl = () => {
       console.log('[Teacher Socket] Development mode. Hostname:', hostname);
     }
   }
-  
+
   // Default to localhost for development
   const defaultUrl = 'http://localhost:5000/api';
   console.log('[Teacher Socket] Using default API URL:', defaultUrl);
@@ -116,7 +116,6 @@ const LiveClassRoom = () => {
   const [isVideoEnabled, setIsVideoEnabled] = useState(true);
   const [cameraFacing, setCameraFacing] = useState('user'); // 'user' or 'environment'
   const [isReconnecting, setIsReconnecting] = useState(false);
-  const [orientation, setOrientation] = useState(window.innerWidth > window.innerHeight ? 'landscape' : 'portrait');
 
   // Chat & Participants
   const [chatMessages, setChatMessages] = useState([]);
@@ -126,10 +125,10 @@ const LiveClassRoom = () => {
   const [allParticipants, setAllParticipants] = useState([]);
   const [handRaisedStudents, setHandRaisedStudents] = useState([]);
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
-  
+
   // Get current user ID for read tracking
   const getCurrentUserId = () => {
-  const token = localStorage.getItem('dvision_teacher_token');
+    const token = localStorage.getItem('dvision_teacher_token');
     if (token) {
       try {
         const payload = JSON.parse(atob(token.split('.')[1]));
@@ -140,17 +139,17 @@ const LiveClassRoom = () => {
     }
     return null;
   };
-  
+
   // Calculate unread message count
   const calculateUnreadCount = (messages) => {
     const currentUserId = getCurrentUserId();
     if (!currentUserId) return 0;
-    
+
     return messages.filter(msg => {
       const msgUserId = msg.userId?._id?.toString() || msg.userId?.toString() || msg.userId;
       const isOwnMessage = msgUserId === currentUserId?.toString();
       if (isOwnMessage) return false; // Own messages are always considered read
-      
+
       const hasRead = msg.readBy && msg.readBy.some(
         read => read.userId?.toString() === currentUserId?.toString()
       );
@@ -199,24 +198,6 @@ const LiveClassRoom = () => {
     };
   }, [id]);
 
-  // Handle orientation changes
-  useEffect(() => {
-    const handleOrientationChange = () => {
-      const newOrientation = window.innerWidth > window.innerHeight ? 'landscape' : 'portrait';
-      setOrientation(newOrientation);
-    };
-
-    window.addEventListener('resize', handleOrientationChange);
-    window.addEventListener('orientationchange', handleOrientationChange);
-    
-    // Initial orientation
-    handleOrientationChange();
-
-    return () => {
-      window.removeEventListener('resize', handleOrientationChange);
-      window.removeEventListener('orientationchange', handleOrientationChange);
-    };
-  }, []);
 
   // Ensure local video is played when container is ready
   useEffect(() => {
@@ -385,17 +366,17 @@ const LiveClassRoom = () => {
         }
 
         const newMessages = [...filteredPrev, message];
-        
+
         // Update unread count if chat is closed and message is not from current user
         const currentUserId = getCurrentUserId();
         const msgUserId = message.userId?._id?.toString() || message.userId?.toString() || message.userId;
         const isOwnMessage = currentUserId && msgUserId && currentUserId.toString() === msgUserId.toString();
-        
+
         if (!showChat && !isOwnMessage) {
           // Increment unread count for new messages when chat is closed
           setUnreadMessageCount(prev => prev + 1);
         }
-        
+
         // Scroll to bottom after state update
         setTimeout(() => {
           chatMessagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -614,7 +595,7 @@ const LiveClassRoom = () => {
           }) === index;
         });
         setChatMessages(uniqueMessages);
-        
+
         // Set initial unread count from backend or calculate it
         const unreadCount = initialUnreadCount !== undefined ? initialUnreadCount : calculateUnreadCount(uniqueMessages);
         setUnreadMessageCount(unreadCount);
@@ -714,39 +695,32 @@ const LiveClassRoom = () => {
 
       // Get available cameras and detect initial camera facing
       const cameras = await AgoraRTC.getCameras();
-      
+
       // Filter out virtual/screen cameras - only use real physical cameras
       const physicalCameras = cameras.filter(device => {
         const label = (device.label || '').toLowerCase();
-        return !label.includes('virtual') && 
-               !label.includes('screen') && 
-               !label.includes('obs') && 
-               !label.includes('capture') &&
-               !label.includes('dshow') &&
-               device.deviceId && 
-               device.deviceId.length > 0;
+        return !label.includes('virtual') &&
+          !label.includes('screen') &&
+          !label.includes('obs') &&
+          !label.includes('capture') &&
+          !label.includes('dshow') &&
+          device.deviceId &&
+          device.deviceId.length > 0;
       });
-      
+
       let initialCameraId = undefined;
+      let initialFacing = 'user'; // Default to front camera
+
       if (physicalCameras.length > 0) {
         // Try to find front camera first, otherwise use first available
         const frontCamera = physicalCameras.find(cam => {
           const label = (cam.label || '').toLowerCase();
-          return label.includes('front') || label.includes('user') || 
-                 (label.includes('facing') && label.includes('user'));
+          return label.includes('front') || label.includes('user') ||
+            (label.includes('facing') && label.includes('user'));
         });
         initialCameraId = frontCamera ? frontCamera.deviceId : physicalCameras[0].deviceId;
-        
-        // Update cameraFacing based on detected camera
-        if (frontCamera) {
-          setCameraFacing('user');
-        } else {
-          const label = (physicalCameras[0].label || '').toLowerCase();
-          const isBack = label.includes('back') || label.includes('rear') || label.includes('environment') || label.includes('world');
-          setCameraFacing(isBack ? 'environment' : 'user');
-        }
       }
-      
+
       // Create video track with camera selection
       const videoTrack = await AgoraRTC.createCameraVideoTrack({
         cameraId: initialCameraId,
@@ -758,6 +732,25 @@ const LiveClassRoom = () => {
         }
       });
       localVideoTrackRef.current = videoTrack;
+
+      // Wait a bit for track to initialize, then detect facingMode
+      await new Promise(resolve => setTimeout(resolve, 200));
+
+      // Detect initial camera facing from track settings
+      const trackSettings = videoTrack.getMediaStreamTrack()?.getSettings();
+      if (trackSettings && trackSettings.facingMode) {
+        initialFacing = trackSettings.facingMode; // 'user' or 'environment'
+        console.log('Initial camera facingMode detected:', initialFacing);
+      } else if (physicalCameras.length > 0) {
+        // Fallback to label detection
+        const selectedCamera = physicalCameras.find(cam => cam.deviceId === initialCameraId) || physicalCameras[0];
+        const label = (selectedCamera.label || '').toLowerCase();
+        const isBack = label.includes('back') || label.includes('rear') || label.includes('environment') || label.includes('world');
+        initialFacing = isBack ? 'environment' : 'user';
+        console.log('Initial camera facingMode from label:', initialFacing);
+      }
+
+      setCameraFacing(initialFacing);
 
       // Play local video in full screen container - with retry logic
       const playLocalVideo = (retryCount = 0) => {
@@ -1366,25 +1359,25 @@ const LiveClassRoom = () => {
       if (!localVideoTrackRef.current) return;
 
       const devices = await AgoraRTC.getCameras();
-      
+
       // Filter out virtual/screen cameras - only use real physical cameras
       const physicalCameras = devices.filter(device => {
         const label = (device.label || '').toLowerCase();
         // Exclude virtual cameras, screen captures, and OBS/streaming software cameras
-        return !label.includes('virtual') && 
-               !label.includes('screen') && 
-               !label.includes('obs') && 
-               !label.includes('capture') &&
-               !label.includes('dshow') &&
-               device.deviceId && 
-               device.deviceId.length > 0;
+        return !label.includes('virtual') &&
+          !label.includes('screen') &&
+          !label.includes('obs') &&
+          !label.includes('capture') &&
+          !label.includes('dshow') &&
+          device.deviceId &&
+          device.deviceId.length > 0;
       });
-      
+
       if (physicalCameras.length === 0) {
         console.warn('No physical cameras found');
         return;
       }
-      
+
       const currentSettings = localVideoTrackRef.current.getMediaStreamTrack()?.getSettings();
       const currentDeviceId = currentSettings?.deviceId || localVideoTrackRef.current.getDeviceId?.();
 
@@ -1401,29 +1394,42 @@ const LiveClassRoom = () => {
       if (nextDevice) {
         // Switch device - this updates the video track
         await localVideoTrackRef.current.setDevice(nextDevice.deviceId);
-        
-        // Detect camera facing from device label (more reliable than state)
-        const deviceLabel = (nextDevice.label || '').toLowerCase();
-        
-        // More accurate detection: check for back/rear/environment keywords first
-        const isBackCamera = deviceLabel.includes('back') || 
-                            deviceLabel.includes('rear') || 
-                            deviceLabel.includes('environment') ||
-                            deviceLabel.includes('world');
-        
-        // Front camera keywords
-        const isFrontCamera = deviceLabel.includes('front') || 
-                             deviceLabel.includes('user') || 
-                             (deviceLabel.includes('facing') && deviceLabel.includes('user'));
-        
-        // Determine facing: if explicitly back, use environment; if explicitly front, use user; otherwise default to environment (back)
-        const newFacing = isBackCamera ? 'environment' : (isFrontCamera ? 'user' : 'environment');
-        setCameraFacing(newFacing);
-        console.log('Switched camera to device:', nextDevice.label || nextDevice.deviceId, 'Facing:', newFacing, 'isBack:', isBackCamera);
-        
-        // Wait a bit for the device to switch
-        await new Promise(resolve => setTimeout(resolve, 100));
-        
+
+        // Wait for the device to switch and get updated settings
+        await new Promise(resolve => setTimeout(resolve, 150));
+
+        // Get the actual facingMode from MediaTrackSettings (most reliable method)
+        const trackSettings = localVideoTrackRef.current.getMediaStreamTrack()?.getSettings();
+        let detectedFacing = null;
+
+        if (trackSettings && trackSettings.facingMode) {
+          // facingMode can be 'user' (front) or 'environment' (back)
+          detectedFacing = trackSettings.facingMode;
+          console.log('Detected facingMode from track settings:', detectedFacing);
+        } else {
+          // Fallback to device label detection if facingMode is not available
+          const deviceLabel = (nextDevice.label || '').toLowerCase();
+
+          // Check for back/rear/environment keywords first
+          const isBackCamera = deviceLabel.includes('back') ||
+            deviceLabel.includes('rear') ||
+            deviceLabel.includes('environment') ||
+            deviceLabel.includes('world');
+
+          // Front camera keywords
+          const isFrontCamera = deviceLabel.includes('front') ||
+            deviceLabel.includes('user') ||
+            (deviceLabel.includes('facing') && deviceLabel.includes('user'));
+
+          // Determine facing from label
+          detectedFacing = isBackCamera ? 'environment' : (isFrontCamera ? 'user' : 'environment');
+          console.log('Detected facingMode from device label:', detectedFacing, 'Label:', deviceLabel);
+        }
+
+        // Update camera facing state
+        setCameraFacing(detectedFacing);
+        console.log('Switched camera to device:', nextDevice.label || nextDevice.deviceId, 'Facing:', detectedFacing);
+
         // Republish the video track to ensure recording picks up the new stream
         if (clientRef.current && localVideoTrackRef.current) {
           try {
@@ -1444,7 +1450,7 @@ const LiveClassRoom = () => {
             }
           }
         }
-        
+
         // Ensure video is playing in the container
         if (localVideoContainerRef.current && localVideoTrackRef.current && localVideoTrackRef.current.enabled) {
           try {
@@ -1603,13 +1609,13 @@ const LiveClassRoom = () => {
             const currentUserId = getCurrentUserId();
             const msgUserId = msg.userId?._id?.toString() || msg.userId?.toString() || msg.userId;
             const isOwnMessage = currentUserId && msgUserId && currentUserId.toString() === msgUserId.toString();
-            
+
             if (isOwnMessage) return msg; // Own messages are already considered read
-            
+
             const hasRead = msg.readBy && msg.readBy.some(
               read => read.userId?.toString() === currentUserId?.toString()
             );
-            
+
             if (!hasRead) {
               return {
                 ...msg,
