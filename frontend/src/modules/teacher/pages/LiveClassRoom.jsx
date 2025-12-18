@@ -712,9 +712,31 @@ const LiveClassRoom = () => {
       // Set initial volume to 100
       await audioTrack.setVolume(100);
 
+      // Get available cameras and detect initial camera facing
+      const cameras = await AgoraRTC.getCameras();
+      let initialCameraId = undefined;
+      if (cameras.length > 0) {
+        // Try to find front camera first, otherwise use first available
+        const frontCamera = cameras.find(cam => {
+          const label = (cam.label || '').toLowerCase();
+          return label.includes('front') || label.includes('user') || 
+                 (label.includes('facing') && label.includes('user'));
+        });
+        initialCameraId = frontCamera ? frontCamera.deviceId : cameras[0].deviceId;
+        
+        // Update cameraFacing based on detected camera
+        if (frontCamera) {
+          setCameraFacing('user');
+        } else {
+          const label = (cameras[0].label || '').toLowerCase();
+          const isBack = label.includes('back') || label.includes('rear') || label.includes('environment');
+          setCameraFacing(isBack ? 'environment' : 'user');
+        }
+      }
+      
       // Create video track with camera selection
       const videoTrack = await AgoraRTC.createCameraVideoTrack({
-        cameraId: cameraFacing === 'user' ? undefined : undefined, // Will use default
+        cameraId: initialCameraId,
         encoderConfig: {
           width: 1280,
           height: 720,
@@ -1342,9 +1364,17 @@ const LiveClassRoom = () => {
       if (nextDevice) {
         // Switch device - this updates the video track
         await localVideoTrackRef.current.setDevice(nextDevice.deviceId);
-        const newFacing = cameraFacing === 'user' ? 'environment' : 'user';
+        
+        // Detect camera facing from device label (more reliable than state)
+        const deviceLabel = (nextDevice.label || '').toLowerCase();
+        const isFrontCamera = deviceLabel.includes('front') || 
+                              deviceLabel.includes('user') || 
+                              deviceLabel.includes('facing') && deviceLabel.includes('user') ||
+                              (!deviceLabel.includes('back') && !deviceLabel.includes('rear') && !deviceLabel.includes('environment'));
+        
+        const newFacing = isFrontCamera ? 'user' : 'environment';
         setCameraFacing(newFacing);
-        console.log('Switched camera to device:', nextDevice.label || nextDevice.deviceId);
+        console.log('Switched camera to device:', nextDevice.label || nextDevice.deviceId, 'Facing:', newFacing);
         
         // Wait a bit for the device to switch
         await new Promise(resolve => setTimeout(resolve, 100));
@@ -1847,7 +1877,7 @@ const LiveClassRoom = () => {
             className="w-full h-full"
             style={{
               objectFit: 'contain',
-              transform: cameraFacing === 'user' ? 'scaleX(-1)' : 'none',
+              transform: cameraFacing === 'user' ? 'scaleX(-1)' : 'scaleX(1)',
               transition: 'transform 0.2s ease-in-out',
               width: '100%',
               height: '100%',
