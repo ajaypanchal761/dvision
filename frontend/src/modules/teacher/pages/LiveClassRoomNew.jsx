@@ -99,6 +99,34 @@ const LiveClassRoom = () => {
   // Connection state
   const [connectionState, setConnectionState] = useState('disconnected'); // disconnected, connecting, connected
 
+  // Apply video transform when camera facing changes
+  useEffect(() => {
+    const applyTransform = () => {
+      if (localVideoContainerRef.current) {
+        // Find the video element inside the container
+        const videoElement = localVideoContainerRef.current.querySelector('video') || 
+                            (localVideoContainerRef.current.tagName === 'VIDEO' ? localVideoContainerRef.current : null);
+        if (videoElement) {
+          // Front camera (user): mirror (scaleX(-1)) for selfie view - left appears as right
+          // Back camera (environment): no mirror (scaleX(1)) for natural view - shows as real eyes see
+          if (cameraFacing === 'user') {
+            videoElement.style.transform = 'scaleX(-1)';
+          } else {
+            videoElement.style.transform = 'scaleX(1)';
+          }
+          videoElement.style.transition = 'transform 0.2s ease-in-out';
+          console.log('Applied video transform for camera facing:', cameraFacing);
+        }
+      }
+    };
+    
+    // Apply transform immediately and also after a short delay to ensure video element exists
+    applyTransform();
+    const timeout = setTimeout(applyTransform, 200);
+    
+    return () => clearTimeout(timeout);
+  }, [cameraFacing, isVideoEnabled]);
+
   // Handle orientation changes
   useEffect(() => {
     const handleOrientationChange = () => {
@@ -369,7 +397,30 @@ const LiveClassRoom = () => {
 
       // Play local video
       if (localVideoContainerRef.current) {
-        videoTrack.play(localVideoContainerRef.current);
+        const playPromise = videoTrack.play(localVideoContainerRef.current);
+        if (playPromise && typeof playPromise.then === 'function') {
+          playPromise.then(() => {
+            // Apply transform after video starts playing
+            setTimeout(() => {
+              const videoElement = localVideoContainerRef.current?.querySelector('video');
+              if (videoElement) {
+                videoElement.style.transform = initialFacing === 'user' ? 'scaleX(-1)' : 'scaleX(1)';
+                videoElement.style.transition = 'transform 0.2s ease-in-out';
+              }
+            }, 100);
+          }).catch(err => {
+            console.error('Error playing video:', err);
+          });
+        } else {
+          // If play() doesn't return a promise, apply transform after a delay
+          setTimeout(() => {
+            const videoElement = localVideoContainerRef.current?.querySelector('video');
+            if (videoElement) {
+              videoElement.style.transform = initialFacing === 'user' ? 'scaleX(-1)' : 'scaleX(1)';
+              videoElement.style.transition = 'transform 0.2s ease-in-out';
+            }
+          }, 200);
+        }
       }
 
       // Publish tracks
@@ -946,10 +997,6 @@ const LiveClassRoom = () => {
               className="w-full h-full"
               style={{
                 objectFit: 'contain',
-                // Only apply mirror effect for front camera (user-facing)
-                // Back camera (environment) should show natural, non-mirrored view
-                transform: cameraFacing === 'user' ? 'scaleX(-1)' : 'none',
-                transition: 'transform 0.2s ease-in-out',
                 width: '100%',
                 height: '100%',
                 display: 'flex',
