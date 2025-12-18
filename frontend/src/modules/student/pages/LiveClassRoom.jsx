@@ -4,15 +4,12 @@ import {
   FiArrowLeft,
   FiMic,
   FiMicOff,
-  FiVideo,
-  FiVideoOff,
   FiMessageSquare,
   FiX,
   FiSend,
   FiPhone,
   FiRotateCw
 } from 'react-icons/fi';
-import { RiCameraSwitchLine } from 'react-icons/ri';
 import { PiHandPalm } from 'react-icons/pi';
 import AgoraRTC from 'agora-rtc-sdk-ng';
 import { io } from 'socket.io-client';
@@ -112,13 +109,8 @@ const LiveClassRoom = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [isMuted, setIsMuted] = useState(false);
-  const [isVideoEnabled, setIsVideoEnabled] = useState(true);
-  const [cameraFacing, setCameraFacing] = useState('user');
   const [hasRaisedHand, setHasRaisedHand] = useState(false);
   const [orientation, setOrientation] = useState(window.innerWidth > window.innerHeight ? 'landscape' : 'portrait');
-  const [ownVideoPosition, setOwnVideoPosition] = useState({ x: 16, y: 16 }); // Initial position: bottom-right corner
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [isReconnecting, setIsReconnecting] = useState(false);
   const [isKicked, setIsKicked] = useState(false);
   const [classEnded, setClassEnded] = useState(false);
@@ -164,10 +156,8 @@ const LiveClassRoom = () => {
 
   // Agora refs
   const clientRef = useRef(null);
-  const localVideoTrackRef = useRef(null);
   const localAudioTrackRef = useRef(null);
   const remoteUsersRef = useRef({});
-  const localVideoContainerRef = useRef(null);
   const teacherVideoContainerRef = useRef(null);
 
   // Socket.io ref
@@ -302,19 +292,6 @@ const LiveClassRoom = () => {
         }
       }
       
-      // Style student's own video
-      if (localVideoContainerRef.current) {
-        const videoElement = localVideoContainerRef.current.querySelector('video');
-        if (videoElement) {
-          videoElement.style.objectFit = 'cover';
-          videoElement.style.width = '100%';
-          videoElement.style.height = '100%';
-          // Apply camera mirror transform if needed
-          const currentTransform = cameraFacing === 'user' ? 'scaleX(-1)' : 'scaleX(1)';
-          videoElement.style.transform = `translate(-50%, -50%) ${currentTransform}`;
-          videoElement.style.transition = 'transform 0.2s ease-in-out';
-        }
-      }
     };
 
     // Apply styling immediately and also after a short delay to ensure video element exists
@@ -326,81 +303,9 @@ const LiveClassRoom = () => {
       clearTimeout(timeout);
       clearInterval(interval);
     };
-  }, [orientation, cameraFacing, isVideoEnabled, hasTeacherVideo]);
+  }, [orientation, hasTeacherVideo]);
 
-  // Handle dragging for own video
-  useEffect(() => {
-    if (!isDragging) return;
 
-    const handleMouseMove = (e) => {
-      const container = document.querySelector('.flex-1.relative.bg-black');
-      if (!container) return;
-      
-      const rect = container.getBoundingClientRect();
-      const videoWidth = 120;
-      const videoHeight = 90;
-      
-      // Calculate position relative to container
-      const newX = Math.max(0, Math.min(rect.width - videoWidth, rect.width - (e.clientX - dragStart.x)));
-      const newY = Math.max(0, Math.min(rect.height - videoHeight, rect.height - (e.clientY - dragStart.y)));
-      
-      setOwnVideoPosition({ x: newX, y: newY });
-    };
-
-    const handleTouchMove = (e) => {
-      e.preventDefault();
-      const touch = e.touches[0];
-      const container = document.querySelector('.flex-1.relative.bg-black');
-      if (!container) return;
-      
-      const rect = container.getBoundingClientRect();
-      const videoWidth = 120;
-      const videoHeight = 90;
-      
-      // Calculate position relative to container
-      const newX = Math.max(0, Math.min(rect.width - videoWidth, rect.width - (touch.clientX - dragStart.x)));
-      const newY = Math.max(0, Math.min(rect.height - videoHeight, rect.height - (touch.clientY - dragStart.y)));
-      
-      setOwnVideoPosition({ x: newX, y: newY });
-    };
-
-    const handleEnd = () => {
-      setIsDragging(false);
-    };
-
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleEnd);
-    document.addEventListener('touchmove', handleTouchMove, { passive: false });
-    document.addEventListener('touchend', handleEnd);
-
-    return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleEnd);
-      document.removeEventListener('touchmove', handleTouchMove);
-      document.removeEventListener('touchend', handleEnd);
-    };
-  }, [isDragging, dragStart]);
-
-  // Ensure local video is played when container is ready
-  useEffect(() => {
-    if (localVideoTrackRef.current && localVideoContainerRef.current && isVideoEnabled) {
-      const playLocalVideo = () => {
-        if (localVideoContainerRef.current && localVideoTrackRef.current && localVideoTrackRef.current.enabled) {
-          const playPromise = localVideoTrackRef.current.play(localVideoContainerRef.current);
-          if (playPromise && typeof playPromise.catch === 'function') {
-            playPromise.catch(err => {
-              console.error('Error playing local video in useEffect:', err);
-              // Retry after a short delay only if video is still enabled
-              if (isVideoEnabled && localVideoTrackRef.current && localVideoTrackRef.current.enabled) {
-                setTimeout(playLocalVideo, 200);
-              }
-            });
-          }
-        }
-      };
-      playLocalVideo();
-    }
-  }, [isVideoEnabled, connectionState]);
 
   // Initialize Socket.io
   const initializeSocket = useCallback(() => {
@@ -700,11 +605,11 @@ const LiveClassRoom = () => {
 
           // Emit status update to notify teacher
           if (socketRef.current) {
-            socketRef.current.emit('participant-status', {
-              liveClassId: id,
-              isMuted: teacherMutedState,
-              isVideoEnabled
-            });
+        socketRef.current.emit('participant-status', {
+          liveClassId: id,
+          isMuted: teacherMutedState,
+          isVideoEnabled: false
+        });
           }
         }
       }
@@ -809,7 +714,7 @@ const LiveClassRoom = () => {
         mode: 'rtc',
         codec: 'vp8',
         enableAudio: true,
-        enableVideo: true
+        enableVideo: false
       });
       clientRef.current = client;
 
@@ -908,46 +813,15 @@ const LiveClassRoom = () => {
       // Set initial volume to 100
       await audioTrack.setVolume(100);
 
-      // Create video track
-      const videoTrack = await AgoraRTC.createCameraVideoTrack({
-        encoderConfig: {
-          width: 640,
-          height: 480,
-          frameRate: 30,
-          bitrateMax: 1000
-        }
-      });
-      localVideoTrackRef.current = videoTrack;
-
-      // Play local video in PIP - ensure container is ready
-      const playLocalVideo = (retryCount = 0) => {
-        if (localVideoContainerRef.current && videoTrack && videoTrack.enabled) {
-          const playPromise = videoTrack.play(localVideoContainerRef.current);
-          if (playPromise && typeof playPromise.catch === 'function') {
-            playPromise.catch(err => {
-              console.error('Error playing local video:', err);
-              // Retry after a short delay only if track is still enabled
-              if (retryCount < 10 && videoTrack && videoTrack.enabled) {
-                setTimeout(() => playLocalVideo(retryCount + 1), 200);
-              }
-            });
-          }
-        } else if (retryCount < 20 && videoTrack) {
-          // Container not ready, retry
-          setTimeout(() => playLocalVideo(retryCount + 1), 100);
-        }
-      };
-      playLocalVideo();
-
-      // Publish tracks
-      await clientRef.current.publish([audioTrack, videoTrack]);
+      // Publish only audio track (no video for students)
+      await clientRef.current.publish([audioTrack]);
 
       // Update status via socket
       if (socketRef.current) {
         socketRef.current.emit('participant-status', {
           liveClassId: id,
           isMuted: false,
-          isVideoEnabled: true
+          isVideoEnabled: false
         });
       }
     } catch (err) {
@@ -1281,7 +1155,7 @@ const LiveClassRoom = () => {
         socketRef.current.emit('participant-status', {
           liveClassId: id,
           isMuted: newMutedState,
-          isVideoEnabled
+          isVideoEnabled: false
         });
       }
     } catch (err) {
@@ -1291,135 +1165,6 @@ const LiveClassRoom = () => {
     }
   };
 
-  // Toggle video
-  const toggleVideo = async () => {
-    try {
-      // Check if client exists and is connected
-      if (!clientRef.current) {
-        console.warn('Cannot toggle video: Agora client not initialized');
-        return;
-      }
-
-      // Check connection state
-      const connectionState = clientRef.current.connectionState;
-      if (connectionState !== 'CONNECTED' && connectionState !== 'CONNECTING') {
-        console.warn('Cannot toggle video: Client not connected. State:', connectionState);
-        return;
-      }
-
-      if (!localVideoTrackRef.current) {
-        console.warn('Cannot toggle video: Video track not initialized');
-        return;
-      }
-
-      const newVideoState = !isVideoEnabled;
-
-      if (newVideoState) {
-        // Turning video on: Enable first, then play
-        try {
-          await localVideoTrackRef.current.setEnabled(true);
-          setIsVideoEnabled(true);
-
-          // Wait a bit for track to be enabled
-          await new Promise(resolve => setTimeout(resolve, 200));
-
-          // Play video in container if it exists
-          if (localVideoContainerRef.current && localVideoTrackRef.current && localVideoTrackRef.current.enabled) {
-            try {
-              const playPromise = localVideoTrackRef.current.play(localVideoContainerRef.current);
-              if (playPromise && typeof playPromise.catch === 'function') {
-                playPromise.catch(err => {
-                  console.error('Error playing video after enabling:', err);
-                });
-              }
-            } catch (playErr) {
-              console.error('Error playing video:', playErr);
-            }
-          }
-        } catch (enableErr) {
-          console.error('Error enabling video track:', enableErr);
-          setIsVideoEnabled(false);
-        }
-      } else {
-        // Turning video off: Stop playing first, then disable
-        try {
-          if (localVideoContainerRef.current && localVideoTrackRef.current) {
-            try {
-              localVideoTrackRef.current.stop();
-            } catch (stopErr) {
-              console.warn('Error stopping video track:', stopErr);
-            }
-          }
-          if (localVideoTrackRef.current) {
-            await localVideoTrackRef.current.setEnabled(false);
-          }
-          setIsVideoEnabled(false);
-        } catch (disableErr) {
-          console.error('Error disabling video track:', disableErr);
-          // Don't revert state if we're already trying to disable
-        }
-      }
-
-      if (socketRef.current && socketRef.current.connected) {
-        socketRef.current.emit('participant-status', {
-          liveClassId: id,
-          isMuted,
-          isVideoEnabled: newVideoState
-        });
-      }
-    } catch (err) {
-      console.error('Error toggling video:', err);
-    }
-  };
-
-  // Switch camera (front/back)
-  const switchCamera = async () => {
-    try {
-      if (!localVideoTrackRef.current) return;
-
-      const devices = await AgoraRTC.getCameras();
-      const currentSettings = localVideoTrackRef.current.getMediaStreamTrack()?.getSettings();
-      const currentDeviceId = currentSettings?.deviceId || localVideoTrackRef.current.getDeviceId?.();
-
-      // Prefer the next device that differs from current
-      let nextDevice = devices.find(d => d.deviceId && d.deviceId !== currentDeviceId);
-
-      // If none found and multiple devices exist, pick the first alternative
-      if (!nextDevice && devices.length > 1) {
-        nextDevice = devices.find(d => d.deviceId !== currentDeviceId) || devices[0];
-      }
-
-      if (nextDevice) {
-        await localVideoTrackRef.current.setDevice(nextDevice.deviceId);
-        const newFacing = cameraFacing === 'user' ? 'environment' : 'user';
-        setCameraFacing(newFacing);
-        console.log('Switched camera to device:', nextDevice.label || nextDevice.deviceId);
-        
-        // Ensure video is playing after device switch
-        if (localVideoContainerRef.current && localVideoTrackRef.current && localVideoTrackRef.current.enabled) {
-          try {
-            await localVideoTrackRef.current.play(localVideoContainerRef.current);
-            console.log('Video replayed after camera switch');
-          } catch (playErr) {
-            console.warn('Error replaying video after camera switch:', playErr);
-            setTimeout(async () => {
-              if (localVideoContainerRef.current && localVideoTrackRef.current && localVideoTrackRef.current.enabled) {
-                try {
-                  await localVideoTrackRef.current.play(localVideoContainerRef.current);
-                } catch (retryErr) {
-                  console.error('Error replaying video on retry:', retryErr);
-                }
-              }
-            }, 300);
-          }
-        }
-      } else {
-        console.warn('No alternative camera found to switch');
-      }
-    } catch (err) {
-      console.error('Error switching camera:', err);
-    }
-  };
 
   // Mark messages as read
   const markMessagesAsRead = async () => {
@@ -1604,11 +1349,6 @@ const LiveClassRoom = () => {
         localAudioTrackRef.current.close();
         localAudioTrackRef.current = null;
       }
-      if (localVideoTrackRef.current) {
-        localVideoTrackRef.current.stop();
-        localVideoTrackRef.current.close();
-        localVideoTrackRef.current = null;
-      }
 
       // Leave Agora channel
       if (clientRef.current) {
@@ -1750,65 +1490,6 @@ const LiveClassRoom = () => {
             </div>
           )}
 
-          {/* Student's Own Video - PIP (Picture in Picture) - Draggable */}
-          {isVideoEnabled && (
-            <div
-              className="absolute bg-gray-800 rounded-lg overflow-hidden border-2 border-white shadow-lg z-20 cursor-move"
-              style={{
-                width: '120px',
-                height: '90px',
-                bottom: `${ownVideoPosition.y}px`,
-                right: `${ownVideoPosition.x}px`,
-                touchAction: 'none',
-                userSelect: 'none'
-              }}
-              onMouseDown={(e) => {
-                e.preventDefault();
-                setIsDragging(true);
-                const container = e.currentTarget.closest('.flex-1.relative.bg-black');
-                if (container) {
-                  const rect = container.getBoundingClientRect();
-                  setDragStart({
-                    x: e.clientX - (rect.width - ownVideoPosition.x),
-                    y: e.clientY - (rect.height - ownVideoPosition.y)
-                  });
-                }
-              }}
-              onTouchStart={(e) => {
-                e.preventDefault();
-                setIsDragging(true);
-                const touch = e.touches[0];
-                const container = e.currentTarget.closest('.flex-1.relative.bg-black');
-                if (container) {
-                  const rect = container.getBoundingClientRect();
-                  setDragStart({
-                    x: touch.clientX - (rect.width - ownVideoPosition.x),
-                    y: touch.clientY - (rect.height - ownVideoPosition.y)
-                  });
-                }
-              }}
-            >
-              <div
-                ref={localVideoContainerRef}
-                className="w-full h-full"
-                style={{
-                  objectFit: 'cover',
-                  transform: cameraFacing === 'user' ? 'scaleX(-1)' : 'none',
-                  transition: 'transform 0.2s ease-in-out',
-                  width: '100%',
-                  height: '100%'
-                }}
-              />
-              <div className="absolute bottom-1 left-1 bg-black/70 px-1.5 py-0.5 rounded text-[10px] z-10">
-                You {isMuted && '(Muted)'}
-              </div>
-              {hasRaisedHand && (
-                <div className="absolute top-1 right-1 bg-yellow-500 px-1.5 py-0.5 rounded text-[10px] font-bold z-10">
-                  ✋
-                </div>
-              )}
-            </div>
-          )}
         </div>
 
         {/* Chat Sidebar */}
@@ -1896,20 +1577,6 @@ const LiveClassRoom = () => {
           title={isMuted ? 'Unmute' : 'Mute'}
         >
           {isMuted ? <FiMicOff className="text-xl" /> : <FiMic className="text-xl" />}
-        </button>
-        <button
-          onClick={toggleVideo}
-          className={`p-3 rounded-full ${!isVideoEnabled ? 'bg-red-600' : 'bg-gray-700'} hover:bg-opacity-80`}
-          title={isVideoEnabled ? 'Turn off camera' : 'Turn on camera'}
-        >
-          {isVideoEnabled ? <FiVideo className="text-xl" /> : <FiVideoOff className="text-xl" />}
-        </button>
-        <button
-          onClick={switchCamera}
-          className="p-3 rounded-full bg-gray-700 hover:bg-opacity-80"
-          title="Switch camera"
-        >
-          <RiCameraSwitchLine className="text-xl" />
         </button>
         <button
           onClick={toggleHandRaise}

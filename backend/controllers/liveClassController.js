@@ -1578,12 +1578,14 @@ exports.joinLiveClass = asyncHandler(async (req, res) => {
 
   if (!participant) {
     // Add new participant
+    // Students don't have video enabled, only teachers do
+    const isStudent = userRole === 'student';
     participant = {
       userId: userId,
-      userType: userRole === 'student' ? 'Student' : 'Teacher',
+      userType: isStudent ? 'Student' : 'Teacher',
       joinedAt: new Date(),
       isMuted: false,
-      isVideoEnabled: true,
+      isVideoEnabled: !isStudent, // Students: false, Teachers: true
       hasRaisedHand: false
     };
     liveClass.participants.push(participant);
