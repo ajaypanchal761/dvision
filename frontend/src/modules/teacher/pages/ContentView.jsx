@@ -17,6 +17,15 @@ const ContentView = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
 
+  // Determine back navigation route based on user role
+  const getBackRoute = () => {
+    const userRole = localStorage.getItem('user_role');
+    if (userRole === 'agent') {
+      return ROUTES.AGENT_PROFILE;
+    }
+    return ROUTES.PROFILE;
+  };
+
   const contentConfig = {
     'about-us': {
       title: 'About Us',
@@ -74,7 +83,7 @@ const ContentView = () => {
         <div className="px-4 sm:px-6 pt-4 sm:pt-6 pb-6 sm:pb-8">
           <div className="flex items-center gap-3 sm:gap-4">
             <button
-              onClick={() => navigate('/teacher/profile')}
+              onClick={() => navigate(getBackRoute())}
               className="p-2 text-white hover:bg-white/10 rounded-full transition-colors"
             >
               <FiArrowLeft className="text-xl sm:text-2xl" />
@@ -99,7 +108,7 @@ const ContentView = () => {
           <div className="bg-red-50 border-2 border-red-200 rounded-xl p-5 sm:p-6 text-center">
             <p className="text-red-700 text-sm sm:text-base font-medium mb-4">{error}</p>
             <button
-              onClick={() => navigate('/teacher/profile')}
+              onClick={() => navigate(getBackRoute())}
               className="bg-[var(--app-dark-blue)] text-white font-bold px-6 py-3 rounded-xl hover:bg-[var(--app-dark-blue)]/90 transition-colors shadow-lg"
             >
               Go back to Profile

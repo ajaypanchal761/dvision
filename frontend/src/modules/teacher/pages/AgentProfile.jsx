@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FiUser, FiLogOut, FiFileText, FiShield, FiFileText as FiFile, FiArrowLeft, FiEdit2, FiChevronRight, FiCreditCard, FiTrash2, FiSave, FiX } from 'react-icons/fi';
+import { FiUser, FiLogOut, FiFileText, FiShield, FiFileText as FiFile, FiArrowLeft, FiEdit2, FiChevronRight, FiCreditCard } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import BottomNav from '../components/common/BottomNav';
 import { agentAPI } from '../services/api';
@@ -16,8 +16,6 @@ const AgentProfile = () => {
     phone: '',
     email: '',
     profileImage: null,
-    bankDetails: null,
-    upiId: null,
   });
   const [loading, setLoading] = useState(true);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
@@ -27,17 +25,6 @@ const AgentProfile = () => {
     profileImage: null,
   });
   const [saving, setSaving] = useState(false);
-  const [showBankDetails, setShowBankDetails] = useState(false);
-  const [isEditingBankDetails, setIsEditingBankDetails] = useState(false);
-  const [bankDetailsData, setBankDetailsData] = useState({
-    accountHolderName: '',
-    accountNumber: '',
-    ifscCode: '',
-    bankName: '',
-    branchName: ''
-  });
-  const [upiIdData, setUpiIdData] = useState('');
-  const [savingBankDetails, setSavingBankDetails] = useState(false);
 
   useEffect(() => {
     fetchAgentData();
@@ -54,24 +41,11 @@ const AgentProfile = () => {
           phone: agent.phone || '',
           email: agent.email || '',
           profileImage: agent.profileImage || null,
-          bankDetails: agent.bankDetails || null,
-          upiId: agent.upiId || null,
         });
         setEditData({
           email: agent.email || '',
           profileImage: agent.profileImage || null,
         });
-        // Initialize bank details form data
-        if (agent.bankDetails) {
-          setBankDetailsData({
-            accountHolderName: agent.bankDetails.accountHolderName || '',
-            accountNumber: agent.bankDetails.accountNumber || '',
-            ifscCode: agent.bankDetails.ifscCode || '',
-            bankName: agent.bankDetails.bankName || '',
-            branchName: agent.bankDetails.branchName || ''
-          });
-        }
-        setUpiIdData(agent.upiId || '');
         localStorage.setItem('agent_data', JSON.stringify(agent));
       }
     } catch (err) {
@@ -85,23 +59,11 @@ const AgentProfile = () => {
             phone: agent.phone || '',
             email: agent.email || '',
             profileImage: agent.profileImage || null,
-            bankDetails: agent.bankDetails || null,
-            upiId: agent.upiId || null,
           });
           setEditData({
             email: agent.email || '',
             profileImage: agent.profileImage || null,
           });
-          if (agent.bankDetails) {
-            setBankDetailsData({
-              accountHolderName: agent.bankDetails.accountHolderName || '',
-              accountNumber: agent.bankDetails.accountNumber || '',
-              ifscCode: agent.bankDetails.ifscCode || '',
-              bankName: agent.bankDetails.bankName || '',
-              branchName: agent.bankDetails.branchName || ''
-            });
-          }
-          setUpiIdData(agent.upiId || '');
         } catch (e) {
           console.error('Error parsing stored data:', e);
         }
@@ -156,90 +118,12 @@ const AgentProfile = () => {
     }
   };
 
-  const handleSaveBankDetails = async () => {
-    try {
-      // Validate UPI ID if provided
-      if (upiIdData && !/^[\w.-]+@[\w.-]+$/.test(upiIdData)) {
-        alert('Please provide a valid UPI ID (e.g., name@paytm)');
-        return;
-      }
-
-      setSavingBankDetails(true);
-      const response = await agentAPI.updateMe({
-        bankDetails: bankDetailsData,
-        upiId: upiIdData || null
-      });
-      
-      if (response.success) {
-        setAgentData(prev => ({
-          ...prev,
-          bankDetails: response.data.agent.bankDetails,
-          upiId: response.data.agent.upiId
-        }));
-        setIsEditingBankDetails(false);
-        alert('Bank details updated successfully!');
-        await fetchAgentData(); // Refresh data
-      } else {
-        alert(response.message || 'Failed to update bank details');
-      }
-    } catch (err) {
-      alert(err.message || 'Failed to update bank details');
-    } finally {
-      setSavingBankDetails(false);
-    }
-  };
-
-  const handleDeleteBankDetails = async () => {
-    if (!confirm('Are you sure you want to delete your bank details? This action cannot be undone.')) {
-      return;
-    }
-
-    try {
-      setSavingBankDetails(true);
-      const response = await agentAPI.updateMe({
-        bankDetails: null,
-        upiId: null
-      });
-      
-      if (response.success) {
-        setAgentData(prev => ({
-          ...prev,
-          bankDetails: null,
-          upiId: null
-        }));
-        setBankDetailsData({
-          accountHolderName: '',
-          accountNumber: '',
-          ifscCode: '',
-          bankName: '',
-          branchName: ''
-        });
-        setUpiIdData('');
-        setIsEditingBankDetails(false);
-        setShowBankDetails(false);
-        alert('Bank details deleted successfully!');
-        await fetchAgentData(); // Refresh data
-      } else {
-        alert(response.message || 'Failed to delete bank details');
-      }
-    } catch (err) {
-      alert(err.message || 'Failed to delete bank details');
-    } finally {
-      setSavingBankDetails(false);
-    }
-  };
-
   const menuItems = [
     {
       id: 'bank-details',
       label: 'Bank Details',
       icon: FiCreditCard,
-      onClick: () => {
-        setShowBankDetails(true);
-        if (!agentData.bankDetails && !agentData.upiId) {
-          setIsEditingBankDetails(true);
-        }
-      },
+      onClick: () => navigate(ROUTES.AGENT_BANK_DETAILS),
     },
     {
       id: 'about-us',
@@ -397,219 +281,6 @@ const AgentProfile = () => {
           ))}
         </div>
       </div>
-
-      {/* Bank Details Modal */}
-      {showBankDetails && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl sm:rounded-2xl p-4 sm:p-6 max-w-md w-full max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-base sm:text-lg font-bold text-[var(--app-black)]">
-                Bank Details
-              </h3>
-              <button
-                onClick={() => {
-                  setShowBankDetails(false);
-                  setIsEditingBankDetails(false);
-                }}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <FiX className="text-xl" />
-              </button>
-            </div>
-
-            {isEditingBankDetails ? (
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
-                    Account Holder Name
-                  </label>
-                  <input
-                    type="text"
-                    value={bankDetailsData.accountHolderName}
-                    onChange={(e) => setBankDetailsData(prev => ({ ...prev, accountHolderName: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-[var(--app-dark-blue)]"
-                    placeholder="Enter account holder name"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
-                    Account Number
-                  </label>
-                  <input
-                    type="text"
-                    value={bankDetailsData.accountNumber}
-                    onChange={(e) => setBankDetailsData(prev => ({ ...prev, accountNumber: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-[var(--app-dark-blue)]"
-                    placeholder="Enter account number"
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
-                      IFSC Code
-                    </label>
-                    <input
-                      type="text"
-                      value={bankDetailsData.ifscCode}
-                      onChange={(e) => setBankDetailsData(prev => ({ ...prev, ifscCode: e.target.value.toUpperCase() }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-[var(--app-dark-blue)] uppercase"
-                      placeholder="IFSC Code"
-                      maxLength={11}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
-                      Bank Name
-                    </label>
-                    <input
-                      type="text"
-                      value={bankDetailsData.bankName}
-                      onChange={(e) => setBankDetailsData(prev => ({ ...prev, bankName: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-[var(--app-dark-blue)]"
-                      placeholder="Bank Name"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
-                    Branch Name
-                  </label>
-                  <input
-                    type="text"
-                    value={bankDetailsData.branchName}
-                    onChange={(e) => setBankDetailsData(prev => ({ ...prev, branchName: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-[var(--app-dark-blue)]"
-                    placeholder="Enter branch name"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
-                    UPI ID
-                  </label>
-                  <input
-                    type="text"
-                    value={upiIdData}
-                    onChange={(e) => setUpiIdData(e.target.value.toLowerCase())}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-[var(--app-dark-blue)]"
-                    placeholder="e.g., name@paytm"
-                  />
-                </div>
-                <div className="flex gap-3 pt-2">
-                  <button
-                    onClick={handleSaveBankDetails}
-                    disabled={savingBankDetails}
-                    className="flex-1 bg-[var(--app-dark-blue)] text-white py-2 rounded-lg text-xs sm:text-sm font-medium hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2"
-                  >
-                    <FiSave className="text-sm" />
-                    {savingBankDetails ? 'Saving...' : 'Save'}
-                  </button>
-                  <button
-                    onClick={() => {
-                      setIsEditingBankDetails(false);
-                      // Reset to original values
-                      if (agentData.bankDetails) {
-                        setBankDetailsData({
-                          accountHolderName: agentData.bankDetails.accountHolderName || '',
-                          accountNumber: agentData.bankDetails.accountNumber || '',
-                          ifscCode: agentData.bankDetails.ifscCode || '',
-                          bankName: agentData.bankDetails.bankName || '',
-                          branchName: agentData.bankDetails.branchName || ''
-                        });
-                      }
-                      setUpiIdData(agentData.upiId || '');
-                    }}
-                    className="flex-1 bg-gray-200 text-gray-700 py-2 rounded-lg text-xs sm:text-sm font-medium hover:bg-gray-300 flex items-center justify-center gap-2"
-                  >
-                    <FiX className="text-sm" />
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {agentData.bankDetails && (agentData.bankDetails.accountHolderName || agentData.bankDetails.accountNumber) ? (
-                  <div className="bg-blue-50 rounded-lg p-4 space-y-3">
-                    <h4 className="text-xs sm:text-sm font-semibold text-gray-700 mb-3">Bank Information</h4>
-                    {agentData.bankDetails.accountHolderName && (
-                      <div>
-                        <p className="text-[10px] sm:text-xs text-gray-500 mb-1">Account Holder Name</p>
-                        <p className="text-xs sm:text-sm font-medium text-gray-900">{agentData.bankDetails.accountHolderName}</p>
-                      </div>
-                    )}
-                    {agentData.bankDetails.accountNumber && (
-                      <div>
-                        <p className="text-[10px] sm:text-xs text-gray-500 mb-1">Account Number</p>
-                        <p className="text-xs sm:text-sm font-medium text-gray-900">{agentData.bankDetails.accountNumber}</p>
-                      </div>
-                    )}
-                    {agentData.bankDetails.ifscCode && (
-                      <div>
-                        <p className="text-[10px] sm:text-xs text-gray-500 mb-1">IFSC Code</p>
-                        <p className="text-xs sm:text-sm font-medium text-gray-900">{agentData.bankDetails.ifscCode}</p>
-                      </div>
-                    )}
-                    {agentData.bankDetails.bankName && (
-                      <div>
-                        <p className="text-[10px] sm:text-xs text-gray-500 mb-1">Bank Name</p>
-                        <p className="text-xs sm:text-sm font-medium text-gray-900">{agentData.bankDetails.bankName}</p>
-                      </div>
-                    )}
-                    {agentData.bankDetails.branchName && (
-                      <div>
-                        <p className="text-[10px] sm:text-xs text-gray-500 mb-1">Branch Name</p>
-                        <p className="text-xs sm:text-sm font-medium text-gray-900">{agentData.bankDetails.branchName}</p>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div className="text-center py-8">
-                    <FiCreditCard className="text-4xl text-gray-300 mx-auto mb-3" />
-                    <p className="text-xs sm:text-sm text-gray-500 mb-4">No bank details added yet</p>
-                  </div>
-                )}
-
-                {agentData.upiId && (
-                  <div className="bg-green-50 rounded-lg p-4">
-                    <h4 className="text-xs sm:text-sm font-semibold text-gray-700 mb-2">UPI ID</h4>
-                    <p className="text-xs sm:text-sm font-medium text-gray-900">{agentData.upiId}</p>
-                  </div>
-                )}
-
-                <div className="flex gap-3 pt-2">
-                  <button
-                    onClick={() => {
-                      setIsEditingBankDetails(true);
-                      if (!agentData.bankDetails) {
-                        setBankDetailsData({
-                          accountHolderName: '',
-                          accountNumber: '',
-                          ifscCode: '',
-                          bankName: '',
-                          branchName: ''
-                        });
-                      }
-                    }}
-                    className="flex-1 bg-[var(--app-dark-blue)] text-white py-2 rounded-lg text-xs sm:text-sm font-medium hover:opacity-90 flex items-center justify-center gap-2"
-                  >
-                    <FiEdit2 className="text-sm" />
-                    {agentData.bankDetails ? 'Edit' : 'Add'} Bank Details
-                  </button>
-                  {agentData.bankDetails && (
-                    <button
-                      onClick={handleDeleteBankDetails}
-                      disabled={savingBankDetails}
-                      className="flex-1 bg-red-600 text-white py-2 rounded-lg text-xs sm:text-sm font-medium hover:bg-red-700 disabled:opacity-50 flex items-center justify-center gap-2"
-                    >
-                      <FiTrash2 className="text-sm" />
-                      Delete
-                    </button>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
 
       {/* Logout Confirmation Modal */}
       {showLogoutConfirm && (

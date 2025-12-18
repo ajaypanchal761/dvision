@@ -260,14 +260,34 @@ exports.updateMe = asyncHandler(async (req, res) => {
   // Update bank details
   if (bankDetails !== undefined) {
     if (bankDetails === null) {
-      // Clear bank details
+      // Clear bank details - allowed (delete operation)
       agent.bankDetails = undefined;
     } else {
+      // Check if agent already has bank details
+      const hasExistingBankDetails = agent.bankDetails && 
+        (agent.bankDetails.accountHolderName || agent.bankDetails.accountNumber);
+      
+      // Check if trying to add new bank details (has accountHolderName or accountNumber in request)
+      const isAddingNew = (bankDetails.accountHolderName || bankDetails.accountNumber);
+      
+      // If agent already has bank details and trying to add new one (not update), prevent it
+      if (hasExistingBankDetails && isAddingNew) {
+        // Check if this is an update (same account number) or a new addition
+        const isUpdate = agent.bankDetails.accountNumber && 
+                         bankDetails.accountNumber && 
+                         agent.bankDetails.accountNumber === bankDetails.accountNumber;
+        
+        if (!isUpdate) {
+          throw new ErrorResponse('You already have bank details. Please delete existing bank details before adding new ones.', 400);
+        }
+      }
+
       // Initialize bankDetails if it doesn't exist
       if (!agent.bankDetails) {
         agent.bankDetails = {};
       }
       
+      // Update bank details fields
       if (bankDetails.accountHolderName !== undefined) {
         agent.bankDetails.accountHolderName = bankDetails.accountHolderName || undefined;
       }
