@@ -2,8 +2,9 @@ const axios = require('axios');
 
 // Cashfree API configuration (Test + Live using CF_ENV)
 // CF_ENV: 'TEST' or 'PROD'
+// Default: PROD (Production mode)
 const getCashfreeConfig = () => {
-  let env = process.env.CF_ENV || 'TEST'; // TEST or PROD
+  let env = process.env.CF_ENV || 'PROD'; // Default to PROD (Production)
   let isProd = env === 'PROD';
 
   // In TEST mode use TEST_CF_*; in PROD use CF_*

@@ -385,7 +385,7 @@ exports.createOrder = asyncHandler(async (req, res, next) => {
         amount: cashfreeOrder.order_amount || plan.price,
         currency: cashfreeOrder.order_currency || 'INR',
         clientId: cashfreeConfig.clientId,
-        environment: cashfreeConfig.environment || 'TEST',
+        environment: cashfreeConfig.environment || 'PROD',
         paymentId: payment._id
       }
     });
