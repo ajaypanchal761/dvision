@@ -113,8 +113,12 @@ const LiveClassRoom = () => {
   const [error, setError] = useState('');
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoEnabled, setIsVideoEnabled] = useState(true);
-  const [, setCameraFacing] = useState('user');
+  const [cameraFacing, setCameraFacing] = useState('user');
   const [hasRaisedHand, setHasRaisedHand] = useState(false);
+  const [orientation, setOrientation] = useState(window.innerWidth > window.innerHeight ? 'landscape' : 'portrait');
+  const [ownVideoPosition, setOwnVideoPosition] = useState({ x: 16, y: 16 }); // Initial position: bottom-right corner
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [isReconnecting, setIsReconnecting] = useState(false);
   const [isKicked, setIsKicked] = useState(false);
   const [classEnded, setClassEnded] = useState(false);
@@ -233,6 +237,78 @@ const LiveClassRoom = () => {
       }
     }
   }, [connectionState]);
+
+  // Handle orientation changes
+  useEffect(() => {
+    const handleOrientationChange = () => {
+      const newOrientation = window.innerWidth > window.innerHeight ? 'landscape' : 'portrait';
+      setOrientation(newOrientation);
+    };
+
+    window.addEventListener('resize', handleOrientationChange);
+    window.addEventListener('orientationchange', handleOrientationChange);
+    
+    // Initial orientation
+    handleOrientationChange();
+
+    return () => {
+      window.removeEventListener('resize', handleOrientationChange);
+      window.removeEventListener('orientationchange', handleOrientationChange);
+    };
+  }, []);
+
+  // Handle dragging for own video
+  useEffect(() => {
+    if (!isDragging) return;
+
+    const handleMouseMove = (e) => {
+      const container = document.querySelector('.flex-1.relative.bg-black');
+      if (!container) return;
+      
+      const rect = container.getBoundingClientRect();
+      const videoWidth = 120;
+      const videoHeight = 90;
+      
+      // Calculate position relative to container
+      const newX = Math.max(0, Math.min(rect.width - videoWidth, rect.width - (e.clientX - dragStart.x)));
+      const newY = Math.max(0, Math.min(rect.height - videoHeight, rect.height - (e.clientY - dragStart.y)));
+      
+      setOwnVideoPosition({ x: newX, y: newY });
+    };
+
+    const handleTouchMove = (e) => {
+      e.preventDefault();
+      const touch = e.touches[0];
+      const container = document.querySelector('.flex-1.relative.bg-black');
+      if (!container) return;
+      
+      const rect = container.getBoundingClientRect();
+      const videoWidth = 120;
+      const videoHeight = 90;
+      
+      // Calculate position relative to container
+      const newX = Math.max(0, Math.min(rect.width - videoWidth, rect.width - (touch.clientX - dragStart.x)));
+      const newY = Math.max(0, Math.min(rect.height - videoHeight, rect.height - (touch.clientY - dragStart.y)));
+      
+      setOwnVideoPosition({ x: newX, y: newY });
+    };
+
+    const handleEnd = () => {
+      setIsDragging(false);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleEnd);
+    document.addEventListener('touchmove', handleTouchMove, { passive: false });
+    document.addEventListener('touchend', handleEnd);
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleEnd);
+      document.removeEventListener('touchmove', handleTouchMove);
+      document.removeEventListener('touchend', handleEnd);
+    };
+  }, [isDragging, dragStart]);
 
   // Ensure local video is played when container is ready
   useEffect(() => {
@@ -1244,8 +1320,28 @@ const LiveClassRoom = () => {
 
       if (nextDevice) {
         await localVideoTrackRef.current.setDevice(nextDevice.deviceId);
-        setCameraFacing(prev => prev === 'user' ? 'environment' : 'user');
+        const newFacing = cameraFacing === 'user' ? 'environment' : 'user';
+        setCameraFacing(newFacing);
         console.log('Switched camera to device:', nextDevice.label || nextDevice.deviceId);
+        
+        // Ensure video is playing after device switch
+        if (localVideoContainerRef.current && localVideoTrackRef.current && localVideoTrackRef.current.enabled) {
+          try {
+            await localVideoTrackRef.current.play(localVideoContainerRef.current);
+            console.log('Video replayed after camera switch');
+          } catch (playErr) {
+            console.warn('Error replaying video after camera switch:', playErr);
+            setTimeout(async () => {
+              if (localVideoContainerRef.current && localVideoTrackRef.current && localVideoTrackRef.current.enabled) {
+                try {
+                  await localVideoTrackRef.current.play(localVideoContainerRef.current);
+                } catch (retryErr) {
+                  console.error('Error replaying video on retry:', retryErr);
+                }
+              }
+            }, 300);
+          }
+        }
       } else {
         console.warn('No alternative camera found to switch');
       }
@@ -1562,9 +1658,9 @@ const LiveClassRoom = () => {
             ref={teacherVideoContainerRef}
             className="w-full h-full"
             style={{
-              minHeight: '100%',
-              minWidth: '100%',
-              objectFit: 'contain'
+              objectFit: 'contain',
+              maxWidth: '100%',
+              maxHeight: '100%'
             }}
           />
           {!hasTeacherVideo && !isLoading && (
@@ -1576,32 +1672,63 @@ const LiveClassRoom = () => {
             </div>
           )}
 
-          {/* Student's Own Video - PIP (Picture in Picture) - Bottom Corner */}
-          <div className="absolute bottom-4 right-4 w-48 h-36 bg-gray-800 rounded-lg overflow-hidden border-2 border-white shadow-lg z-20">
+          {/* Student's Own Video - PIP (Picture in Picture) - Draggable */}
+          {isVideoEnabled && (
             <div
-              ref={localVideoContainerRef}
-              className="w-full h-full"
+              className="absolute bg-gray-800 rounded-lg overflow-hidden border-2 border-white shadow-lg z-20 cursor-move"
               style={{
-                minHeight: '100%',
-                minWidth: '100%',
-                objectFit: 'cover'
+                width: '120px',
+                height: '90px',
+                bottom: `${ownVideoPosition.y}px`,
+                right: `${ownVideoPosition.x}px`,
+                touchAction: 'none',
+                userSelect: 'none'
               }}
-            />
-            {!isVideoEnabled && (
-              <div className="absolute inset-0 bg-gray-900 flex flex-col items-center justify-center z-10">
-                <FiVideoOff className="text-3xl text-gray-500 mb-2" />
-                <span className="text-xs text-gray-400">Camera Off</span>
+              onMouseDown={(e) => {
+                e.preventDefault();
+                setIsDragging(true);
+                const container = e.currentTarget.closest('.flex-1.relative.bg-black');
+                if (container) {
+                  const rect = container.getBoundingClientRect();
+                  setDragStart({
+                    x: e.clientX - (rect.width - ownVideoPosition.x),
+                    y: e.clientY - (rect.height - ownVideoPosition.y)
+                  });
+                }
+              }}
+              onTouchStart={(e) => {
+                e.preventDefault();
+                setIsDragging(true);
+                const touch = e.touches[0];
+                const container = e.currentTarget.closest('.flex-1.relative.bg-black');
+                if (container) {
+                  const rect = container.getBoundingClientRect();
+                  setDragStart({
+                    x: touch.clientX - (rect.width - ownVideoPosition.x),
+                    y: touch.clientY - (rect.height - ownVideoPosition.y)
+                  });
+                }
+              }}
+            >
+              <div
+                ref={localVideoContainerRef}
+                className="w-full h-full"
+                style={{
+                  objectFit: 'cover',
+                  transform: cameraFacing === 'user' ? 'scaleX(-1)' : 'none',
+                  transition: 'transform 0.2s ease-in-out'
+                }}
+              />
+              <div className="absolute bottom-1 left-1 bg-black/70 px-1.5 py-0.5 rounded text-[10px] z-10">
+                You {isMuted && '(Muted)'}
               </div>
-            )}
-            <div className="absolute bottom-2 left-2 bg-black/70 px-2 py-1 rounded text-xs z-10">
-              You {isMuted && '(Muted)'}
+              {hasRaisedHand && (
+                <div className="absolute top-1 right-1 bg-yellow-500 px-1.5 py-0.5 rounded text-[10px] font-bold z-10">
+                  ✋
+                </div>
+              )}
             </div>
-            {hasRaisedHand && (
-              <div className="absolute top-2 right-2 bg-yellow-500 px-2 py-1 rounded text-xs font-bold z-10">
-                ✋
-              </div>
-            )}
-          </div>
+          )}
         </div>
 
         {/* Chat Sidebar */}

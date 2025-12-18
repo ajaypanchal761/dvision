@@ -71,6 +71,10 @@ const LiveClassRoom = () => {
   const [isReconnecting, setIsReconnecting] = useState(false);
   const [isKicked, setIsKicked] = useState(false);
   const [classEnded, setClassEnded] = useState(false);
+  const [orientation, setOrientation] = useState(window.innerWidth > window.innerHeight ? 'landscape' : 'portrait');
+  const [ownVideoPosition, setOwnVideoPosition] = useState({ x: 16, y: 16 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   
   // Chat
   const [chatMessages, setChatMessages] = useState([]);
@@ -464,7 +468,27 @@ const LiveClassRoom = () => {
 
       if (nextDevice) {
         await localVideoTrackRef.current.setDevice(nextDevice.deviceId);
-        setCameraFacing(prev => prev === 'user' ? 'environment' : 'user');
+        const newFacing = cameraFacing === 'user' ? 'environment' : 'user';
+        setCameraFacing(newFacing);
+        
+        // Ensure video is playing after device switch
+        if (localVideoContainerRef.current && localVideoTrackRef.current && localVideoTrackRef.current.enabled) {
+          try {
+            await localVideoTrackRef.current.play(localVideoContainerRef.current);
+            console.log('Video replayed after camera switch');
+          } catch (playErr) {
+            console.warn('Error replaying video after camera switch:', playErr);
+            setTimeout(async () => {
+              if (localVideoContainerRef.current && localVideoTrackRef.current && localVideoTrackRef.current.enabled) {
+                try {
+                  await localVideoTrackRef.current.play(localVideoContainerRef.current);
+                } catch (retryErr) {
+                  console.error('Error replaying video on retry:', retryErr);
+                }
+              }
+            }, 300);
+          }
+        }
       } else {
         console.warn('No alternative camera found to switch');
       }
@@ -656,33 +680,78 @@ const LiveClassRoom = () => {
       {/* Main Content - Teacher Video Full Screen */}
       <div className="flex-1 flex relative overflow-hidden">
         {/* Teacher Video/Screen Share - Full Screen */}
-        <div className="flex-1 relative bg-black">
+        <div className="flex-1 relative bg-black flex items-center justify-center overflow-hidden">
           <div
             id="teacher-video-container"
             ref={teacherVideoContainerRef}
             className="w-full h-full"
+            style={{
+              objectFit: 'contain',
+              maxWidth: '100%',
+              maxHeight: '100%',
+              objectFit: 'contain',
+              maxWidth: '100%',
+              maxHeight: '100%'
+            }}
           />
           
-          {/* Student's Own Video - PIP (Picture in Picture) */}
-          <div className="absolute bottom-4 right-4 w-48 h-36 bg-gray-800 rounded-lg overflow-hidden border-2 border-white shadow-lg">
+          {/* Student's Own Video - PIP (Picture in Picture) - Draggable */}
+          {isVideoEnabled && (
             <div
-              ref={localVideoContainerRef}
-              className="w-full h-full"
-            />
-            {!isVideoEnabled && (
-              <div className="absolute inset-0 bg-gray-900 flex items-center justify-center">
-                <FiVideoOff className="text-3xl text-gray-500" />
+              className="absolute bg-gray-800 rounded-lg overflow-hidden border-2 border-white shadow-lg z-20 cursor-move"
+              style={{
+                width: '120px',
+                height: '90px',
+                bottom: `${ownVideoPosition.y}px`,
+                right: `${ownVideoPosition.x}px`,
+                touchAction: 'none',
+                userSelect: 'none'
+              }}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                setIsDragging(true);
+                const container = e.currentTarget.closest('.flex-1.relative.bg-black');
+                if (container) {
+                  const rect = container.getBoundingClientRect();
+                  setDragStart({
+                    x: e.clientX - (rect.width - ownVideoPosition.x),
+                    y: e.clientY - (rect.height - ownVideoPosition.y)
+                  });
+                }
+              }}
+              onTouchStart={(e) => {
+                e.preventDefault();
+                setIsDragging(true);
+                const touch = e.touches[0];
+                const container = e.currentTarget.closest('.flex-1.relative.bg-black');
+                if (container) {
+                  const rect = container.getBoundingClientRect();
+                  setDragStart({
+                    x: touch.clientX - (rect.width - ownVideoPosition.x),
+                    y: touch.clientY - (rect.height - ownVideoPosition.y)
+                  });
+                }
+              }}
+            >
+              <div
+                ref={localVideoContainerRef}
+                className="w-full h-full"
+                style={{
+                  objectFit: 'cover',
+                  transform: cameraFacing === 'user' ? 'scaleX(-1)' : 'none',
+                  transition: 'transform 0.2s ease-in-out'
+                }}
+              />
+              <div className="absolute bottom-1 left-1 bg-black/70 px-1.5 py-0.5 rounded text-[10px] z-10">
+                You {isMuted && '(Muted)'}
               </div>
-            )}
-            <div className="absolute bottom-2 left-2 bg-black/50 px-2 py-1 rounded text-xs">
-              You {isMuted && '(Muted)'}
+              {hasRaisedHand && (
+                <div className="absolute top-1 right-1 bg-yellow-500 px-1.5 py-0.5 rounded text-[10px] font-bold z-10">
+                  ✋
+                </div>
+              )}
             </div>
-            {hasRaisedHand && (
-              <div className="absolute top-2 right-2 bg-yellow-500 px-2 py-1 rounded text-xs font-bold">
-                ✋
-              </div>
-            )}
-          </div>
+          )}
         </div>
 
         {/* Chat Sidebar */}

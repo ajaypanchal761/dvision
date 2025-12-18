@@ -74,6 +74,7 @@ const LiveClassRoom = () => {
   const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [cameraFacing, setCameraFacing] = useState('user'); // 'user' or 'environment'
   const [isReconnecting, setIsReconnecting] = useState(false);
+  const [orientation, setOrientation] = useState(window.innerWidth > window.innerHeight ? 'landscape' : 'portrait');
   
   // Chat & Participants
   const [chatMessages, setChatMessages] = useState([]);
@@ -97,6 +98,25 @@ const LiveClassRoom = () => {
   
   // Connection state
   const [connectionState, setConnectionState] = useState('disconnected'); // disconnected, connecting, connected
+
+  // Handle orientation changes
+  useEffect(() => {
+    const handleOrientationChange = () => {
+      const newOrientation = window.innerWidth > window.innerHeight ? 'landscape' : 'portrait';
+      setOrientation(newOrientation);
+    };
+
+    window.addEventListener('resize', handleOrientationChange);
+    window.addEventListener('orientationchange', handleOrientationChange);
+    
+    // Initial orientation
+    handleOrientationChange();
+
+    return () => {
+      window.removeEventListener('resize', handleOrientationChange);
+      window.removeEventListener('orientationchange', handleOrientationChange);
+    };
+  }, []);
 
   // Initialize class
   useEffect(() => {
@@ -533,7 +553,27 @@ const LiveClassRoom = () => {
 
       if (nextDevice) {
         await localVideoTrackRef.current.setDevice(nextDevice.deviceId);
-        setCameraFacing(prev => prev === 'user' ? 'environment' : 'user');
+        const newFacing = cameraFacing === 'user' ? 'environment' : 'user';
+        setCameraFacing(newFacing);
+        
+        // Ensure video is playing after device switch to prevent recording freeze
+        if (localVideoContainerRef.current && localVideoTrackRef.current && localVideoTrackRef.current.enabled) {
+          try {
+            await localVideoTrackRef.current.play(localVideoContainerRef.current);
+            console.log('Video replayed after camera switch');
+          } catch (playErr) {
+            console.warn('Error replaying video after camera switch:', playErr);
+            setTimeout(async () => {
+              if (localVideoContainerRef.current && localVideoTrackRef.current && localVideoTrackRef.current.enabled) {
+                try {
+                  await localVideoTrackRef.current.play(localVideoContainerRef.current);
+                } catch (retryErr) {
+                  console.error('Error replaying video on retry:', retryErr);
+                }
+              }
+            }, 300);
+          }
+        }
       } else {
         console.warn('No alternative camera found to switch');
       }
@@ -778,6 +818,13 @@ const LiveClassRoom = () => {
             <div
               ref={localVideoContainerRef}
               className="w-full h-full"
+              style={{
+                objectFit: 'contain',
+                transform: cameraFacing === 'user' ? 'scaleX(-1)' : 'none',
+                transition: 'transform 0.2s ease-in-out',
+                maxWidth: '100%',
+                maxHeight: '100%'
+              }}
             />
             {!isVideoEnabled && (
               <div className="absolute inset-0 bg-gray-900 flex items-center justify-center">
