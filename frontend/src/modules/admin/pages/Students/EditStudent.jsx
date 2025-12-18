@@ -17,7 +17,7 @@ const EditStudent = () => {
     status: 'Active',
     subscriptionStatus: 'none',
     selectedPlanId: '',
-    prepPlanIds: []
+    prepSubscriptions: {} // { classId: planId } - one subscription per preparation class
   })
   const [isLoading, setIsLoading] = useState(false)
   const [isFetching, setIsFetching] = useState(true)
@@ -34,6 +34,8 @@ const EditStudent = () => {
   const [loadingPlans, setLoadingPlans] = useState(false)
   const [prepPlans, setPrepPlans] = useState([])
   const [loadingPrepPlans, setLoadingPrepPlans] = useState(false)
+  const [preparationClasses, setPreparationClasses] = useState([])
+  const [prepPlansByClass, setPrepPlansByClass] = useState({}) // { classId: [plans] }
 
   // Popular country codes
   const countryCodes = [
@@ -170,30 +172,56 @@ const EditStudent = () => {
     fetchPlans()
   }, [formData.subscriptionStatus, formData.class, formData.board])
 
-  // Fetch preparation plans (available globally)
+  // Fetch preparation classes and their subscriptions
   useEffect(() => {
-    const fetchPrepPlans = async () => {
+    const fetchPrepData = async () => {
       try {
         setLoadingPrepPlans(true)
-        const response = await subscriptionPlanAPI.getAll({
+        
+        // Fetch preparation classes
+        const classesResponse = await subscriptionPlanAPI.getPreparationClasses()
+        if (classesResponse.success && classesResponse.data?.classes) {
+          const prepClasses = classesResponse.data.classes.filter(c => c.isActive !== false)
+          setPreparationClasses(prepClasses)
+        }
+        
+        // Fetch all preparation plans
+        const plansResponse = await subscriptionPlanAPI.getAll({
           type: 'preparation',
           isActive: true
         })
-        if (response.success && (response.data?.plans || response.data?.subscriptionPlans)) {
-          const plans = response.data.plans || response.data.subscriptionPlans || []
+        
+        if (plansResponse.success && (plansResponse.data?.plans || plansResponse.data?.subscriptionPlans)) {
+          const plans = plansResponse.data.plans || plansResponse.data.subscriptionPlans || []
           setPrepPlans(plans)
+          
+          // Group plans by classId
+          const plansByClass = {}
+          plans.forEach(plan => {
+            const classId = plan.classId?._id || plan.classId
+            if (classId) {
+              const classIdStr = classId.toString()
+              if (!plansByClass[classIdStr]) {
+                plansByClass[classIdStr] = []
+              }
+              plansByClass[classIdStr].push(plan)
+            }
+          })
+          setPrepPlansByClass(plansByClass)
         } else {
           setPrepPlans([])
+          setPrepPlansByClass({})
         }
       } catch (error) {
-        console.error('Error fetching preparation plans:', error)
+        console.error('Error fetching preparation data:', error)
         setPrepPlans([])
+        setPrepPlansByClass({})
       } finally {
         setLoadingPrepPlans(false)
       }
     }
 
-    fetchPrepPlans()
+    fetchPrepData()
   }, [])
 
   // Fetch student data from backend
@@ -215,10 +243,19 @@ const EditStudent = () => {
           const subscriptionStatus = hasActiveSubscription ? 'active' : 'none'
           const selectedPlanId = hasActiveSubscription && student.subscription.planId ? student.subscription.planId.toString() : ''
 
-          // Prep plan IDs from activeSubscriptions
-          const prepPlanIds = Array.isArray(student.activeSubscriptions)
-            ? student.activeSubscriptions.filter(sub => sub.type === 'preparation').map(sub => sub.planId?.toString()).filter(Boolean)
-            : []
+          // Prep subscriptions from activeSubscriptions - convert to { classId: planId } format
+          const prepSubscriptions = {}
+          if (Array.isArray(student.activeSubscriptions)) {
+            student.activeSubscriptions
+              .filter(sub => sub.type === 'preparation' && sub.planId && sub.classId)
+              .forEach(sub => {
+                const classId = sub.classId?._id || sub.classId
+                const planId = sub.planId?._id || sub.planId
+                if (classId && planId) {
+                  prepSubscriptions[classId.toString()] = planId.toString()
+                }
+              })
+          }
 
           setFormData({
             name: student.name || '',
@@ -230,7 +267,7 @@ const EditStudent = () => {
             imagePreview: student.profileImage || null,
             subscriptionStatus,
             selectedPlanId,
-            prepPlanIds,
+            prepSubscriptions,
           })
         } else {
           setError('Student not found')
@@ -321,9 +358,10 @@ const EditStudent = () => {
         studentData.removeSubscription = true
       }
 
-      // Add preparation plans (multiple) if selected
-      if (formData.prepPlanIds && formData.prepPlanIds.length > 0) {
-        studentData.preparationPlanIds = formData.prepPlanIds
+      // Add preparation plans - convert { classId: planId } to array of planIds
+      const prepPlanIds = Object.values(formData.prepSubscriptions || {}).filter(Boolean)
+      if (prepPlanIds.length > 0) {
+        studentData.preparationPlanIds = prepPlanIds
       }
 
       // Add image as base64 if new image is provided
@@ -652,25 +690,57 @@ const EditStudent = () => {
               <label className="block text-[11px] sm:text-sm font-semibold text-gray-700 mb-1">
                 Preparation Subscriptions (optional)
               </label>
-              <p className="text-[10px] sm:text-xs text-gray-500 mb-2">Assign one or more preparation plans in addition to the regular plan.</p>
-              <select
-                multiple
-                value={formData.prepPlanIds}
-                onChange={(e) => {
-                  const options = Array.from(e.target.selectedOptions).map(opt => opt.value)
-                  setFormData(prev => ({ ...prev, prepPlanIds: options }))
-                }}
-                className="w-full px-3 sm:px-4 py-2 sm:py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#1e3a5f] focus:border-[#1e3a5f] outline-none transition-all duration-200 bg-white text-sm sm:text-base min-h-[140px]"
-                disabled={isLoading || loadingPrepPlans}
-              >
-                {loadingPrepPlans && <option>Loading preparation plans...</option>}
-                {!loadingPrepPlans && prepPlans.length === 0 && <option disabled>No preparation plans available</option>}
-                {!loadingPrepPlans && prepPlans.map(plan => (
-                  <option key={plan._id} value={plan._id}>
-                    {plan.name} - ₹{plan.price} ({plan.duration}) — {prepClassesMap[plan.classId] || 'Prep Class'}
-                  </option>
-                ))}
-              </select>
+              <p className="text-[10px] sm:text-xs text-gray-500 mb-2">Assign one subscription per preparation class. You can assign multiple subscriptions for different preparation classes.</p>
+              
+              {loadingPrepPlans ? (
+                <div className="text-center py-4">
+                  <p className="text-xs text-gray-500">Loading preparation classes...</p>
+                </div>
+              ) : preparationClasses.length === 0 ? (
+                <div className="text-center py-4">
+                  <p className="text-xs text-gray-500">No preparation classes available</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {preparationClasses.map(prepClass => {
+                    const classId = prepClass._id?.toString() || prepClass._id
+                    const plansForClass = prepPlansByClass[classId] || []
+                    const selectedPlanId = formData.prepSubscriptions[classId] || ''
+                    
+                    return (
+                      <div key={classId} className="border border-gray-200 rounded-lg p-2 sm:p-3">
+                        <label className="block text-[10px] sm:text-xs font-semibold text-gray-700 mb-1.5">
+                          {prepClass.name || prepClass.classCode || 'Preparation Class'}
+                        </label>
+                        <select
+                          value={selectedPlanId}
+                          onChange={(e) => {
+                            const newPrepSubs = { ...formData.prepSubscriptions }
+                            if (e.target.value) {
+                              newPrepSubs[classId] = e.target.value
+                            } else {
+                              delete newPrepSubs[classId]
+                            }
+                            setFormData(prev => ({ ...prev, prepSubscriptions: newPrepSubs }))
+                          }}
+                          className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-200 rounded-lg focus:ring-1 focus:ring-[#1e3a5f] focus:border-[#1e3a5f] outline-none transition-all duration-200 bg-white text-[10px] sm:text-xs"
+                          disabled={isLoading || loadingPrepPlans}
+                        >
+                          <option value="">No subscription</option>
+                          {plansForClass.map(plan => (
+                            <option key={plan._id} value={plan._id}>
+                              {plan.name} - ₹{plan.price} ({plan.duration})
+                            </option>
+                          ))}
+                        </select>
+                        {plansForClass.length === 0 && (
+                          <p className="text-[9px] text-gray-400 mt-1">No subscriptions available for this class</p>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
             </div>
             </div>
 
