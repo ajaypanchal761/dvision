@@ -28,6 +28,8 @@ const CreateLiveClass = () => {
     subjectId: '',
     title: '',
     description: '',
+    startTime: '',
+    endTime: '',
   });
   
   const [assignedOptions, setAssignedOptions] = useState({
@@ -98,7 +100,7 @@ const CreateLiveClass = () => {
   };
 
   const isFormValid = () => {
-    return formData.title.trim() !== '' && formData.classId && formData.subjectId;
+    return formData.title.trim() !== '' && formData.classId && formData.subjectId && formData.startTime && formData.endTime;
   };
 
   const handleSubmit = async (e) => {
@@ -117,7 +119,9 @@ const CreateLiveClass = () => {
         formData.classId,
         formData.subjectId,
         formData.title.trim(),
-        formData.description.trim()
+        formData.description.trim(),
+        formData.startTime,
+        formData.endTime
       );
 
       if (response.success) {
@@ -265,6 +269,45 @@ const CreateLiveClass = () => {
                   rows={3}
                   className="w-full pl-9 pr-3 py-2 sm:py-2.5 border-2 border-gray-200 rounded-lg bg-white focus:outline-none focus:border-[var(--app-dark-blue)] focus:ring-2 focus:ring-[var(--app-dark-blue)]/20 transition-all text-sm resize-none font-medium"
                 />
+              </div>
+            </div>
+
+            {/* Start Time and End Time */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+              <div>
+                <label className="block text-gray-700 font-bold text-xs mb-1">
+                  Start Time <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <div className="absolute left-2.5 top-1/2 transform -translate-y-1/2">
+                    <FiClock className="text-[var(--app-dark-blue)] text-sm" />
+                  </div>
+                  <input
+                    type="time"
+                    required
+                    value={formData.startTime}
+                    onChange={(e) => handleInputChange('startTime', e.target.value)}
+                    className="w-full pl-9 pr-3 py-2 sm:py-2.5 border-2 border-gray-200 rounded-lg bg-white focus:outline-none focus:border-[var(--app-dark-blue)] focus:ring-2 focus:ring-[var(--app-dark-blue)]/20 transition-all text-sm font-medium"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-gray-700 font-bold text-xs mb-1">
+                  End Time <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <div className="absolute left-2.5 top-1/2 transform -translate-y-1/2">
+                    <FiClock className="text-[var(--app-dark-blue)] text-sm" />
+                  </div>
+                  <input
+                    type="time"
+                    required
+                    value={formData.endTime}
+                    onChange={(e) => handleInputChange('endTime', e.target.value)}
+                    min={formData.startTime || undefined}
+                    className="w-full pl-9 pr-3 py-2 sm:py-2.5 border-2 border-gray-200 rounded-lg bg-white focus:outline-none focus:border-[var(--app-dark-blue)] focus:ring-2 focus:ring-[var(--app-dark-blue)]/20 transition-all text-sm font-medium"
+                  />
+                </div>
               </div>
             </div>
 

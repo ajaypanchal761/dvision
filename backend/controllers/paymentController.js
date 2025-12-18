@@ -621,7 +621,7 @@ exports.getPaymentHistory = asyncHandler(async (req, res, next) => {
 // @route   GET /api/admin/payments
 // @access  Private (Admin)
 exports.getAllPayments = asyncHandler(async (req, res, next) => {
-  const { status, startDate, endDate, studentId } = req.query;
+  const { status, startDate, endDate, studentId, page = 1, limit = 10, search } = req.query;
 
   const query = {};
   if (status) query.status = status;
@@ -630,6 +630,48 @@ exports.getAllPayments = asyncHandler(async (req, res, next) => {
     query.createdAt = {};
     if (startDate) query.createdAt.$gte = new Date(startDate);
     if (endDate) query.createdAt.$lte = new Date(endDate);
+  }
+
+  // Add search functionality - search in order IDs first
+  if (search) {
+    const searchRegex = { $regex: search, $options: 'i' };
+    query.$or = [
+      { cashfreeOrderId: searchRegex },
+      { cashfreePaymentId: searchRegex }
+    ];
+  }
+
+  const skip = (parseInt(page) - 1) * parseInt(limit);
+  let total = await Payment.countDocuments(query);
+
+  // If search is provided, also search in student fields
+  let studentSearchQuery = null;
+  if (search) {
+    const Student = require('../models/Student');
+    const searchRegex = { $regex: search, $options: 'i' };
+    const matchingStudents = await Student.find({
+      $or: [
+        { name: searchRegex },
+        { phone: searchRegex },
+        { email: searchRegex }
+      ]
+    }).select('_id');
+    const studentIds = matchingStudents.map(s => s._id);
+    if (studentIds.length > 0) {
+      // Combine with existing query
+      const studentQuery = { ...query };
+      delete studentQuery.$or; // Remove order ID search
+      studentQuery.studentId = { $in: studentIds };
+      const studentPaymentsCount = await Payment.countDocuments(studentQuery);
+      // If we have student matches, update query
+      if (studentPaymentsCount > 0) {
+        query.$or = [
+          ...(query.$or || []),
+          { studentId: { $in: studentIds } }
+        ];
+        total = await Payment.countDocuments(query);
+      }
+    }
   }
 
   const payments = await Payment.find(query)
@@ -645,7 +687,9 @@ exports.getAllPayments = asyncHandler(async (req, res, next) => {
         select: 'name description classCode'
       }
     })
-    .sort({ createdAt: -1 });
+    .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(parseInt(limit));
 
   // Calculate revenue
   const totalRevenue = payments
@@ -679,7 +723,7 @@ exports.getAllPayments = asyncHandler(async (req, res, next) => {
     currency: payment.currency,
     status: payment.status,
     cashfreeOrderId: payment.cashfreeOrderId,
-    cashfreePaymentId: payment.cashfreePaymentId,
+    cashfreePaymentId: payment.cashfreePaymentId || null, // Explicitly include null for pending payments
     subscriptionStartDate: payment.subscriptionStartDate,
     subscriptionEndDate: payment.subscriptionEndDate,
     createdAt: payment.createdAt,
@@ -689,6 +733,9 @@ exports.getAllPayments = asyncHandler(async (req, res, next) => {
   res.status(200).json({
     success: true,
     count: payments.length,
+    total,
+    page: parseInt(page),
+    pages: Math.ceil(total / parseInt(limit)),
     data: {
       payments: formattedPayments,
       revenue: {

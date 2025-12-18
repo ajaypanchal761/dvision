@@ -11,29 +11,92 @@ const Courses = () => {
   const [searchTerm, setSearchTerm] = useState('')
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
+  
+  // Pagination state
+  const [pagination, setPagination] = useState({
+    page: 1,
+    pages: 1,
+    total: 0,
+    count: 0
+  })
+  
+  // Statistics state
+  const [statistics, setStatistics] = useState({
+    totalCourses: 0,
+    activeCourses: 0,
+    inactiveCourses: 0
+  })
+
+  // Fetch course statistics (independent of search/filters)
+  const fetchStatistics = async () => {
+    try {
+      const response = await courseAPI.getStatistics()
+      if (response.success && response.data?.statistics) {
+        setStatistics({
+          totalCourses: response.data.statistics.totalCourses || 0,
+          activeCourses: response.data.statistics.activeCourses || 0,
+          inactiveCourses: response.data.statistics.inactiveCourses || 0
+        })
+      }
+    } catch (err) {
+      console.error('Error fetching statistics:', err)
+    }
+  }
 
   // Fetch courses from backend
-  useEffect(() => {
-    const fetchCourses = async () => {
-      try {
-        setIsLoading(true)
-        setError('')
-        const response = await courseAPI.getAll()
-        if (response.success && response.data?.courses) {
-          setCourses(response.data.courses)
-        } else {
-          setError('Failed to load courses')
-        }
-      } catch (err) {
-        console.error('Error fetching courses:', err)
-        setError(err.message || 'Failed to load courses. Please refresh the page.')
-      } finally {
-        setIsLoading(false)
+  const fetchCourses = async (page = 1) => {
+    try {
+      setIsLoading(true)
+      setError('')
+      const params = {
+        page,
+        limit: 10
       }
-    }
+      if (searchTerm) params.search = searchTerm
 
-    fetchCourses()
-  }, [location.pathname])
+      const response = await courseAPI.getAll(params)
+      if (response.success && response.data?.courses) {
+        setCourses(response.data.courses)
+        
+        // Update pagination
+        setPagination({
+          page: response.page || 1,
+          pages: response.pages || 1,
+          total: response.total || 0,
+          count: response.count || 0
+        })
+      } else {
+        setError('Failed to load courses')
+      }
+    } catch (err) {
+      console.error('Error fetching courses:', err)
+      setError(err.message || 'Failed to load courses. Please refresh the page.')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchStatistics() // Fetch statistics once on mount
+    fetchCourses(1)
+  }, [])
+
+  // Debounced search - reset to page 1 when search changes
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (searchTerm !== undefined) {
+        fetchCourses(1)
+      }
+    }, 500)
+    return () => clearTimeout(timer)
+  }, [searchTerm])
+  
+  // Handle page change
+  const handlePageChange = (newPage) => {
+    if (newPage >= 1 && newPage <= pagination.pages) {
+      fetchCourses(newPage)
+    }
+  }
 
   const handleDeleteClick = (id) => {
     setDeleteCourseId(id)
@@ -44,8 +107,9 @@ const Courses = () => {
     try {
       const response = await courseAPI.delete(deleteCourseId)
       if (response.success) {
-        // Remove from local state
-        setCourses(courses.filter(c => c._id !== deleteCourseId))
+        // Refresh statistics and courses list
+        await fetchStatistics()
+        await fetchCourses(pagination.page)
         setIsDeleteModalOpen(false)
         setDeleteCourseId(null)
       } else {
@@ -61,14 +125,8 @@ const Courses = () => {
     }
   }
 
-  const filteredCourses = courses.filter(course =>
-    course.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    course.board?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    course.subject?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    course.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    course.type?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (course.classId?.name && course.classId.name.toLowerCase().includes(searchTerm.toLowerCase()))
-  )
+  // No client-side filtering needed - backend handles search
+  const filteredCourses = courses
 
   if (isLoading) {
     return (
@@ -121,11 +179,11 @@ const Courses = () => {
             <div className="bg-white rounded-lg shadow-md p-2.5 sm:p-3 md:p-4 border border-gray-200">
               <div className="flex items-center justify-between">
                 <div className="flex-1 min-w-0">
-                  <p className="text-gray-500 text-xs font-medium">Total Courses</p>
-                  <p className="text-base sm:text-lg md:text-xl font-bold text-gray-900 mt-0.5">{courses.length}</p>
+                  <p className="text-gray-500 text-xs sm:text-sm font-medium">Total Courses</p>
+                  <p className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold text-gray-900 mt-0.5 sm:mt-1">{statistics.totalCourses}</p>
                 </div>
-                <div className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0 ml-2">
-                  <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5 md:w-4 md:h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="h-7 w-7 sm:h-8 sm:w-8 md:h-10 md:w-10 lg:h-12 lg:w-12 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0 ml-2">
+                  <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 md:w-5 md:h-5 lg:w-6 lg:h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                   </svg>
                 </div>
@@ -135,7 +193,7 @@ const Courses = () => {
               <div className="flex items-center justify-between">
                 <div className="flex-1 min-w-0">
                   <p className="text-gray-500 text-xs sm:text-sm font-medium">Active Courses</p>
-                  <p className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold text-gray-900 mt-0.5 sm:mt-1">{courses.filter(c => c.status === 'Active').length}</p>
+                  <p className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold text-gray-900 mt-0.5 sm:mt-1">{statistics.activeCourses}</p>
                 </div>
                 <div className="h-7 w-7 sm:h-8 sm:w-8 md:h-10 md:w-10 lg:h-12 lg:w-12 rounded-lg bg-green-100 flex items-center justify-center flex-shrink-0 ml-2">
                   <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 md:w-5 md:h-5 lg:w-6 lg:h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -147,12 +205,12 @@ const Courses = () => {
             <div className="bg-white rounded-lg shadow-md p-2.5 sm:p-3 md:p-4 border border-gray-200">
               <div className="flex items-center justify-between">
                 <div className="flex-1 min-w-0">
-                  <p className="text-gray-500 text-xs sm:text-sm font-medium">Filtered Results</p>
-                  <p className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold text-gray-900 mt-0.5 sm:mt-1">{filteredCourses.length}</p>
+                  <p className="text-gray-500 text-xs sm:text-sm font-medium">Inactive Courses</p>
+                  <p className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold text-gray-900 mt-0.5 sm:mt-1">{statistics.inactiveCourses}</p>
                 </div>
-                <div className="h-7 w-7 sm:h-8 sm:w-8 md:h-10 md:w-10 lg:h-12 lg:w-12 rounded-lg bg-orange-100 flex items-center justify-center flex-shrink-0 ml-2">
-                  <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 md:w-5 md:h-5 lg:w-6 lg:h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                <div className="h-7 w-7 sm:h-8 sm:w-8 md:h-10 md:w-10 lg:h-12 lg:w-12 rounded-lg bg-red-100 flex items-center justify-center flex-shrink-0 ml-2">
+                  <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 md:w-5 md:h-5 lg:w-6 lg:h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 </div>
               </div>
@@ -307,6 +365,70 @@ const Courses = () => {
               </tbody>
             </table>
           </div>
+          
+          {/* Pagination Controls */}
+          {!isLoading && pagination.pages > 1 && (
+            <div className="px-3 sm:px-4 py-3 sm:py-4 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-3">
+              <div className="text-xs sm:text-sm text-gray-600">
+                Showing <span className="font-semibold">{((pagination.page - 1) * 10) + 1}</span> to{' '}
+                <span className="font-semibold">
+                  {Math.min(pagination.page * 10, pagination.total)}
+                </span>{' '}
+                of <span className="font-semibold">{pagination.total}</span> courses
+              </div>
+              <div className="flex items-center gap-1 sm:gap-2">
+                <button
+                  onClick={() => handlePageChange(pagination.page - 1)}
+                  disabled={pagination.page === 1}
+                  className={`px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-all ${
+                    pagination.page === 1
+                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                      : 'bg-[#1e3a5f] text-white hover:bg-[#2a4a6f]'
+                  }`}
+                >
+                  Previous
+                </button>
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: Math.min(5, pagination.pages) }, (_, i) => {
+                    let pageNum;
+                    if (pagination.pages <= 5) {
+                      pageNum = i + 1;
+                    } else if (pagination.page <= 3) {
+                      pageNum = i + 1;
+                    } else if (pagination.page >= pagination.pages - 2) {
+                      pageNum = pagination.pages - 4 + i;
+                    } else {
+                      pageNum = pagination.page - 2 + i;
+                    }
+                    return (
+                      <button
+                        key={pageNum}
+                        onClick={() => handlePageChange(pageNum)}
+                        className={`px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-all ${
+                          pagination.page === pageNum
+                            ? 'bg-[#1e3a5f] text-white'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        }`}
+                      >
+                        {pageNum}
+                      </button>
+                    );
+                  })}
+                </div>
+                <button
+                  onClick={() => handlePageChange(pagination.page + 1)}
+                  disabled={pagination.page === pagination.pages}
+                  className={`px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-all ${
+                    pagination.page === pagination.pages
+                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                      : 'bg-[#1e3a5f] text-white hover:bg-[#2a4a6f]'
+                  }`}
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

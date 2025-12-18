@@ -50,6 +50,27 @@ exports.createAgent = asyncHandler(async (req, res) => {
   });
 });
 
+// @desc    Get agent statistics (Admin)
+// @route   GET /api/admin/agents/statistics
+// @access  Private/Admin
+exports.getAgentStatistics = asyncHandler(async (req, res) => {
+  // Get overall statistics (not filtered by search or pagination)
+  const totalAgents = await Agent.countDocuments({});
+  const activeAgents = await Agent.countDocuments({ isActive: true });
+  const inactiveAgents = await Agent.countDocuments({ isActive: false });
+  
+  res.status(200).json({
+    success: true,
+    data: {
+      statistics: {
+        totalAgents,
+        activeAgents,
+        inactiveAgents
+      }
+    }
+  });
+});
+
 // @desc    Get all agents with basic stats (Admin)
 // @route   GET /api/admin/agents
 // @access  Private/Admin

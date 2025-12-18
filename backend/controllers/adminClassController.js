@@ -17,15 +17,64 @@ exports.getPublicClasses = asyncHandler(async (req, res) => {
   });
 });
 
+// @desc    Get class statistics (Admin)
+// @route   GET /api/admin/classes/statistics
+// @access  Private/Admin
+exports.getClassStatistics = asyncHandler(async (req, res) => {
+  // Get overall statistics (not filtered by search or pagination)
+  const totalClasses = await Class.countDocuments({});
+  const activeClasses = await Class.countDocuments({ isActive: true });
+  const regularClasses = await Class.countDocuments({ type: 'regular' });
+  const preparationClasses = await Class.countDocuments({ type: 'preparation' });
+  
+  res.status(200).json({
+    success: true,
+    data: {
+      statistics: {
+        totalClasses,
+        activeClasses,
+        regularClasses,
+        preparationClasses
+      }
+    }
+  });
+});
+
 // @desc    Get all classes (Admin)
 // @route   GET /api/admin/classes
 // @access  Private/Admin
 exports.getAllClasses = asyncHandler(async (req, res) => {
-  const classes = await Class.find().sort({ createdAt: -1 });
+  const { page = 1, limit = 10, search, type, isActive } = req.query;
+
+  const query = {};
+  
+  if (type) query.type = type;
+  if (isActive !== undefined) query.isActive = isActive === 'true';
+  
+  // Add search functionality
+  if (search) {
+    query.$or = [
+      { name: { $regex: search, $options: 'i' } },
+      { classCode: { $regex: search, $options: 'i' } },
+      { description: { $regex: search, $options: 'i' } },
+      { board: { $regex: search, $options: 'i' } }
+    ];
+  }
+
+  const skip = (parseInt(page) - 1) * parseInt(limit);
+  const total = await Class.countDocuments(query);
+
+  const classes = await Class.find(query)
+    .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(parseInt(limit));
 
   res.status(200).json({
     success: true,
     count: classes.length,
+    total,
+    page: parseInt(page),
+    pages: Math.ceil(total / parseInt(limit)),
     data: {
       classes
     }

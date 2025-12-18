@@ -4,6 +4,7 @@ const {
   createDoubt,
   getMyDoubts,
   getAllDoubts,
+  getDoubtStatistics,
   getDoubtById,
   answerDoubt,
   updateDoubtStatus,
@@ -16,6 +17,7 @@ router.post('/student/doubts', protect, authorize('student'), createDoubt);
 router.get('/student/doubts', protect, authorize('student'), getMyDoubts);
 
 // Admin/Teacher routes
+router.get('/doubts/statistics', protect, authorize('admin', 'super_admin'), getDoubtStatistics);
 router.get('/doubts', protect, authorize('admin', 'super_admin', 'teacher'), getAllDoubts);
 router.get('/doubts/:id', protect, getDoubtById);
 router.put('/doubts/:id/answer', protect, authorize('admin', 'super_admin', 'teacher'), answerDoubt);

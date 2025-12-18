@@ -529,10 +529,10 @@ export const liveClassAPI = {
     });
   },
   // Create live class
-  createLiveClass: async (classId, subjectId, title, description) => {
+  createLiveClass: async (classId, subjectId, title, description, startTime, endTime) => {
     return apiRequest('/live-classes/teacher/live-classes', {
       method: 'POST',
-      body: { classId, subjectId, title, description },
+      body: { classId, subjectId, title, description, startTime, endTime },
     });
   },
   // Start live class

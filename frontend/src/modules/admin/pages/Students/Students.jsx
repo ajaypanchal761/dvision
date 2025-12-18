@@ -11,13 +11,48 @@ const Students = () => {
   const [searchTerm, setSearchTerm] = useState('')
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
+  
+  // Pagination state
+  const [pagination, setPagination] = useState({
+    page: 1,
+    pages: 1,
+    total: 0,
+    count: 0
+  })
+  
+  // Statistics state
+  const [statistics, setStatistics] = useState({
+    totalStudents: 0,
+    activeStudents: 0,
+    activeSubscriptions: 0
+  })
+
+  // Fetch student statistics (independent of search/filters)
+  const fetchStatistics = async () => {
+    try {
+      const response = await studentAPI.getStatistics()
+      if (response.success && response.data?.statistics) {
+        setStatistics({
+          totalStudents: response.data.statistics.totalStudents || 0,
+          activeStudents: response.data.statistics.activeStudents || 0,
+          activeSubscriptions: response.data.statistics.activeSubscriptions || 0
+        })
+      }
+    } catch (err) {
+      console.error('Error fetching statistics:', err)
+      // Don't set error state for statistics, just log it
+    }
+  }
 
   // Fetch students from backend
-  const fetchStudents = async () => {
+  const fetchStudents = async (page = 1) => {
     try {
       setIsLoading(true)
       setError('')
-      const params = {}
+      const params = {
+        page,
+        limit: 10
+      }
       if (searchTerm) params.search = searchTerm
 
       const response = await studentAPI.getAll(params)
@@ -42,6 +77,15 @@ const Students = () => {
           createDateTime: student.createdAt ? new Date(student.createdAt).toLocaleString() : ''
         }))
         setStudents(mappedStudents)
+        
+        // Update pagination
+        setPagination({
+          page: response.page || 1,
+          pages: response.pages || 1,
+          total: response.total || 0,
+          count: response.count || 0
+        })
+        
       } else {
         setError('Failed to load students')
       }
@@ -54,18 +98,26 @@ const Students = () => {
   }
 
   useEffect(() => {
-    fetchStudents()
+    fetchStatistics() // Fetch statistics once on mount
+    fetchStudents(1)
   }, [])
 
-  // Debounced search
+  // Debounced search - reset to page 1 when search changes
   useEffect(() => {
     const timer = setTimeout(() => {
       if (searchTerm !== undefined) {
-        fetchStudents()
+        fetchStudents(1)
       }
     }, 500)
     return () => clearTimeout(timer)
   }, [searchTerm])
+  
+  // Handle page change
+  const handlePageChange = (newPage) => {
+    if (newPage >= 1 && newPage <= pagination.pages) {
+      fetchStudents(newPage)
+    }
+  }
 
   const handleDeleteClick = (id) => {
     setDeleteStudentId(id)
@@ -76,8 +128,9 @@ const Students = () => {
     try {
       const response = await studentAPI.delete(deleteStudentId)
       if (response.success) {
-        // Refresh students list
-        await fetchStudents()
+        // Refresh statistics and students list
+        await fetchStatistics()
+        await fetchStudents(pagination.page)
         setIsDeleteModalOpen(false)
         setDeleteStudentId(null)
       } else {
@@ -88,13 +141,8 @@ const Students = () => {
     }
   }
 
-  const filteredStudents = students.filter(student =>
-    student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    student.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    student.mobile.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    student.class.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (student.referralCode && student.referralCode.toLowerCase().includes(searchTerm.toLowerCase()))
-  )
+  // No client-side filtering needed - backend handles search
+  const filteredStudents = students
 
   const getInitials = (name) => {
     if (!name) return 'ST'
@@ -141,7 +189,7 @@ const Students = () => {
               <div className="flex items-center justify-between">
                 <div className="flex-1 min-w-0">
                   <p className="text-gray-500 text-xs sm:text-sm font-medium">Total Students</p>
-                  <p className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold text-gray-900 mt-0.5 sm:mt-1">{students.length}</p>
+                  <p className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold text-gray-900 mt-0.5 sm:mt-1">{statistics.totalStudents}</p>
                 </div>
                 <div className="h-7 w-7 sm:h-8 sm:w-8 md:h-10 md:w-10 lg:h-12 lg:w-12 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0 ml-2">
                   <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 md:w-5 md:h-5 lg:w-6 lg:h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -154,7 +202,7 @@ const Students = () => {
               <div className="flex items-center justify-between">
                 <div className="flex-1 min-w-0">
                   <p className="text-gray-500 text-xs sm:text-sm font-medium">Active Students</p>
-                  <p className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold text-gray-900 mt-0.5 sm:mt-1">{students.filter(s => s.status === 'Active').length}</p>
+                  <p className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold text-gray-900 mt-0.5 sm:mt-1">{statistics.activeStudents}</p>
                 </div>
                 <div className="h-7 w-7 sm:h-8 sm:w-8 md:h-10 md:w-10 lg:h-12 lg:w-12 rounded-lg bg-green-100 flex items-center justify-center flex-shrink-0 ml-2">
                   <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 md:w-5 md:h-5 lg:w-6 lg:h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -167,7 +215,7 @@ const Students = () => {
               <div className="flex items-center justify-between">
                 <div className="flex-1 min-w-0">
                   <p className="text-gray-500 text-xs sm:text-sm font-medium">Active Subscription</p>
-                  <p className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold text-gray-900 mt-0.5 sm:mt-1">{students.filter(s => s.subscriptionStatus === 'Active').length}</p>
+                  <p className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold text-gray-900 mt-0.5 sm:mt-1">{statistics.activeSubscriptions}</p>
                 </div>
                 <div className="h-7 w-7 sm:h-8 sm:w-8 md:h-10 md:w-10 lg:h-12 lg:w-12 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0 ml-2">
                   <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 md:w-5 md:h-5 lg:w-6 lg:h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -336,6 +384,70 @@ const Students = () => {
               </table>
             )}
           </div>
+          
+          {/* Pagination Controls */}
+          {!isLoading && pagination.pages > 1 && (
+            <div className="px-3 sm:px-4 py-3 sm:py-4 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-3">
+              <div className="text-xs sm:text-sm text-gray-600">
+                Showing <span className="font-semibold">{((pagination.page - 1) * 10) + 1}</span> to{' '}
+                <span className="font-semibold">
+                  {Math.min(pagination.page * 10, pagination.total)}
+                </span>{' '}
+                of <span className="font-semibold">{pagination.total}</span> students
+              </div>
+              <div className="flex items-center gap-1 sm:gap-2">
+                <button
+                  onClick={() => handlePageChange(pagination.page - 1)}
+                  disabled={pagination.page === 1}
+                  className={`px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-all ${
+                    pagination.page === 1
+                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                      : 'bg-[#1e3a5f] text-white hover:bg-[#2a4a6f]'
+                  }`}
+                >
+                  Previous
+                </button>
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: Math.min(5, pagination.pages) }, (_, i) => {
+                    let pageNum;
+                    if (pagination.pages <= 5) {
+                      pageNum = i + 1;
+                    } else if (pagination.page <= 3) {
+                      pageNum = i + 1;
+                    } else if (pagination.page >= pagination.pages - 2) {
+                      pageNum = pagination.pages - 4 + i;
+                    } else {
+                      pageNum = pagination.page - 2 + i;
+                    }
+                    return (
+                      <button
+                        key={pageNum}
+                        onClick={() => handlePageChange(pageNum)}
+                        className={`px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-all ${
+                          pagination.page === pageNum
+                            ? 'bg-[#1e3a5f] text-white'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        }`}
+                      >
+                        {pageNum}
+                      </button>
+                    );
+                  })}
+                </div>
+                <button
+                  onClick={() => handlePageChange(pagination.page + 1)}
+                  disabled={pagination.page === pagination.pages}
+                  className={`px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-all ${
+                    pagination.page === pagination.pages
+                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                      : 'bg-[#1e3a5f] text-white hover:bg-[#2a4a6f]'
+                  }`}
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

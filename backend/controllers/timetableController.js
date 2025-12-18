@@ -8,26 +8,69 @@ const asyncHandler = require('../utils/asyncHandler');
 const ErrorResponse = require('../utils/errorResponse');
 const notificationService = require('../services/notificationService');
 
+// @desc    Get timetable statistics (Admin)
+// @route   GET /api/admin/timetables/statistics
+// @access  Private/Admin
+exports.getTimetableStatistics = asyncHandler(async (req, res) => {
+  // Get overall statistics (not filtered by search or pagination)
+  const totalTimetables = await Timetable.countDocuments({});
+  const activeTimetables = await Timetable.countDocuments({ isActive: true });
+  const inactiveTimetables = await Timetable.countDocuments({ isActive: false });
+  
+  res.status(200).json({
+    success: true,
+    data: {
+      statistics: {
+        totalTimetables,
+        activeTimetables,
+        inactiveTimetables
+      }
+    }
+  });
+});
+
 // @desc    Get all timetables (Admin)
 // @route   GET /api/admin/timetables
 // @access  Private/Admin
 exports.getAllTimetables = asyncHandler(async (req, res) => {
-  const { classId, dayOfWeek, teacherId } = req.query;
+  const { classId, dayOfWeek, teacherId, page = 1, limit = 10, search } = req.query;
 
-  const query = { isActive: true };
+  const query = {};
   if (classId) query.classId = classId;
   if (dayOfWeek) query.dayOfWeek = dayOfWeek;
   if (teacherId) query.teacherId = teacherId;
+  
+  // By default, show only active timetables unless explicitly filtered
+  if (req.query.isActive === undefined) {
+    query.isActive = true;
+  } else {
+    query.isActive = req.query.isActive === 'true';
+  }
+  
+  // Add search functionality
+  if (search) {
+    query.$or = [
+      { dayOfWeek: { $regex: search, $options: 'i' } }
+    ];
+  }
+
+  const skip = (parseInt(page) - 1) * parseInt(limit);
+  const total = await Timetable.countDocuments(query);
 
   const timetables = await Timetable.find(query)
     .populate('classId', 'type class board name classCode')
     .populate('subjectId', 'name')
     .populate('teacherId', 'name email phone')
-    .sort({ dayOfWeek: 1, startTime: 1 });
+    .sort({ dayOfWeek: 1, startTime: 1 })
+    .skip(skip)
+    .limit(parseInt(limit));
 
   res.status(200).json({
     success: true,
     count: timetables.length,
+    total,
+    page: parseInt(page),
+    pages: Math.ceil(total / parseInt(limit)),
     data: {
       timetables
     }

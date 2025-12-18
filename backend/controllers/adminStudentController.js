@@ -4,6 +4,45 @@ const asyncHandler = require('../utils/asyncHandler');
 const ErrorResponse = require('../utils/errorResponse');
 const { uploadToCloudinary, deleteFromCloudinary } = require('../config/cloudinary');
 
+// @desc    Get student statistics (Admin)
+// @route   GET /api/admin/students/statistics
+// @access  Private/Admin
+exports.getStudentStatistics = asyncHandler(async (req, res) => {
+  // Get overall statistics (not filtered by search or pagination)
+  const totalStudents = await Student.countDocuments({});
+  
+  const activeStudents = await Student.countDocuments({ isActive: true });
+  
+  // Count students with active subscriptions
+  // A student has active subscription if:
+  // 1. subscription.status === 'active' OR
+  // 2. activeSubscriptions array has at least one entry with endDate >= today
+  const now = new Date();
+  const studentsWithActiveSubs = await Student.countDocuments({
+    $or: [
+      { 'subscription.status': 'active' },
+      { 
+        activeSubscriptions: {
+          $elemMatch: {
+            endDate: { $gte: now }
+          }
+        }
+      }
+    ]
+  });
+  
+  res.status(200).json({
+    success: true,
+    data: {
+      statistics: {
+        totalStudents,
+        activeStudents,
+        activeSubscriptions: studentsWithActiveSubs
+      }
+    }
+  });
+});
+
 // @desc    Get all students (Admin)
 // @route   GET /api/admin/students
 // @access  Private/Admin

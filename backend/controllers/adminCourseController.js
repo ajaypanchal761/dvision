@@ -7,17 +7,58 @@ const { uploadToCloudinary, deleteFromCloudinary } = require('../config/cloudina
 const fs = require('fs');
 const path = require('path');
 
+// @desc    Get course statistics (Admin)
+// @route   GET /api/admin/courses/statistics
+// @access  Private/Admin
+exports.getCourseStatistics = asyncHandler(async (req, res) => {
+  // Get overall statistics (not filtered by search or pagination)
+  const totalCourses = await Course.countDocuments({});
+  const activeCourses = await Course.countDocuments({ isActive: true });
+  const inactiveCourses = await Course.countDocuments({ isActive: false });
+  
+  res.status(200).json({
+    success: true,
+    data: {
+      statistics: {
+        totalCourses,
+        activeCourses,
+        inactiveCourses
+      }
+    }
+  });
+});
+
 // @desc    Get all courses (Admin)
 // @route   GET /api/admin/courses
 // @access  Private/Admin
 exports.getAllCourses = asyncHandler(async (req, res) => {
-  const courses = await Course.find()
+  const { page = 1, limit = 10, search } = req.query;
+
+  const query = {};
+  
+  // Add search functionality
+  if (search) {
+    query.$or = [
+      { name: { $regex: search, $options: 'i' } },
+      { description: { $regex: search, $options: 'i' } }
+    ];
+  }
+
+  const skip = (parseInt(page) - 1) * parseInt(limit);
+  const total = await Course.countDocuments(query);
+
+  const courses = await Course.find(query)
     .populate('classId', 'name type')
-    .sort({ createdAt: -1 });
+    .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(parseInt(limit));
 
   res.status(200).json({
     success: true,
     count: courses.length,
+    total,
+    page: parseInt(page),
+    pages: Math.ceil(total / parseInt(limit)),
     data: {
       courses
     }

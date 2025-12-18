@@ -4,6 +4,27 @@ const asyncHandler = require('../utils/asyncHandler');
 const ErrorResponse = require('../utils/errorResponse');
 const { uploadToCloudinary, deleteFromCloudinary } = require('../config/cloudinary');
 
+// @desc    Get teacher statistics (Admin)
+// @route   GET /api/admin/teachers/statistics
+// @access  Private/Admin
+exports.getTeacherStatistics = asyncHandler(async (req, res) => {
+  // Get overall statistics (not filtered by search or pagination)
+  const totalTeachers = await Teacher.countDocuments({});
+  const activeTeachers = await Teacher.countDocuments({ isActive: true });
+  const inactiveTeachers = await Teacher.countDocuments({ isActive: false });
+  
+  res.status(200).json({
+    success: true,
+    data: {
+      statistics: {
+        totalTeachers,
+        activeTeachers,
+        inactiveTeachers
+      }
+    }
+  });
+});
+
 // @desc    Get all teachers (Admin)
 // @route   GET /api/admin/teachers
 // @access  Private/Admin

@@ -554,14 +554,33 @@ exports.getNotificationHistory = asyncHandler(async (req, res) => {
 // @route   GET /api/admin/notifications/campaigns
 // @access  Private (Admin)
 exports.getAllCampaigns = asyncHandler(async (req, res) => {
-  const campaigns = await NotificationCampaign.find()
+  const { page = 1, limit = 10, search } = req.query;
+
+  const query = {};
+  
+  // Add search functionality
+  if (search) {
+    query.$or = [
+      { title: { $regex: search, $options: 'i' } },
+      { body: { $regex: search, $options: 'i' } }
+    ];
+  }
+
+  const skip = (parseInt(page) - 1) * parseInt(limit);
+  const total = await NotificationCampaign.countDocuments(query);
+
+  const campaigns = await NotificationCampaign.find(query)
     .sort({ createdAt: -1 })
     .populate('createdBy', 'name email')
-    .limit(100);
+    .skip(skip)
+    .limit(parseInt(limit));
 
   res.status(200).json({
     success: true,
     count: campaigns.length,
+    total,
+    page: parseInt(page),
+    pages: Math.ceil(total / parseInt(limit)),
     data: {
       campaigns
     }

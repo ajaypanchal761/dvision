@@ -10,17 +10,57 @@ const NotificationsList = () => {
   const [deleteCampaignId, setDeleteCampaignId] = useState(null)
   const [error, setError] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
+  
+  // Pagination state
+  const [pagination, setPagination] = useState({
+    page: 1,
+    pages: 1,
+    total: 0,
+    count: 0
+  })
 
   useEffect(() => {
-    fetchCampaigns()
+    fetchCampaigns(1)
   }, [])
 
-  const fetchCampaigns = async () => {
+  // Debounced search - reset to page 1 when search changes
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (searchTerm !== undefined) {
+        fetchCampaigns(1)
+      }
+    }, 500)
+    return () => clearTimeout(timer)
+  }, [searchTerm])
+  
+  // Handle page change
+  const handlePageChange = (newPage) => {
+    if (newPage >= 1 && newPage <= pagination.pages) {
+      fetchCampaigns(newPage)
+    }
+  }
+
+  const fetchCampaigns = async (page = 1) => {
     try {
       setLoading(true)
-      const response = await notificationAPI.getAllCampaigns()
+      setError('')
+      const params = {
+        page,
+        limit: 10
+      }
+      if (searchTerm) params.search = searchTerm
+      
+      const response = await notificationAPI.getAllCampaigns(params)
       if (response.success && response.data?.campaigns) {
         setCampaigns(response.data.campaigns)
+        
+        // Update pagination
+        setPagination({
+          page: response.page || 1,
+          pages: response.pages || 1,
+          total: response.total || 0,
+          count: response.count || 0
+        })
       }
     } catch (err) {
       console.error('Error fetching campaigns:', err)
@@ -40,7 +80,7 @@ const NotificationsList = () => {
       const response = await notificationAPI.deleteCampaign(deleteCampaignId)
       if (response.success) {
         alert('Notification deleted successfully!')
-        fetchCampaigns()
+        fetchCampaigns(pagination.page)
         setIsDeleteModalOpen(false)
         setDeleteCampaignId(null)
       }
@@ -63,11 +103,8 @@ const NotificationsList = () => {
     })
   }
 
-  const filteredCampaigns = campaigns.filter(campaign =>
-    campaign.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    campaign.body?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    campaign.recipientType?.toLowerCase().includes(searchTerm.toLowerCase())
-  )
+  // No client-side filtering needed - backend handles search
+  const filteredCampaigns = campaigns
 
   return (
     <div className="min-h-screen bg-white">
@@ -219,6 +256,70 @@ const NotificationsList = () => {
                   ))}
                 </tbody>
               </table>
+            </div>
+          )}
+          
+          {/* Pagination Controls */}
+          {!loading && pagination.pages > 1 && (
+            <div className="px-3 sm:px-4 py-3 sm:py-4 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-3">
+              <div className="text-xs sm:text-sm text-gray-600">
+                Showing <span className="font-semibold">{((pagination.page - 1) * 10) + 1}</span> to{' '}
+                <span className="font-semibold">
+                  {Math.min(pagination.page * 10, pagination.total)}
+                </span>{' '}
+                of <span className="font-semibold">{pagination.total}</span> notifications
+              </div>
+              <div className="flex items-center gap-1 sm:gap-2">
+                <button
+                  onClick={() => handlePageChange(pagination.page - 1)}
+                  disabled={pagination.page === 1}
+                  className={`px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-all ${
+                    pagination.page === 1
+                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                      : 'bg-[#1e3a5f] text-white hover:bg-[#2a4a6f]'
+                  }`}
+                >
+                  Previous
+                </button>
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: Math.min(5, pagination.pages) }, (_, i) => {
+                    let pageNum;
+                    if (pagination.pages <= 5) {
+                      pageNum = i + 1;
+                    } else if (pagination.page <= 3) {
+                      pageNum = i + 1;
+                    } else if (pagination.page >= pagination.pages - 2) {
+                      pageNum = pagination.pages - 4 + i;
+                    } else {
+                      pageNum = pagination.page - 2 + i;
+                    }
+                    return (
+                      <button
+                        key={pageNum}
+                        onClick={() => handlePageChange(pageNum)}
+                        className={`px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-all ${
+                          pagination.page === pageNum
+                            ? 'bg-[#1e3a5f] text-white'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        }`}
+                      >
+                        {pageNum}
+                      </button>
+                    );
+                  })}
+                </div>
+                <button
+                  onClick={() => handlePageChange(pagination.page + 1)}
+                  disabled={pagination.page === pagination.pages}
+                  className={`px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-all ${
+                    pagination.page === pagination.pages
+                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                      : 'bg-[#1e3a5f] text-white hover:bg-[#2a4a6f]'
+                  }`}
+                >
+                  Next
+                </button>
+              </div>
             </div>
           )}
         </div>

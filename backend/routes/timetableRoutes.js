@@ -3,6 +3,7 @@ const router = express.Router();
 const {
   getAllTimetables,
   getTimetable,
+  getTimetableStatistics,
   getTimetablesByClass,
   getMyClassTimetable,
   getMySchedule,
@@ -16,6 +17,7 @@ const {
 const { protect, authorize } = require('../middlewares/auth');
 
 // Admin routes
+router.get('/admin/statistics', protect, authorize('admin', 'super_admin'), getTimetableStatistics);
 router.get('/admin', protect, authorize('admin', 'super_admin'), getAllTimetables);
 router.get('/admin/:id', protect, authorize('admin', 'super_admin'), getTimetable);
 router.post('/admin', protect, authorize('admin', 'super_admin'), createTimetable);

@@ -385,3 +385,77 @@ exports.getAllAdmins = asyncHandler(async (req, res) => {
   });
 });
 
+// @desc    Get dashboard statistics (Admin)
+// @route   GET /api/admin/dashboard/statistics
+// @access  Private/Admin
+exports.getDashboardStatistics = asyncHandler(async (req, res) => {
+  const Student = require('../models/Student');
+  const Teacher = require('../models/Teacher');
+  const Class = require('../models/Class');
+  const Subject = require('../models/Subject');
+  const Course = require('../models/Course');
+  const Quiz = require('../models/Quiz');
+  const SubscriptionPlan = require('../models/SubscriptionPlan');
+
+  // Get all statistics in parallel for better performance
+  const [
+    totalStudents,
+    activeStudents,
+    totalTeachers,
+    activeTeachers,
+    totalClasses,
+    activeClasses,
+    totalSubjects,
+    totalCourses,
+    totalQuizzes,
+    totalSubscriptions
+  ] = await Promise.all([
+    Student.countDocuments({}),
+    Student.countDocuments({ isActive: true }),
+    Teacher.countDocuments({}),
+    Teacher.countDocuments({ isActive: true }),
+    Class.countDocuments({}),
+    Class.countDocuments({ isActive: true }),
+    Subject.countDocuments({}),
+    Course.countDocuments({}),
+    Quiz.countDocuments({}),
+    SubscriptionPlan.countDocuments({})
+  ]);
+
+  // Count students with active subscriptions
+  const now = new Date();
+  const activeSubscriptions = await Student.countDocuments({
+    $or: [
+      { 'subscription.status': 'active' },
+      {
+        activeSubscriptions: {
+          $elemMatch: {
+            endDate: { $gte: now }
+          }
+        }
+      }
+    ]
+  });
+
+  res.status(200).json({
+    success: true,
+    data: {
+      statistics: {
+        // Overview section
+        totalStudents,
+        activeStudents,
+        totalTeachers,
+        activeTeachers,
+        totalClasses,
+        activeClasses,
+        activeSubscriptions,
+        totalSubscriptions,
+        // Content overview section
+        totalSubjects,
+        totalCourses,
+        totalQuizzes
+      }
+    }
+  });
+});
+

@@ -6,6 +6,7 @@ const {
   getQuizById,
   updateQuiz,
   deleteQuiz,
+  getQuizStatistics,
   getTeacherQuizStatistics,
   getStudentQuizStatistics
 } = require('../controllers/quizController');
@@ -19,6 +20,7 @@ const {
 const { protect, authorize } = require('../middlewares/auth');
 
 // Admin routes
+router.get('/admin/quizzes/statistics', protect, authorize('admin', 'super_admin'), getQuizStatistics);
 router.post('/admin/quizzes', protect, authorize('admin', 'super_admin'), createQuiz);
 router.get('/admin/quizzes', protect, authorize('admin', 'super_admin'), getAllQuizzes);
 router.get('/admin/quizzes/:id', protect, authorize('admin', 'super_admin'), getQuizById);

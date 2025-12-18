@@ -13,27 +13,56 @@ const Transactions = () => {
   const [filterStatus, setFilterStatus] = useState('')
   const [filterStartDate, setFilterStartDate] = useState('')
   const [filterEndDate, setFilterEndDate] = useState('')
+  
+  // Pagination state
+  const [pagination, setPagination] = useState({
+    page: 1,
+    pages: 1,
+    total: 0,
+    count: 0
+  })
 
-  const fetchPayments = useCallback(async () => {
+  // Fetch statistics (independent of pagination/filters)
+  const fetchStatistics = useCallback(async () => {
     try {
-      setIsLoading(true)
-      setError('')
       const params = {}
-      if (filterStatus) params.status = filterStatus
       if (filterStartDate) params.startDate = filterStartDate
       if (filterEndDate) params.endDate = filterEndDate
       
-      const [paymentsResponse, statsResponse] = await Promise.all([
-        paymentAPI.getAll(params),
-        paymentAPI.getStats(params)
-      ])
+      const statsResponse = await paymentAPI.getStats(params)
+      if (statsResponse.success && statsResponse.data?.stats) {
+        setStats(statsResponse.data.stats)
+      }
+    } catch (err) {
+      console.error('Error fetching statistics:', err)
+    }
+  }, [filterStartDate, filterEndDate])
+
+  const fetchPayments = useCallback(async (page = 1) => {
+    try {
+      setIsLoading(true)
+      setError('')
+      const params = {
+        page,
+        limit: 10
+      }
+      if (filterStatus) params.status = filterStatus
+      if (filterStartDate) params.startDate = filterStartDate
+      if (filterEndDate) params.endDate = filterEndDate
+      if (searchTerm) params.search = searchTerm
+      
+      const paymentsResponse = await paymentAPI.getAll(params)
       
       if (paymentsResponse.success && paymentsResponse.data?.payments) {
         setPayments(paymentsResponse.data.payments)
-      }
-      
-      if (statsResponse.success && statsResponse.data?.stats) {
-        setStats(statsResponse.data.stats)
+        
+        // Update pagination
+        setPagination({
+          page: paymentsResponse.page || 1,
+          pages: paymentsResponse.pages || 1,
+          total: paymentsResponse.total || 0,
+          count: paymentsResponse.count || 0
+        })
       }
     } catch (err) {
       setError(err.message || 'Failed to load transactions')
@@ -41,27 +70,31 @@ const Transactions = () => {
     } finally {
       setIsLoading(false)
     }
-  }, [filterStatus, filterStartDate, filterEndDate])
+  }, [filterStatus, filterStartDate, filterEndDate, searchTerm])
 
   useEffect(() => {
-    fetchPayments()
-  }, [fetchPayments])
+    fetchStatistics()
+    fetchPayments(1)
+  }, [])
 
+  // Debounced search and filters - reset to page 1 when filters change
   useEffect(() => {
-    fetchPayments()
-  }, [location.pathname])
+    const timer = setTimeout(() => {
+      fetchStatistics()
+      fetchPayments(1)
+    }, 500)
+    return () => clearTimeout(timer)
+  }, [searchTerm, filterStatus, filterStartDate, filterEndDate])
+  
+  // Handle page change
+  const handlePageChange = (newPage) => {
+    if (newPage >= 1 && newPage <= pagination.pages) {
+      fetchPayments(newPage)
+    }
+  }
 
-  const filteredPayments = payments.filter(payment => {
-    const matchesSearch = 
-      payment.studentId?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      payment.studentId?.phone?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      payment.studentId?.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      payment.cashfreeOrderId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      payment.cashfreePaymentId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      payment.subscriptionPlanId?.name?.toLowerCase().includes(searchTerm.toLowerCase())
-    
-    return matchesSearch
-  })
+  // No client-side filtering needed - backend handles search
+  const filteredPayments = payments
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-IN', {
@@ -261,12 +294,12 @@ const Transactions = () => {
                     filteredPayments.map((payment) => (
                       <tr key={payment._id} className="hover:bg-gray-50 transition-all duration-200">
                         <td className="px-2 sm:px-3 py-2 whitespace-nowrap">
-                          <div className="text-xs font-semibold text-gray-900">{payment.studentId?.name || 'N/A'}</div>
-                          <div className="text-[10px] text-gray-500">{payment.studentId?.phone || ''}</div>
+                          <div className="text-xs font-semibold text-gray-900">{payment.student?.name || 'N/A'}</div>
+                          <div className="text-[10px] text-gray-500">{payment.student?.phone || ''}</div>
                         </td>
                         <td className="px-2 sm:px-3 py-2 whitespace-nowrap hidden sm:table-cell">
-                          <div className="text-xs text-gray-900">{payment.subscriptionPlanId?.name || 'N/A'}</div>
-                          <div className="text-[10px] text-gray-500 capitalize">{payment.subscriptionPlanId?.duration || ''}</div>
+                          <div className="text-xs text-gray-900">{payment.plan?.name || 'N/A'}</div>
+                          <div className="text-[10px] text-gray-500 capitalize">{payment.plan?.duration || ''}</div>
                         </td>
                         <td className="px-2 sm:px-3 py-2 whitespace-nowrap hidden md:table-cell">
                           <div className="text-[10px] sm:text-xs text-gray-600 font-mono">{payment.cashfreeOrderId || 'N/A'}</div>
@@ -300,6 +333,70 @@ const Transactions = () => {
               </table>
             )}
           </div>
+          
+          {/* Pagination Controls */}
+          {!isLoading && pagination.pages > 1 && (
+            <div className="px-3 sm:px-4 py-3 sm:py-4 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-3">
+              <div className="text-xs sm:text-sm text-gray-600">
+                Showing <span className="font-semibold">{((pagination.page - 1) * 10) + 1}</span> to{' '}
+                <span className="font-semibold">
+                  {Math.min(pagination.page * 10, pagination.total)}
+                </span>{' '}
+                of <span className="font-semibold">{pagination.total}</span> transactions
+              </div>
+              <div className="flex items-center gap-1 sm:gap-2">
+                <button
+                  onClick={() => handlePageChange(pagination.page - 1)}
+                  disabled={pagination.page === 1}
+                  className={`px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-all ${
+                    pagination.page === 1
+                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                      : 'bg-[#1e3a5f] text-white hover:bg-[#2a4a6f]'
+                  }`}
+                >
+                  Previous
+                </button>
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: Math.min(5, pagination.pages) }, (_, i) => {
+                    let pageNum;
+                    if (pagination.pages <= 5) {
+                      pageNum = i + 1;
+                    } else if (pagination.page <= 3) {
+                      pageNum = i + 1;
+                    } else if (pagination.page >= pagination.pages - 2) {
+                      pageNum = pagination.pages - 4 + i;
+                    } else {
+                      pageNum = pagination.page - 2 + i;
+                    }
+                    return (
+                      <button
+                        key={pageNum}
+                        onClick={() => handlePageChange(pageNum)}
+                        className={`px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-all ${
+                          pagination.page === pageNum
+                            ? 'bg-[#1e3a5f] text-white'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        }`}
+                      >
+                        {pageNum}
+                      </button>
+                    );
+                  })}
+                </div>
+                <button
+                  onClick={() => handlePageChange(pagination.page + 1)}
+                  disabled={pagination.page === pagination.pages}
+                  className={`px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-all ${
+                    pagination.page === pagination.pages
+                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                      : 'bg-[#1e3a5f] text-white hover:bg-[#2a4a6f]'
+                  }`}
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

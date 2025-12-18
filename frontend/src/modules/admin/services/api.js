@@ -186,6 +186,12 @@ const apiRequest = async (endpoint, options = {}) => {
 
 // Admin API functions
 export const adminAPI = {
+  // Get dashboard statistics
+  getDashboardStatistics: async () => {
+    return apiRequest('/admin/dashboard/statistics', {
+      method: 'GET',
+    });
+  },
   // Login
   login: async (email, password) => {
     const response = await apiRequest('/admin/login', {
@@ -256,6 +262,12 @@ export const adminAPI = {
 
 // Student Management API
 export const studentAPI = {
+  // Get student statistics
+  getStatistics: async () => {
+    return apiRequest('/admin/students/statistics', {
+      method: 'GET',
+    });
+  },
   // Get all students
   getAll: async (params = {}) => {
     const queryString = new URLSearchParams(params).toString();
@@ -293,6 +305,12 @@ export const studentAPI = {
 
 // Teacher Management API
 export const teacherAPI = {
+  // Get teacher statistics
+  getStatistics: async () => {
+    return apiRequest('/admin/teachers/statistics', {
+      method: 'GET',
+    });
+  },
   // Get all teachers
   getAll: async (params = {}) => {
     const queryString = new URLSearchParams(params).toString();
@@ -466,9 +484,16 @@ export const contentAPI = {
 
 // Class Management API
 export const classAPI = {
+  // Get class statistics
+  getStatistics: async () => {
+    return apiRequest('/admin/classes/statistics', {
+      method: 'GET',
+    });
+  },
   // Get all classes
-  getAll: async () => {
-    return apiRequest('/admin/classes', {
+  getAll: async (params = {}) => {
+    const queryString = new URLSearchParams(params).toString();
+    return apiRequest(`/admin/classes${queryString ? `?${queryString}` : ''}`, {
       method: 'GET',
     });
   },
@@ -502,12 +527,21 @@ export const classAPI = {
 
 // Subject Management API
 export const subjectAPI = {
+  // Get subject statistics
+  getStatistics: async () => {
+    return apiRequest('/admin/subjects/statistics', {
+      method: 'GET',
+    });
+  },
   // Get all subjects (optionally filtered by classId, class, board)
   getAll: async (params = {}) => {
     const queryParams = new URLSearchParams();
     if (params.classId) queryParams.append('classId', params.classId);
     if (params.class) queryParams.append('class', params.class);
     if (params.board) queryParams.append('board', params.board);
+    if (params.page) queryParams.append('page', params.page);
+    if (params.limit) queryParams.append('limit', params.limit);
+    if (params.search) queryParams.append('search', params.search);
 
     const queryString = queryParams.toString();
     const url = `/admin/subjects${queryString ? `?${queryString}` : ''}`;
@@ -546,9 +580,16 @@ export const subjectAPI = {
 
 // Course Management API
 export const courseAPI = {
+  // Get course statistics
+  getStatistics: async () => {
+    return apiRequest('/admin/courses/statistics', {
+      method: 'GET',
+    });
+  },
   // Get all courses
-  getAll: async () => {
-    return apiRequest('/admin/courses', {
+  getAll: async (params = {}) => {
+    const queryString = new URLSearchParams(params).toString();
+    return apiRequest(`/admin/courses${queryString ? `?${queryString}` : ''}`, {
       method: 'GET',
     });
   },
@@ -582,6 +623,12 @@ export const courseAPI = {
 
 // Subscription Plan Management API
 export const subscriptionPlanAPI = {
+  // Get subscription plan statistics
+  getStatistics: async () => {
+    return apiRequest('/subscription-plans/admin/statistics', {
+      method: 'GET',
+    });
+  },
   // Get all subscription plans (admin)
   getAll: async (params = {}) => {
     const queryString = new URLSearchParams(params).toString();
@@ -674,13 +721,22 @@ export const paymentAPI = {
 
 // Doubt Management API
 export const doubtAPI = {
+  // Get doubt statistics
+  getStatistics: async () => {
+    return apiRequest('/doubts/statistics', {
+      method: 'GET',
+    });
+  },
   // Get all doubts
-  getAllDoubts: async (status = null) => {
-    let endpoint = '/doubts';
-    if (status) {
-      endpoint += `?status=${status}`;
-    }
-    return apiRequest(endpoint, {
+  getAllDoubts: async (params = {}) => {
+    const queryParams = new URLSearchParams();
+    if (params.status) queryParams.append('status', params.status);
+    if (params.page) queryParams.append('page', params.page);
+    if (params.limit) queryParams.append('limit', params.limit);
+    if (params.search) queryParams.append('search', params.search);
+    
+    const queryString = queryParams.toString();
+    return apiRequest(`/doubts${queryString ? `?${queryString}` : ''}`, {
       method: 'GET',
     });
   },
@@ -714,6 +770,12 @@ export const doubtAPI = {
 
 // Quiz Management API
 export const quizAPI = {
+  // Get quiz statistics
+  getStatistics: async () => {
+    return apiRequest('/admin/quizzes/statistics', {
+      method: 'GET',
+    });
+  },
   // Get all quizzes
   getAll: async (params = {}) => {
     const queryString = new URLSearchParams(params).toString();
@@ -757,6 +819,12 @@ export const quizAPI = {
 
 // Timetable Management API
 export const timetableAPI = {
+  // Get timetable statistics
+  getStatistics: async () => {
+    return apiRequest('/timetables/admin/statistics', {
+      method: 'GET',
+    });
+  },
   // Get all timetables
   getAll: async (params = {}) => {
     const queryString = new URLSearchParams(params).toString();
@@ -885,8 +953,16 @@ export const notificationAPI = {
     });
   },
   // Campaign management
-  getAllCampaigns: async () => {
-    return apiRequest('/notifications/admin/campaigns', {
+  getAllCampaigns: async (params = {}) => {
+    const queryParams = new URLSearchParams();
+    if (params.page) queryParams.append('page', params.page);
+    if (params.limit) queryParams.append('limit', params.limit);
+    if (params.search) queryParams.append('search', params.search);
+
+    const queryString = queryParams.toString();
+    const url = `/notifications/admin/campaigns${queryString ? `?${queryString}` : ''}`;
+    
+    return apiRequest(url, {
       method: 'GET',
     });
   },
@@ -921,6 +997,12 @@ export const notificationAPI = {
 
 // Agent Management API
 export const agentAPI = {
+  // Get agent statistics
+  getStatistics: async () => {
+    return apiRequest('/admin/agents/statistics', {
+      method: 'GET',
+    });
+  },
   // Create agent
   create: async (agentData) => {
     return apiRequest('/admin/agents', {
@@ -990,6 +1072,12 @@ export const referralAPI = {
 
 // Admin Live Classes (Teacher Classes) API
 export const liveClassAdminAPI = {
+  // Get live class statistics
+  getStatistics: async () => {
+    return apiRequest('/admin/live-classes/statistics', {
+      method: 'GET',
+    });
+  },
   // Get all live classes with optional filters
   getAll: async (params = {}) => {
     const queryString = new URLSearchParams(params).toString();
@@ -1007,6 +1095,12 @@ export const liveClassAdminAPI = {
 
 // Admin Recording API
 export const recordingAdminAPI = {
+  // Get recording statistics
+  getStatistics: async () => {
+    return apiRequest('/admin/recordings/statistics', {
+      method: 'GET',
+    });
+  },
   getAll: async (params = {}) => {
     const queryString = new URLSearchParams(params).toString();
     return apiRequest(`/admin/recordings${queryString ? `?${queryString}` : ''}`, {

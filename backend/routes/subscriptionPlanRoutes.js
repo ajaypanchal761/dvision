@@ -3,6 +3,7 @@ const router = express.Router();
 const {
   getAllSubscriptionPlans,
   getSubscriptionPlan,
+  getSubscriptionPlanStatistics,
   getClassesByBoard,
   getPreparationClasses,
   createSubscriptionPlan,
@@ -17,6 +18,7 @@ const { protect, authorize } = require('../middlewares/auth');
 router.get('/', getPublicSubscriptionPlans);
 
 // Admin routes
+router.get('/admin/statistics', protect, authorize('admin', 'super_admin'), getSubscriptionPlanStatistics);
 router.get('/admin', protect, authorize('admin', 'super_admin'), getAllSubscriptionPlans);
 router.get('/admin/classes/:board', protect, authorize('admin', 'super_admin'), getClassesByBoard);
 router.get('/admin/preparation-classes', protect, authorize('admin', 'super_admin'), getPreparationClasses);

@@ -364,7 +364,15 @@ const LiveClasses = () => {
                       </h2>
                       {liveNow.map((liveClass) => {
                         const scheduledTime = new Date(liveClass.scheduledStartTime);
-                        const { date, time } = formatDateTime(scheduledTime.toISOString());
+                        const { date, time: startTime } = formatDateTime(scheduledTime.toISOString());
+                        
+                        // Format end time if available
+                        let endTimeDisplay = null;
+                        if (liveClass.scheduledEndTime) {
+                          const endTimeDate = new Date(liveClass.scheduledEndTime);
+                          const { time: endTime } = formatDateTime(endTimeDate.toISOString());
+                          endTimeDisplay = endTime;
+                        }
 
                         return (
                           <div
@@ -390,7 +398,9 @@ const LiveClasses = () => {
                                     <div className="p-1 bg-[var(--app-dark-blue)]/10 rounded-lg">
                                       <FiClock className="text-[var(--app-dark-blue)] text-xs" />
                                     </div>
-                                    <span className="font-medium">{time}</span>
+                                    <span className="font-medium">
+                                      {startTime}{endTimeDisplay ? ` - ${endTimeDisplay}` : ''}
+                                    </span>
                                   </div>
                                   <div className="flex items-center gap-1.5">
                                     <div className="p-1 bg-green-100 rounded-lg">
@@ -423,7 +433,15 @@ const LiveClasses = () => {
                       </h2>
                       {startsSoon.map((liveClass) => {
                         const scheduledTime = new Date(liveClass.scheduledStartTime);
-                        const { date, time } = formatDateTime(scheduledTime.toISOString());
+                        const { date, time: startTime } = formatDateTime(scheduledTime.toISOString());
+                        
+                        // Format end time if available
+                        let endTimeDisplay = null;
+                        if (liveClass.scheduledEndTime) {
+                          const endTimeDate = new Date(liveClass.scheduledEndTime);
+                          const { time: endTime } = formatDateTime(endTimeDate.toISOString());
+                          endTimeDisplay = endTime;
+                        }
 
                         return (
                           <div
@@ -449,7 +467,9 @@ const LiveClasses = () => {
                                     <div className="p-1 bg-[var(--app-dark-blue)]/10 rounded-lg">
                                       <FiClock className="text-[var(--app-dark-blue)] text-xs" />
                                     </div>
-                                    <span className="font-medium">{time}</span>
+                                    <span className="font-medium">
+                                      {startTime}{endTimeDisplay ? ` - ${endTimeDisplay}` : ''}
+                                    </span>
                                   </div>
                                 </div>
                               </div>
@@ -472,7 +492,15 @@ const LiveClasses = () => {
                       </h2>
                       {ended.map((liveClass) => {
                         const scheduledTime = new Date(liveClass.scheduledStartTime);
-                        const { date, time } = formatDateTime(scheduledTime.toISOString());
+                        const { date, time: startTime } = formatDateTime(scheduledTime.toISOString());
+                        
+                        // Format end time if available
+                        let endTimeDisplay = null;
+                        if (liveClass.scheduledEndTime) {
+                          const endTimeDate = new Date(liveClass.scheduledEndTime);
+                          const { time: endTime } = formatDateTime(endTimeDate.toISOString());
+                          endTimeDisplay = endTime;
+                        }
 
                         return (
                           <div
@@ -498,7 +526,9 @@ const LiveClasses = () => {
                                     <div className="p-1 bg-[var(--app-dark-blue)]/10 rounded-lg">
                                       <FiClock className="text-[var(--app-dark-blue)] text-xs" />
                                     </div>
-                                    <span className="font-medium">{time}</span>
+                                    <span className="font-medium">
+                                      {startTime}{endTimeDisplay ? ` - ${endTimeDisplay}` : ''}
+                                    </span>
                                   </div>
                                   <div className="flex items-center gap-1.5">
                                     <span className="font-medium text-gray-500">Ended</span>

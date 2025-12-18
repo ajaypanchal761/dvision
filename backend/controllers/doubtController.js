@@ -228,11 +228,34 @@ exports.getMyDoubts = asyncHandler(async (req, res) => {
   });
 });
 
+// @desc    Get doubt statistics (Admin)
+// @route   GET /api/doubts/statistics
+// @access  Private/Admin
+exports.getDoubtStatistics = asyncHandler(async (req, res) => {
+  // Get overall statistics (not filtered by search or pagination)
+  const totalDoubts = await Doubt.countDocuments({});
+  const pendingDoubts = await Doubt.countDocuments({ status: 'Pending' });
+  const answeredDoubts = await Doubt.countDocuments({ status: 'Answered' });
+  const resolvedDoubts = await Doubt.countDocuments({ status: 'Resolved' });
+  
+  res.status(200).json({
+    success: true,
+    data: {
+      statistics: {
+        totalDoubts,
+        pendingDoubts,
+        answeredDoubts,
+        resolvedDoubts
+      }
+    }
+  });
+});
+
 // @desc    Get all doubts (admin/teacher)
 // @route   GET /api/doubts
 // @access  Private/Admin/Teacher
 exports.getAllDoubts = asyncHandler(async (req, res) => {
-  const { status, studentId } = req.query;
+  const { status, studentId, page = 1, limit = 10, search } = req.query;
 
   // Build query
   const query = {};
@@ -242,6 +265,14 @@ exports.getAllDoubts = asyncHandler(async (req, res) => {
   if (studentId) {
     query.studentId = studentId;
   }
+  
+  // Add search functionality
+  if (search) {
+    query.$or = [
+      { question: { $regex: search, $options: 'i' } },
+      { answer: { $regex: search, $options: 'i' } }
+    ];
+  }
 
   // If user is a teacher, show only doubts assigned to them
   const userRole = req.userRole || req.user?.role;
@@ -250,16 +281,24 @@ exports.getAllDoubts = asyncHandler(async (req, res) => {
   }
   // If user is admin, show all doubts (no filtering)
 
+  const skip = (parseInt(page) - 1) * parseInt(limit);
+  const total = await Doubt.countDocuments(query);
+
   const doubts = await Doubt.find(query)
     .sort({ createdAt: -1 })
     .populate('studentId', 'name email phone')
     .populate('teacherId', 'name email subjects')
     .populate('answeredBy', 'name email')
-    .select('-__v');
+    .select('-__v')
+    .skip(skip)
+    .limit(parseInt(limit));
 
   res.status(200).json({
     success: true,
     count: doubts.length,
+    total,
+    page: parseInt(page),
+    pages: Math.ceil(total / parseInt(limit)),
     data: {
       doubts
     }

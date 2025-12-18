@@ -3,11 +3,34 @@ const Class = require('../models/Class');
 const asyncHandler = require('../utils/asyncHandler');
 const ErrorResponse = require('../utils/errorResponse');
 
+// @desc    Get subscription plan statistics (Admin)
+// @route   GET /api/subscription-plans/admin/statistics
+// @access  Private/Admin
+exports.getSubscriptionPlanStatistics = asyncHandler(async (req, res) => {
+  // Get overall statistics (not filtered by search or pagination)
+  const totalPlans = await SubscriptionPlan.countDocuments({});
+  const activePlans = await SubscriptionPlan.countDocuments({ isActive: true });
+  const regularPlans = await SubscriptionPlan.countDocuments({ type: 'regular' });
+  const preparationPlans = await SubscriptionPlan.countDocuments({ type: 'preparation' });
+  
+  res.status(200).json({
+    success: true,
+    data: {
+      statistics: {
+        totalPlans,
+        activePlans,
+        regularPlans,
+        preparationPlans
+      }
+    }
+  });
+});
+
 // @desc    Get all subscription plans
 // @route   GET /api/admin/subscription-plans
 // @access  Private (Admin)
 exports.getAllSubscriptionPlans = asyncHandler(async (req, res, next) => {
-  const { board, duration, isActive, type, class: classNumber } = req.query;
+  const { board, duration, isActive, type, class: classNumber, page = 1, limit = 10, search } = req.query;
 
   // Build query
   const query = {};
@@ -25,6 +48,17 @@ exports.getAllSubscriptionPlans = asyncHandler(async (req, res, next) => {
     }
   }
 
+  // Add search functionality
+  if (search) {
+    query.$or = [
+      { name: { $regex: search, $options: 'i' } },
+      { description: { $regex: search, $options: 'i' } }
+    ];
+  }
+
+  const skip = (parseInt(page) - 1) * parseInt(limit);
+  const total = await SubscriptionPlan.countDocuments(query);
+
   const subscriptionPlans = await SubscriptionPlan.find(query)
     .populate('createdBy', 'name email')
     .populate({
@@ -32,7 +66,9 @@ exports.getAllSubscriptionPlans = asyncHandler(async (req, res, next) => {
       select: 'name class board type classCode description isActive',
       match: { isActive: { $ne: false } } // Only populate if class exists and is active
     })
-    .sort({ createdAt: -1 });
+    .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(parseInt(limit));
 
   // Log any preparation plans with missing classId
   const prepPlansWithMissingClass = subscriptionPlans.filter(plan =>
@@ -48,6 +84,9 @@ exports.getAllSubscriptionPlans = asyncHandler(async (req, res, next) => {
   res.status(200).json({
     success: true,
     count: subscriptionPlans.length,
+    total,
+    page: parseInt(page),
+    pages: Math.ceil(total / parseInt(limit)),
     data: {
       subscriptionPlans,
       plans: subscriptionPlans // Also include 'plans' for backward compatibility

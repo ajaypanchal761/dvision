@@ -15,6 +15,29 @@ const fs = require('fs');
 const path = require('path');
 const mongoose = require('mongoose');
 
+// @desc    Get live class statistics (Admin)
+// @route   GET /api/admin/live-classes/statistics
+// @access  Private/Admin
+exports.getLiveClassStatistics = asyncHandler(async (req, res) => {
+  // Get overall statistics (not filtered by search or pagination)
+  const totalLiveClasses = await LiveClass.countDocuments({});
+  const scheduledClasses = await LiveClass.countDocuments({ status: 'scheduled' });
+  const liveClasses = await LiveClass.countDocuments({ status: 'live' });
+  const completedClasses = await LiveClass.countDocuments({ status: 'completed' });
+  
+  res.status(200).json({
+    success: true,
+    data: {
+      statistics: {
+        totalLiveClasses,
+        scheduledClasses,
+        liveClasses,
+        completedClasses
+      }
+    }
+  });
+});
+
 // @desc    Get all live classes with filters (Admin)
 // @route   GET /api/admin/live-classes
 // @access  Private/Admin
@@ -25,7 +48,9 @@ exports.getAllLiveClasses = asyncHandler(async (req, res) => {
     teacherName,
     className,
     subjectName,
-    date
+    date,
+    page = 1,
+    limit = 10
   } = req.query;
 
   const match = {};
@@ -243,11 +268,24 @@ exports.getAllLiveClasses = asyncHandler(async (req, res) => {
 
   pipeline.push({ $sort: { scheduledStartTime: -1 } });
 
+  // Get total count before pagination
+  const countPipeline = [...pipeline, { $count: 'total' }];
+  const countResult = await LiveClass.aggregate(countPipeline);
+  const total = countResult[0]?.total || 0;
+
+  // Add pagination
+  const skip = (parseInt(page) - 1) * parseInt(limit);
+  pipeline.push({ $skip: skip });
+  pipeline.push({ $limit: parseInt(limit) });
+
   const liveClasses = await LiveClass.aggregate(pipeline);
 
   res.status(200).json({
     success: true,
     count: liveClasses.length,
+    total,
+    page: parseInt(page),
+    pages: Math.ceil(total / parseInt(limit)),
     data: {
       liveClasses
     }
@@ -409,11 +447,34 @@ exports.getAdminLiveClassById = asyncHandler(async (req, res) => {
   });
 });
 
+// @desc    Get recording statistics (Admin)
+// @route   GET /api/admin/recordings/statistics
+// @access  Private/Admin
+exports.getRecordingStatistics = asyncHandler(async (req, res) => {
+  // Get overall statistics (not filtered by search or pagination)
+  const totalRecordings = await Recording.countDocuments({ isActive: true });
+  const processingRecordings = await Recording.countDocuments({ isActive: true, status: 'processing' });
+  const completedRecordings = await Recording.countDocuments({ isActive: true, status: 'completed' });
+  const failedRecordings = await Recording.countDocuments({ isActive: true, status: 'failed' });
+  
+  res.status(200).json({
+    success: true,
+    data: {
+      statistics: {
+        totalRecordings,
+        processingRecordings,
+        completedRecordings,
+        failedRecordings
+      }
+    }
+  });
+});
+
 // @desc    Get recordings list for admin with filters
 // @route   GET /api/admin/recordings
 // @access  Private/Admin
 exports.getAdminRecordings = asyncHandler(async (req, res) => {
-  const { title, teacherName, className, subjectName, status, date } = req.query;
+  const { title, teacherName, className, subjectName, status, date, page = 1, limit = 10 } = req.query;
 
   const match = { isActive: true };
   if (status) match.status = status;
@@ -508,6 +569,16 @@ exports.getAdminRecordings = asyncHandler(async (req, res) => {
 
   pipeline.push({ $sort: { createdAt: -1 } });
 
+  // Get total count before pagination
+  const countPipeline = [...pipeline, { $count: 'total' }];
+  const countResult = await Recording.aggregate(countPipeline);
+  const total = countResult[0]?.total || 0;
+
+  // Add pagination
+  const skip = (parseInt(page) - 1) * parseInt(limit);
+  pipeline.push({ $skip: skip });
+  pipeline.push({ $limit: parseInt(limit) });
+
   const recordings = await Recording.aggregate(pipeline);
 
   const withPlayback = await Promise.all(
@@ -531,6 +602,9 @@ exports.getAdminRecordings = asyncHandler(async (req, res) => {
   res.status(200).json({
     success: true,
     count: withPlayback.length,
+    total,
+    page: parseInt(page),
+    pages: Math.ceil(total / parseInt(limit)),
     data: {
       recordings: withPlayback
     }
@@ -1323,11 +1397,38 @@ exports.getAssignedOptions = asyncHandler(async (req, res) => {
 // @route   POST /api/teacher/live-classes
 // @access  Private/Teacher
 exports.createLiveClass = asyncHandler(async (req, res) => {
-  const { classId, subjectId, title, description } = req.body;
+  const { classId, subjectId, title, description, startTime, endTime } = req.body;
 
   // Validate required fields
   if (!classId || !subjectId) {
     throw new ErrorResponse('Class ID and Subject ID are required', 400);
+  }
+
+  // Validate start and end times
+  if (!startTime || !endTime) {
+    throw new ErrorResponse('Start time and End time are required', 400);
+  }
+
+  // Convert startTime and endTime to Date objects
+  // startTime and endTime are in format "HH:MM"
+  const today = new Date();
+  const [startHours, startMinutes] = startTime.split(':').map(Number);
+  const [endHours, endMinutes] = endTime.split(':').map(Number);
+  
+  // Validate time format
+  if (isNaN(startHours) || isNaN(startMinutes) || isNaN(endHours) || isNaN(endMinutes)) {
+    throw new ErrorResponse('Invalid time format. Please use HH:MM format', 400);
+  }
+  
+  const scheduledStartTime = new Date(today);
+  scheduledStartTime.setHours(startHours, startMinutes, 0, 0);
+  
+  const scheduledEndTime = new Date(today);
+  scheduledEndTime.setHours(endHours, endMinutes, 0, 0);
+
+  // If end time is before or equal to start time, assume it's next day
+  if (scheduledEndTime <= scheduledStartTime) {
+    scheduledEndTime.setDate(scheduledEndTime.getDate() + 1);
   }
 
   // Verify teacher is assigned to this class and subject combination
@@ -1365,7 +1466,8 @@ exports.createLiveClass = asyncHandler(async (req, res) => {
     description: description || '',
     agoraChannelName: tempChannelName, // Temporary, will be updated
     agoraAppId: process.env.AGORA_APP_ID,
-    scheduledStartTime: new Date(), // Set to now since teacher can create anytime
+    scheduledStartTime: scheduledStartTime,
+    scheduledEndTime: scheduledEndTime,
     status: 'scheduled'
   });
 

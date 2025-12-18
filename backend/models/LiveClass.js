@@ -56,6 +56,9 @@ const liveClassSchema = new mongoose.Schema(
       required: true,
       index: true
     },
+    scheduledEndTime: {
+      type: Date
+    },
     actualStartTime: {
       type: Date
     },

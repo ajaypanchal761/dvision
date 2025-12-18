@@ -257,6 +257,8 @@ exports.getAllQuizzes = asyncHandler(async (req, res) => {
     });
   } else {
     // For admins and teachers, use query parameters
+    const { page = 1, limit = 10, search } = req.query;
+    
     if (classNumber) {
       query.classNumber = parseInt(classNumber);
     }
@@ -269,22 +271,61 @@ exports.getAllQuizzes = asyncHandler(async (req, res) => {
     if (isActive !== undefined) {
       query.isActive = isActive === 'true';
     }
+    
+    // Add search functionality
+    if (search) {
+      query.$or = [
+        { title: { $regex: search, $options: 'i' } },
+        { description: { $regex: search, $options: 'i' } }
+      ];
+    }
+
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const total = await Quiz.countDocuments(query);
 
     const quizzes = await Quiz.find(query)
       .sort({ createdAt: -1 })
       .populate('subjectId', 'name')
       .populate('classId', 'name classCode')
       .populate('createdBy', 'name email')
-      .select('-__v');
+      .select('-__v')
+      .skip(skip)
+      .limit(parseInt(limit));
 
     res.status(200).json({
       success: true,
       count: quizzes.length,
+      total,
+      page: parseInt(page),
+      pages: Math.ceil(total / parseInt(limit)),
       data: {
         quizzes
       }
     });
   }
+});
+
+// @desc    Get quiz statistics (Admin)
+// @route   GET /api/admin/quizzes/statistics
+// @access  Private/Admin
+exports.getQuizStatistics = asyncHandler(async (req, res) => {
+  const Quiz = require('../models/Quiz');
+  
+  // Get overall statistics (not filtered by search or pagination)
+  const totalQuizzes = await Quiz.countDocuments({});
+  const activeQuizzes = await Quiz.countDocuments({ isActive: true });
+  const inactiveQuizzes = await Quiz.countDocuments({ isActive: false });
+  
+  res.status(200).json({
+    success: true,
+    data: {
+      statistics: {
+        totalQuizzes,
+        activeQuizzes,
+        inactiveQuizzes
+      }
+    }
+  });
 });
 
 // @desc    Get single quiz by ID

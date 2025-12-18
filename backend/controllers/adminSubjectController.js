@@ -31,11 +31,32 @@ exports.getPublicSubjects = asyncHandler(async (req, res) => {
   });
 });
 
+// @desc    Get subject statistics (Admin)
+// @route   GET /api/admin/subjects/statistics
+// @access  Private/Admin
+exports.getSubjectStatistics = asyncHandler(async (req, res) => {
+  // Get overall statistics (not filtered by search or pagination)
+  const totalSubjects = await Subject.countDocuments({});
+  const activeSubjects = await Subject.countDocuments({ isActive: true });
+  const inactiveSubjects = await Subject.countDocuments({ isActive: false });
+  
+  res.status(200).json({
+    success: true,
+    data: {
+      statistics: {
+        totalSubjects,
+        activeSubjects,
+        inactiveSubjects
+      }
+    }
+  });
+});
+
 // @desc    Get all subjects (Admin)
 // @route   GET /api/admin/subjects
 // @access  Private/Admin
 exports.getAllSubjects = asyncHandler(async (req, res) => {
-  const { classId, class: classNumber, board } = req.query;
+  const { classId, class: classNumber, board, page = 1, limit = 10, search } = req.query;
   
   let query = {};
   
@@ -49,13 +70,28 @@ exports.getAllSubjects = asyncHandler(async (req, res) => {
     query.board = board.trim();
   }
   
+  // Add search functionality
+  if (search) {
+    query.$or = [
+      { name: { $regex: search, $options: 'i' } }
+    ];
+  }
+
+  const skip = (parseInt(page) - 1) * parseInt(limit);
+  const total = await Subject.countDocuments(query);
+  
   const subjects = await Subject.find(query)
     .populate('classId', 'name class board type classCode')
-    .sort({ createdAt: -1 });
+    .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(parseInt(limit));
 
   res.status(200).json({
     success: true,
     count: subjects.length,
+    total,
+    page: parseInt(page),
+    pages: Math.ceil(total / parseInt(limit)),
     data: {
       subjects
     }

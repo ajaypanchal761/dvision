@@ -50,14 +50,60 @@ const RecordedSession = () => {
   const [currentRecording, setCurrentRecording] = useState(null)
   const [playerLoading, setPlayerLoading] = useState(false)
   const [playerError, setPlayerError] = useState(null)
+  
+  // Pagination state
+  const [pagination, setPagination] = useState({
+    page: 1,
+    pages: 1,
+    total: 0,
+    count: 0
+  })
+  
+  // Statistics state
+  const [statistics, setStatistics] = useState({
+    totalRecordings: 0,
+    processingRecordings: 0,
+    completedRecordings: 0,
+    failedRecordings: 0
+  })
 
-  const fetchSessions = async (params) => {
+  // Fetch recording statistics (independent of search/filters)
+  const fetchStatistics = async () => {
+    try {
+      const response = await recordingAdminAPI.getStatistics()
+      if (response.success && response.data?.statistics) {
+        setStatistics({
+          totalRecordings: response.data.statistics.totalRecordings || 0,
+          processingRecordings: response.data.statistics.processingRecordings || 0,
+          completedRecordings: response.data.statistics.completedRecordings || 0,
+          failedRecordings: response.data.statistics.failedRecordings || 0
+        })
+      }
+    } catch (err) {
+      console.error('Error fetching statistics:', err)
+    }
+  }
+
+  const fetchSessions = async (params, page = 1) => {
     try {
       setLoading(true)
       setError(null)
-      const res = await recordingAdminAPI.getAll(params)
+      const requestParams = {
+        ...params,
+        page,
+        limit: 10
+      }
+      const res = await recordingAdminAPI.getAll(requestParams)
       const list = res?.data?.recordings || []
       setSessions(list)
+      
+      // Update pagination
+      setPagination({
+        page: res.page || 1,
+        pages: res.pages || 1,
+        total: res.total || 0,
+        count: res.count || 0
+      })
     } catch (err) {
       setError(err?.message || 'Failed to load recordings')
       setSessions([])
@@ -67,14 +113,20 @@ const RecordedSession = () => {
   }
 
   useEffect(() => {
-    fetchSessions(queryParams)
-  }, [queryParams])
+    fetchStatistics() // Fetch statistics once on mount
+    fetchSessions(queryParams, 1)
+  }, [])
 
-  const stats = useMemo(() => {
-    const total = sessions.length
-    const available = sessions.filter((s) => s.status === 'completed').length
-    return { total, available, filtered: sessions.length }
-  }, [sessions])
+  useEffect(() => {
+    fetchSessions(queryParams, 1) // Reset to page 1 when filters change
+  }, [queryParams])
+  
+  // Handle page change
+  const handlePageChange = (newPage) => {
+    if (newPage >= 1 && newPage <= pagination.pages) {
+      fetchSessions(queryParams, newPage)
+    }
+  }
 
   const handleInputChange = (field, value) => {
     setFilters((prev) => ({ ...prev, [field]: value }))
@@ -189,42 +241,55 @@ const RecordedSession = () => {
 
         {/* Stats Cards */}
         <div className="mt-3 sm:mt-4 md:mt-5 lg:mt-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3 md:gap-4 lg:gap-6">
-            <div className="bg-white rounded-lg shadow-md p-3 sm:p-4 border border-gray-200">
+          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 md:gap-4 lg:gap-6">
+            <div className="bg-white rounded-lg shadow-md p-2.5 sm:p-3 md:p-4 border border-gray-200">
               <div className="flex items-center justify-between">
                 <div className="flex-1 min-w-0">
-                  <p className="text-gray-500 text-xs font-medium">Total Sessions</p>
-                  <p className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 mt-0.5">{stats.total}</p>
+                  <p className="text-gray-500 text-xs sm:text-sm font-medium">Total Recordings</p>
+                  <p className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold text-gray-900 mt-0.5 sm:mt-1">{statistics.totalRecordings}</p>
                 </div>
-                <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-lg bg-blue-100 flex items-center justify-center shrink-0 ml-2">
-                  <svg className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="h-7 w-7 sm:h-8 sm:w-8 md:h-10 md:w-10 lg:h-12 lg:w-12 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0 ml-2">
+                  <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 md:w-5 md:h-5 lg:w-6 lg:h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
                   </svg>
                 </div>
               </div>
             </div>
-            <div className="bg-white rounded-lg shadow-md p-3 sm:p-4 border border-gray-200">
+            <div className="bg-white rounded-lg shadow-md p-2.5 sm:p-3 md:p-4 border border-gray-200">
               <div className="flex items-center justify-between">
                 <div className="flex-1 min-w-0">
-                  <p className="text-gray-500 text-xs font-medium">Available (completed)</p>
-                  <p className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 mt-0.5">{stats.available}</p>
+                  <p className="text-gray-500 text-xs sm:text-sm font-medium">Processing</p>
+                  <p className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold text-gray-900 mt-0.5 sm:mt-1">{statistics.processingRecordings}</p>
                 </div>
-                <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-lg bg-green-100 flex items-center justify-center shrink-0 ml-2">
-                  <svg className="w-4 h-4 sm:w-5 sm:h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="h-7 w-7 sm:h-8 sm:w-8 md:h-10 md:w-10 lg:h-12 lg:w-12 rounded-lg bg-yellow-100 flex items-center justify-center flex-shrink-0 ml-2">
+                  <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 md:w-5 md:h-5 lg:w-6 lg:h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+            <div className="bg-white rounded-lg shadow-md p-2.5 sm:p-3 md:p-4 border border-gray-200">
+              <div className="flex items-center justify-between">
+                <div className="flex-1 min-w-0">
+                  <p className="text-gray-500 text-xs sm:text-sm font-medium">Completed</p>
+                  <p className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold text-gray-900 mt-0.5 sm:mt-1">{statistics.completedRecordings}</p>
+                </div>
+                <div className="h-7 w-7 sm:h-8 sm:w-8 md:h-10 md:w-10 lg:h-12 lg:w-12 rounded-lg bg-green-100 flex items-center justify-center flex-shrink-0 ml-2">
+                  <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 md:w-5 md:h-5 lg:w-6 lg:h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 </div>
               </div>
             </div>
-            <div className="bg-white rounded-lg shadow-md p-3 sm:p-4 border border-gray-200">
+            <div className="bg-white rounded-lg shadow-md p-2.5 sm:p-3 md:p-4 border border-gray-200">
               <div className="flex items-center justify-between">
                 <div className="flex-1 min-w-0">
-                  <p className="text-gray-500 text-xs font-medium">Filtered Results</p>
-                  <p className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 mt-0.5">{stats.filtered}</p>
+                  <p className="text-gray-500 text-xs sm:text-sm font-medium">Failed</p>
+                  <p className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold text-gray-900 mt-0.5 sm:mt-1">{statistics.failedRecordings}</p>
                 </div>
-                <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-lg bg-orange-100 flex items-center justify-center shrink-0 ml-2">
-                  <svg className="w-4 h-4 sm:w-5 sm:h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                <div className="h-7 w-7 sm:h-8 sm:w-8 md:h-10 md:w-10 lg:h-12 lg:w-12 rounded-lg bg-red-100 flex items-center justify-center flex-shrink-0 ml-2">
+                  <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 md:w-5 md:h-5 lg:w-6 lg:h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 </div>
               </div>
@@ -325,6 +390,70 @@ const RecordedSession = () => {
               </tbody>
             </table>
           </div>
+          
+          {/* Pagination Controls */}
+          {!loading && pagination.pages > 1 && (
+            <div className="px-3 sm:px-4 py-3 sm:py-4 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-3">
+              <div className="text-xs sm:text-sm text-gray-600">
+                Showing <span className="font-semibold">{((pagination.page - 1) * 10) + 1}</span> to{' '}
+                <span className="font-semibold">
+                  {Math.min(pagination.page * 10, pagination.total)}
+                </span>{' '}
+                of <span className="font-semibold">{pagination.total}</span> recordings
+              </div>
+              <div className="flex items-center gap-1 sm:gap-2">
+                <button
+                  onClick={() => handlePageChange(pagination.page - 1)}
+                  disabled={pagination.page === 1}
+                  className={`px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-all ${
+                    pagination.page === 1
+                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                      : 'bg-[#1e3a5f] text-white hover:bg-[#2a4a6f]'
+                  }`}
+                >
+                  Previous
+                </button>
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: Math.min(5, pagination.pages) }, (_, i) => {
+                    let pageNum;
+                    if (pagination.pages <= 5) {
+                      pageNum = i + 1;
+                    } else if (pagination.page <= 3) {
+                      pageNum = i + 1;
+                    } else if (pagination.page >= pagination.pages - 2) {
+                      pageNum = pagination.pages - 4 + i;
+                    } else {
+                      pageNum = pagination.page - 2 + i;
+                    }
+                    return (
+                      <button
+                        key={pageNum}
+                        onClick={() => handlePageChange(pageNum)}
+                        className={`px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-all ${
+                          pagination.page === pageNum
+                            ? 'bg-[#1e3a5f] text-white'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        }`}
+                      >
+                        {pageNum}
+                      </button>
+                    );
+                  })}
+                </div>
+                <button
+                  onClick={() => handlePageChange(pagination.page + 1)}
+                  disabled={pagination.page === pagination.pages}
+                  className={`px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-all ${
+                    pagination.page === pagination.pages
+                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                      : 'bg-[#1e3a5f] text-white hover:bg-[#2a4a6f]'
+                  }`}
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
