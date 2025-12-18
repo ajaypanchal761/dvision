@@ -177,6 +177,24 @@ const LiveClassRoom = () => {
   const [connectionState, setConnectionState] = useState('disconnected');
   const [wasConnected, setWasConnected] = useState(false); // Track if we were ever connected
 
+  // UI chrome (header + bottom controls) auto-hide
+  const [showChrome, setShowChrome] = useState(true);
+  const chromeHideTimerRef = useRef(null);
+
+  const scheduleChromeHide = useCallback(() => {
+    if (chromeHideTimerRef.current) {
+      clearTimeout(chromeHideTimerRef.current);
+    }
+    chromeHideTimerRef.current = setTimeout(() => {
+      setShowChrome(false);
+    }, 2000);
+  }, []);
+
+  const handleUserActivity = useCallback(() => {
+    setShowChrome(true);
+    scheduleChromeHide();
+  }, [scheduleChromeHide]);
+
   // Initialize class
   useEffect(() => {
     let isMounted = true;
@@ -191,11 +209,17 @@ const LiveClassRoom = () => {
 
     init();
 
+    // start auto-hide timer
+    scheduleChromeHide();
+
     return () => {
       isMounted = false;
       cleanup();
+      if (chromeHideTimerRef.current) {
+        clearTimeout(chromeHideTimerRef.current);
+      }
     };
-  }, [id]);
+  }, [id, scheduleChromeHide]);
 
   // Periodic check to clear false reconnecting states
   useEffect(() => {
@@ -264,7 +288,7 @@ const LiveClassRoom = () => {
       if (teacherVideoContainerRef.current) {
         const videoElement = teacherVideoContainerRef.current.querySelector('video');
         if (videoElement) {
-          // WhatsApp-like behavior: contain mode with black bars
+          // WhatsApp-like behavior: contain mode with black bars, centered
           videoElement.style.objectFit = 'contain';
           videoElement.style.width = '100%';
           videoElement.style.height = '100%';
@@ -293,14 +317,14 @@ const LiveClassRoom = () => {
       }
     };
 
-    // Apply styling immediately and on orientation/resize changes
+    // Apply styling immediately and also after a short delay to ensure video element exists
     applyVideoStyling();
-    const interval = setInterval(applyVideoStyling, 500);
     const timeout = setTimeout(applyVideoStyling, 200);
+    const interval = setInterval(applyVideoStyling, 1000); // Reapply periodically to handle orientation changes
 
     return () => {
-      clearInterval(interval);
       clearTimeout(timeout);
+      clearInterval(interval);
     };
   }, [orientation, cameraFacing, isVideoEnabled, hasTeacherVideo]);
 
@@ -1662,6 +1686,7 @@ const LiveClassRoom = () => {
   return (
     <div className="min-h-screen bg-gray-900 text-white flex flex-col">
       {/* Header */}
+      {showChrome && (
       <header className="bg-gray-800 px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <button
@@ -1695,9 +1720,15 @@ const LiveClassRoom = () => {
           </button>
         </div>
       </header>
+      )}
 
       {/* Main Content - Teacher Video Full Screen */}
-      <div className="flex-1 flex relative overflow-hidden">
+      <div
+        className="flex-1 flex relative overflow-hidden"
+        onClick={handleUserActivity}
+        onMouseMove={handleUserActivity}
+        onTouchStart={handleUserActivity}
+      >
         {/* Teacher Video/Screen Share - Full Screen */}
         <div className="flex-1 relative bg-black flex items-center justify-center overflow-hidden">
           <div
@@ -1857,6 +1888,7 @@ const LiveClassRoom = () => {
       </div>
 
       {/* Controls */}
+      {showChrome && (
       <div className="bg-gray-800 px-4 py-3 flex items-center justify-center gap-4">
         <button
           onClick={toggleMute}
@@ -1894,6 +1926,7 @@ const LiveClassRoom = () => {
           <FiPhone className="text-xl rotate-135" />
         </button>
       </div>
+      )}
     </div>
   );
 };

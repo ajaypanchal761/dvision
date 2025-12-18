@@ -99,6 +99,24 @@ const LiveClassRoom = () => {
   // Connection state
   const [connectionState, setConnectionState] = useState('disconnected'); // disconnected, connecting, connected
 
+  // UI chrome (header + bottom controls) auto-hide
+  const [showChrome, setShowChrome] = useState(true);
+  const chromeHideTimerRef = useRef(null);
+
+  const scheduleChromeHide = useCallback(() => {
+    if (chromeHideTimerRef.current) {
+      clearTimeout(chromeHideTimerRef.current);
+    }
+    chromeHideTimerRef.current = setTimeout(() => {
+      setShowChrome(false);
+    }, 2000);
+  }, []);
+
+  const handleUserActivity = useCallback(() => {
+    setShowChrome(true);
+    scheduleChromeHide();
+  }, [scheduleChromeHide]);
+
   // Apply video transform when camera facing changes
   useEffect(() => {
     const applyTransform = () => {
@@ -190,10 +208,15 @@ const LiveClassRoom = () => {
   // Initialize class
   useEffect(() => {
     initializeClass();
+    // start auto-hide timer
+    scheduleChromeHide();
     return () => {
       cleanup();
+      if (chromeHideTimerRef.current) {
+        clearTimeout(chromeHideTimerRef.current);
+      }
     };
-  }, [id]);
+  }, [id, scheduleChromeHide]);
 
   // Initialize Socket.io
   const initializeSocket = useCallback(() => {
@@ -1022,7 +1045,12 @@ const LiveClassRoom = () => {
       </header>
 
       {/* Main Content */}
-      <div className="flex-1 flex relative overflow-hidden">
+      <div
+        className="flex-1 flex relative overflow-hidden"
+        onClick={handleUserActivity}
+        onMouseMove={handleUserActivity}
+        onTouchStart={handleUserActivity}
+      >
         {/* Screen Share / Video Area - Full Screen */}
         <div className="flex-1 relative bg-black">
           {/* Screen Share (Primary) */}
@@ -1173,6 +1201,7 @@ const LiveClassRoom = () => {
       </div>
 
       {/* Controls */}
+      {showChrome && (
       <div className="bg-gray-800 px-4 py-3 flex items-center justify-center gap-4">
         <button
           onClick={toggleMute}
@@ -1210,6 +1239,7 @@ const LiveClassRoom = () => {
           <FiPhone className="text-xl rotate-135" />
         </button>
       </div>
+      )}
     </div>
   );
 };

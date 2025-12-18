@@ -178,6 +178,24 @@ const LiveClassRoom = () => {
   // Connection state
   const [connectionState, setConnectionState] = useState('disconnected'); // disconnected, connecting, connected
 
+  // UI chrome (header + bottom controls) auto-hide
+  const [showChrome, setShowChrome] = useState(true);
+  const chromeHideTimerRef = useRef(null);
+
+  const scheduleChromeHide = useCallback(() => {
+    if (chromeHideTimerRef.current) {
+      clearTimeout(chromeHideTimerRef.current);
+    }
+    chromeHideTimerRef.current = setTimeout(() => {
+      setShowChrome(false);
+    }, 2000); // hide after 2 seconds of inactivity
+  }, []);
+
+  const handleUserActivity = useCallback(() => {
+    setShowChrome(true);
+    scheduleChromeHide();
+  }, [scheduleChromeHide]);
+
   // Initialize class
   useEffect(() => {
     let isMounted = true;
@@ -192,11 +210,17 @@ const LiveClassRoom = () => {
 
     init();
 
+    // start auto-hide timer after initial mount
+    scheduleChromeHide();
+
     return () => {
       isMounted = false;
       cleanup();
+      if (chromeHideTimerRef.current) {
+        clearTimeout(chromeHideTimerRef.current);
+      }
     };
-  }, [id]);
+  }, [id, scheduleChromeHide]);
 
 
   // Apply WhatsApp-like video styling and transform when camera facing changes
@@ -1924,84 +1948,91 @@ const LiveClassRoom = () => {
   return (
     <div className="min-h-screen bg-gray-900 text-white flex flex-col">
       {/* Header */}
-      <header className="bg-gray-800 px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => {
-              cleanup();
-              navigate('/teacher/live-classes');
-            }}
-            className="p-2 hover:bg-gray-700 rounded-lg"
-          >
-            <FiArrowLeft className="text-xl" />
-          </button>
-          <div>
-            <h1 className="font-bold text-lg">{liveClass?.title || 'Live Class'}</h1>
-            <p className="text-sm text-gray-400">
-              {liveClass?.subjectId?.name} • {students.length} students
-              {isReconnecting && <span className="text-yellow-500 ml-2">• Reconnecting...</span>}
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          {raisedHandCount > 0 && (
-            <div className="bg-yellow-500 text-black px-3 py-1 rounded-lg font-bold flex items-center gap-2">
-              <PiHandPalm className="text-lg" /> {raisedHandCount} Hand{raisedHandCount > 1 ? 's' : ''} Raised
+      {showChrome && (
+        <header className="bg-gray-800 px-4 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => {
+                cleanup();
+                navigate('/teacher/live-classes');
+              }}
+              className="p-2 hover:bg-gray-700 rounded-lg"
+            >
+              <FiArrowLeft className="text-xl" />
+            </button>
+            <div>
+              <h1 className="font-bold text-lg">{liveClass?.title || 'Live Class'}</h1>
+              <p className="text-sm text-gray-400">
+                {liveClass?.subjectId?.name} • {students.length} students
+                {isReconnecting && <span className="text-yellow-500 ml-2">• Reconnecting...</span>}
+              </p>
             </div>
-          )}
-          <button
-            onClick={() => {
-              if (showChat) {
-                setShowChat(false);
-                setTimeout(() => setShowParticipants(true), 100);
-              } else {
-                setShowParticipants(!showParticipants);
-              }
-            }}
-            className="p-2 hover:bg-gray-700 rounded-lg relative"
-            title="Participants"
-          >
-            <FiUsers className="text-xl" />
+          </div>
+          <div className="flex items-center gap-2">
             {raisedHandCount > 0 && (
-              <span className="absolute top-0 right-0 bg-yellow-500 text-xs rounded-full w-5 h-5 flex items-center justify-center text-black font-bold">
-                {raisedHandCount}
-              </span>
+              <div className="bg-yellow-500 text-black px-3 py-1 rounded-lg font-bold flex items-center gap-2">
+                <PiHandPalm className="text-lg" /> {raisedHandCount} Hand{raisedHandCount > 1 ? 's' : ''} Raised
+              </div>
             )}
-          </button>
-          <button
-            onClick={() => {
-              const newShowChat = !showChat;
-              if (showParticipants) {
-                setShowParticipants(false);
-                setTimeout(() => {
-                  setShowChat(true);
+            <button
+              onClick={() => {
+                if (showChat) {
+                  setShowChat(false);
+                  setTimeout(() => setShowParticipants(true), 100);
+                } else {
+                  setShowParticipants(!showParticipants);
+                }
+              }}
+              className="p-2 hover:bg-gray-700 rounded-lg relative"
+              title="Participants"
+            >
+              <FiUsers className="text-xl" />
+              {raisedHandCount > 0 && (
+                <span className="absolute top-0 right-0 bg-yellow-500 text-xs rounded-full w-5 h-5 flex items-center justify-center text-black font-bold">
+                  {raisedHandCount}
+                </span>
+              )}
+            </button>
+            <button
+              onClick={() => {
+                const newShowChat = !showChat;
+                if (showParticipants) {
+                  setShowParticipants(false);
+                  setTimeout(() => {
+                    setShowChat(true);
+                    // Mark messages as read when opening chat
+                    if (unreadMessageCount > 0) {
+                      markMessagesAsRead();
+                    }
+                  }, 100);
+                } else {
+                  setShowChat(newShowChat);
                   // Mark messages as read when opening chat
-                  if (unreadMessageCount > 0) {
+                  if (newShowChat && unreadMessageCount > 0) {
                     markMessagesAsRead();
                   }
-                }, 100);
-              } else {
-                setShowChat(newShowChat);
-                // Mark messages as read when opening chat
-                if (newShowChat && unreadMessageCount > 0) {
-                  markMessagesAsRead();
                 }
-              }
-            }}
-            className="p-2 hover:bg-gray-700 rounded-lg relative"
-          >
-            <FiMessageSquare className="text-xl" />
-            {unreadMessageCount > 0 && (
-              <span className="absolute top-0 right-0 bg-red-500 text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                {unreadMessageCount > 99 ? '99+' : unreadMessageCount}
-              </span>
-            )}
-          </button>
-        </div>
-      </header>
+              }}
+              className="p-2 hover:bg-gray-700 rounded-lg relative"
+            >
+              <FiMessageSquare className="text-xl" />
+              {unreadMessageCount > 0 && (
+                <span className="absolute top-0 right-0 bg-red-500 text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                  {unreadMessageCount > 99 ? '99+' : unreadMessageCount}
+                </span>
+              )}
+            </button>
+          </div>
+        </header>
+      )}
 
       {/* Main Content */}
-      <div className="flex-1 relative overflow-hidden">
+      <div
+        className="flex-1 relative overflow-hidden"
+        onClick={handleUserActivity}
+        onMouseMove={handleUserActivity}
+        onTouchStart={handleUserActivity}
+      >
         {/* Teacher's Video - Full Screen */}
         <div className="absolute inset-0 bg-black flex items-center justify-center overflow-hidden">
           <div
@@ -2173,36 +2204,38 @@ const LiveClassRoom = () => {
       </div>
 
       {/* Controls */}
-      <div className="bg-gray-800 px-4 py-3 flex items-center justify-center gap-4">
-        <button
-          onClick={toggleMute}
-          className={`p-3 rounded-full ${isMuted ? 'bg-red-600' : 'bg-gray-700'} hover:bg-opacity-80`}
-          title={isMuted ? 'Unmute' : 'Mute'}
-        >
-          {isMuted ? <FiMicOff className="text-xl" /> : <FiMic className="text-xl" />}
-        </button>
-        <button
-          onClick={toggleVideo}
-          className={`p-3 rounded-full ${!isVideoEnabled ? 'bg-red-600' : 'bg-gray-700'} hover:bg-opacity-80`}
-          title={isVideoEnabled ? 'Turn off camera' : 'Turn on camera'}
-        >
-          {isVideoEnabled ? <FiVideo className="text-xl" /> : <FiVideoOff className="text-xl" />}
-        </button>
-        <button
-          onClick={switchCamera}
-          className="p-3 rounded-full bg-gray-700 hover:bg-opacity-80"
-          title="Switch camera"
-        >
-          <RiCameraSwitchLine className="text-xl" />
-        </button>
-        <button
-          onClick={handleEndClass}
-          className="p-3 rounded-full bg-red-600 hover:bg-red-700"
-          title="End class"
-        >
-          <FiPhone className="text-xl rotate-135" />
-        </button>
-      </div>
+      {showChrome && (
+        <div className="bg-gray-800 px-4 py-3 flex items-center justify-center gap-4">
+          <button
+            onClick={toggleMute}
+            className={`p-3 rounded-full ${isMuted ? 'bg-red-600' : 'bg-gray-700'} hover:bg-opacity-80`}
+            title={isMuted ? 'Unmute' : 'Mute'}
+          >
+            {isMuted ? <FiMicOff className="text-xl" /> : <FiMic className="text-xl" />}
+          </button>
+          <button
+            onClick={toggleVideo}
+            className={`p-3 rounded-full ${!isVideoEnabled ? 'bg-red-600' : 'bg-gray-700'} hover:bg-opacity-80`}
+            title={isVideoEnabled ? 'Turn off camera' : 'Turn on camera'}
+          >
+            {isVideoEnabled ? <FiVideo className="text-xl" /> : <FiVideoOff className="text-xl" />}
+          </button>
+          <button
+            onClick={switchCamera}
+            className="p-3 rounded-full bg-gray-700 hover:bg-opacity-80"
+            title="Switch camera"
+          >
+            <RiCameraSwitchLine className="text-xl" />
+          </button>
+          <button
+            onClick={handleEndClass}
+            className="p-3 rounded-full bg-red-600 hover:bg-red-700"
+            title="End class"
+          >
+            <FiPhone className="text-xl rotate-135" />
+          </button>
+        </div>
+      )}
     </div>
   );
 };
