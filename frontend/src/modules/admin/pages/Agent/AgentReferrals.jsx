@@ -77,17 +77,34 @@ const AgentReferrals = () => {
     })
   }
 
-  // Generate month options (last 12 months)
+  // Generate month options - get all months from monthWiseBreakdown or generate last 24 months
   const getMonthOptions = () => {
     const options = []
     const now = new Date()
-    for (let i = 0; i < 12; i++) {
+    
+    // If we have month-wise breakdown, include those months
+    const breakdownMonths = new Set(monthWiseBreakdown.map(item => item.month))
+    
+    // Generate last 24 months
+    for (let i = 0; i < 24; i++) {
       const date = new Date(now.getFullYear(), now.getMonth() - i, 1)
       const value = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
       const label = date.toLocaleDateString('en-IN', { year: 'numeric', month: 'long' })
       options.push({ value, label })
     }
-    return options
+    
+    // Add any months from breakdown that aren't in the last 24 months
+    monthWiseBreakdown.forEach(item => {
+      if (!options.find(opt => opt.value === item.month)) {
+        const [year, month] = item.month.split('-')
+        const date = new Date(parseInt(year), parseInt(month) - 1, 1)
+        const label = date.toLocaleDateString('en-IN', { year: 'numeric', month: 'long' })
+        options.push({ value: item.month, label })
+      }
+    })
+    
+    // Sort by value (newest first)
+    return options.sort((a, b) => b.value.localeCompare(a.value))
   }
 
   return (
@@ -186,15 +203,18 @@ const AgentReferrals = () => {
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-2 sm:px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                      Student
+                      Student Details
                     </th>
                     <th className="px-2 sm:px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider hidden sm:table-cell">
+                      Class & Board
+                    </th>
+                    <th className="px-2 sm:px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider hidden md:table-cell">
                       Plan
                     </th>
                     <th className="px-2 sm:px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                       Amount
                     </th>
-                    <th className="px-2 sm:px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider hidden md:table-cell">
+                    <th className="px-2 sm:px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider hidden lg:table-cell">
                       Date
                     </th>
                     <th className="px-2 sm:px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
@@ -205,7 +225,7 @@ const AgentReferrals = () => {
                 <tbody className="bg-white divide-y divide-gray-100">
                   {referrals.length === 0 ? (
                     <tr>
-                      <td colSpan="5" className="px-3 sm:px-4 py-6 sm:py-8 text-center">
+                      <td colSpan="6" className="px-3 sm:px-4 py-6 sm:py-8 text-center">
                         <div className="flex flex-col items-center justify-center">
                           <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-gray-100 flex items-center justify-center mb-2 sm:mb-3">
                             <svg className="w-5 h-5 sm:w-6 sm:h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -220,15 +240,30 @@ const AgentReferrals = () => {
                   ) : (
                     referrals.map((referral) => (
                       <tr key={referral._id} className="hover:bg-gray-50 transition-all duration-200">
-                        <td className="px-2 sm:px-3 py-2 whitespace-nowrap">
+                        <td className="px-2 sm:px-3 py-2">
                           <div className="text-xs font-semibold text-gray-900">
                             {referral.studentId?.name || 'N/A'}
                           </div>
-                          <div className="text-[10px] sm:text-xs text-gray-500">
+                          <div className="text-[10px] sm:text-xs text-gray-500 mt-0.5">
                             {referral.studentId?.phone || 'N/A'}
                           </div>
+                          {referral.studentId?.email && (
+                            <div className="text-[10px] text-gray-400 mt-0.5">
+                              {referral.studentId.email}
+                            </div>
+                          )}
                         </td>
                         <td className="px-2 sm:px-3 py-2 whitespace-nowrap hidden sm:table-cell">
+                          <div className="text-xs text-gray-600">
+                            {referral.studentId?.class ? `Class ${referral.studentId.class}` : 'N/A'}
+                          </div>
+                          {referral.studentId?.board && (
+                            <div className="text-[10px] text-gray-500 mt-0.5">
+                              {referral.studentId.board}
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-2 sm:px-3 py-2 whitespace-nowrap hidden md:table-cell">
                           <div className="text-xs text-gray-600">
                             {referral.subscriptionPlanId?.name || 'N/A'}
                           </div>
@@ -238,7 +273,7 @@ const AgentReferrals = () => {
                             {formatCurrency(referral.amount)}
                           </div>
                         </td>
-                        <td className="px-2 sm:px-3 py-2 whitespace-nowrap hidden md:table-cell">
+                        <td className="px-2 sm:px-3 py-2 whitespace-nowrap hidden lg:table-cell">
                           <div className="text-xs text-gray-600">
                             {formatDate(referral.subscriptionDate)}
                           </div>

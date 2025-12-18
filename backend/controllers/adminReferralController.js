@@ -278,7 +278,7 @@ exports.getAgentReferrals = asyncHandler(async (req, res) => {
   }
 
   const referrals = await ReferralRecord.find(query)
-    .populate('studentId', 'name phone email')
+    .populate('studentId', 'name phone email class board')
     .populate('subscriptionPlanId', 'name')
     .populate('paymentId', 'amount status')
     .sort({ subscriptionDate: -1 });

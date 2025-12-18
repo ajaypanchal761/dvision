@@ -178,8 +178,8 @@ const EditStudent = () => {
       try {
         setLoadingPrepPlans(true)
         
-        // Fetch preparation classes
-        const classesResponse = await subscriptionPlanAPI.getPreparationClasses()
+        // Fetch preparation classes - pass all=true to get all active classes
+        const classesResponse = await subscriptionPlanAPI.getPreparationClasses(true)
         if (classesResponse.success && classesResponse.data?.classes) {
           const prepClasses = classesResponse.data.classes.filter(c => c.isActive !== false)
           setPreparationClasses(prepClasses)

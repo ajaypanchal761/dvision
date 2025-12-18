@@ -8,14 +8,14 @@ const ErrorResponse = require('../utils/errorResponse');
 // @access  Private (Admin)
 exports.getAllSubscriptionPlans = asyncHandler(async (req, res, next) => {
   const { board, duration, isActive, type, class: classNumber } = req.query;
-  
+
   // Build query
   const query = {};
   if (type) query.type = type;
   if (board) query.board = board;
   if (duration) query.duration = duration;
   if (isActive !== undefined) query.isActive = isActive === 'true';
-  
+
   // Filter by class number for regular plans
   if (classNumber) {
     const classNum = parseInt(classNumber);
@@ -33,14 +33,14 @@ exports.getAllSubscriptionPlans = asyncHandler(async (req, res, next) => {
       match: { isActive: { $ne: false } } // Only populate if class exists and is active
     })
     .sort({ createdAt: -1 });
-  
+
   // Log any preparation plans with missing classId
-  const prepPlansWithMissingClass = subscriptionPlans.filter(plan => 
+  const prepPlansWithMissingClass = subscriptionPlans.filter(plan =>
     plan.type === 'preparation' && !plan.classId
   );
-  
+
   if (prepPlansWithMissingClass.length > 0) {
-    console.warn(`⚠️ Found ${prepPlansWithMissingClass.length} preparation plan(s) with missing classId:`, 
+    console.warn(`⚠️ Found ${prepPlansWithMissingClass.length} preparation plan(s) with missing classId:`,
       prepPlansWithMissingClass.map(p => ({ id: p._id, name: p.name }))
     );
   }
@@ -80,16 +80,16 @@ exports.getSubscriptionPlan = asyncHandler(async (req, res, next) => {
 // @access  Private (Admin)
 exports.getClassesByBoard = asyncHandler(async (req, res, next) => {
   const { board } = req.params;
-  
+
   if (!['CBSE', 'RBSE'].includes(board)) {
     return next(new ErrorResponse('Invalid board. Must be CBSE or RBSE', 400));
   }
 
   // Get all regular classes for this board
-  const allClasses = await Class.find({ 
+  const allClasses = await Class.find({
     board: board,
     type: 'regular',
-    isActive: true 
+    isActive: true
   })
     .select('_id class board classCode')
     .sort({ class: 1 });
@@ -103,7 +103,7 @@ exports.getClassesByBoard = asyncHandler(async (req, res, next) => {
   // Track which durations exist for each class
   // Structure: { classNum: Set(['monthly', 'quarterly', 'yearly']) }
   const classDurations = {};
-  
+
   existingPlans.forEach(plan => {
     if (plan.classes && Array.isArray(plan.classes) && plan.duration) {
       plan.classes.forEach(classNum => {
@@ -120,18 +120,18 @@ exports.getClassesByBoard = asyncHandler(async (req, res, next) => {
   const availableClasses = allClasses.map(classItem => {
     const classNum = classItem.class;
     const existingDurations = classDurations[classNum] || new Set();
-    
+
     // Check if class has all 3 durations
     const hasAllDurations = allDurations.every(dur => existingDurations.has(dur));
-    
+
     // If class has all durations, exclude it
     if (hasAllDurations) {
       return null;
     }
-    
+
     // Calculate missing durations
     const missingDurations = allDurations.filter(dur => !existingDurations.has(dur));
-    
+
     return {
       ...classItem.toObject(),
       missingDurations: missingDurations
@@ -147,18 +147,35 @@ exports.getClassesByBoard = asyncHandler(async (req, res, next) => {
   });
 });
 
-// @desc    Get preparation classes (for creating subscription plans)
-// @route   GET /api/admin/subscription-plans/preparation-classes
+// @desc    Get preparation classes (for creating subscription plans or student management)
+// @route   GET /api/admin/subscription-plans/preparation-classes?all=true
 // @access  Private (Admin)
+// @query   all - if true, returns all active preparation classes (for student management)
+//          if false/undefined, returns only classes missing subscription plans (for plan creation)
 exports.getPreparationClasses = asyncHandler(async (req, res, next) => {
+  const { all } = req.query;
+  const returnAll = all === 'true' || all === true;
+
   // Get all preparation classes
-  const allClasses = await Class.find({ 
+  const allClasses = await Class.find({
     type: 'preparation',
-    isActive: true 
+    isActive: true
   })
     .select('_id name classCode description type')
     .sort({ name: 1 });
 
+  // If all=true, return all classes without filtering
+  if (returnAll) {
+    return res.status(200).json({
+      success: true,
+      count: allClasses.length,
+      data: {
+        classes: allClasses
+      }
+    });
+  }
+
+  // Otherwise, use existing logic for subscription plan creation
   // Get all existing subscription plans for preparation classes
   const existingPlans = await SubscriptionPlan.find({
     type: 'preparation'
@@ -167,7 +184,7 @@ exports.getPreparationClasses = asyncHandler(async (req, res, next) => {
   // Track which durations exist for each preparation class
   // Structure: { classId: Set(['monthly', 'quarterly', 'yearly']) }
   const classDurations = {};
-  
+
   existingPlans.forEach(plan => {
     if (plan.classId && plan.duration) {
       const classIdStr = plan.classId.toString();
@@ -183,18 +200,18 @@ exports.getPreparationClasses = asyncHandler(async (req, res, next) => {
   const availableClasses = allClasses.map(classItem => {
     const classIdStr = classItem._id.toString();
     const existingDurations = classDurations[classIdStr] || new Set();
-    
-    // Check if class has all 3 durations
+
+    // Check if class has all 5 durations
     const hasAllDurations = allDurations.every(dur => existingDurations.has(dur));
-    
+
     // If class has all durations, exclude it
     if (hasAllDurations) {
       return null;
     }
-    
+
     // Calculate missing durations
     const missingDurations = allDurations.filter(dur => !existingDurations.has(dur));
-    
+
     return {
       ...classItem.toObject(),
       missingDurations: missingDurations
@@ -236,7 +253,7 @@ exports.createSubscriptionPlan = asyncHandler(async (req, res, next) => {
   if (!name) {
     return next(new ErrorResponse('Please provide plan name', 400));
   }
-  
+
   // Price is required for all plans except demo (demo can be free/0)
   if (duration !== 'demo' && price === undefined) {
     return next(new ErrorResponse('Please provide price', 400));
@@ -469,7 +486,7 @@ exports.updateSubscriptionPlan = asyncHandler(async (req, res, next) => {
     if (description !== undefined) subscriptionPlan.description = description;
     if (features !== undefined) subscriptionPlan.features = features;
     if (isActive !== undefined) subscriptionPlan.isActive = isActive;
-    
+
     // Update validityDays for demo plans
     if (duration === 'demo' && validityDays !== undefined) {
       if (!Number.isInteger(validityDays) || validityDays < 1) {
@@ -481,7 +498,7 @@ exports.updateSubscriptionPlan = asyncHandler(async (req, res, next) => {
       subscriptionPlan.validityDays = undefined;
     }
   }
-  
+
   // Also handle validityDays for regular plans
   if (planType === 'regular') {
     if (duration === 'demo' && validityDays !== undefined) {
@@ -534,22 +551,22 @@ exports.getPublicSubscriptionPlans = asyncHandler(async (req, res, next) => {
   const { board, class: studentClass } = req.query;
   const Student = require('../models/Student');
   const Payment = require('../models/Payment');
-  
+
   console.log('GET_PUBLIC_SUBSCRIPTION_PLANS:', { board, studentClass });
-  
+
   // Get student's active subscriptions if authenticated (optional)
   let studentActiveSubs = [];
   let student = null;
   const now = new Date();
-  
+
   // Try to get student if token is provided (optional auth)
   try {
     if (req.headers.authorization || req.cookies?.token || req.headers['x-auth-token']) {
       const jwt = require('jsonwebtoken');
-      const token = req.headers.authorization?.replace('Bearer ', '') || 
-                   req.cookies?.token || 
-                   req.headers['x-auth-token'];
-      
+      const token = req.headers.authorization?.replace('Bearer ', '') ||
+        req.cookies?.token ||
+        req.headers['x-auth-token'];
+
       if (token && process.env.JWT_SECRET) {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
         if (decoded.role === 'student') {
@@ -561,56 +578,56 @@ exports.getPublicSubscriptionPlans = asyncHandler(async (req, res, next) => {
     // Ignore auth errors - route is public
     console.log('Optional auth check failed (expected for public route):', err.message);
   }
-  
+
   if (student) {
-      // Get from activeSubscriptions array
-      const activeSubsFromArray = (student.activeSubscriptions || []).filter(sub => 
-        new Date(sub.endDate) >= now
-      );
-      
-      // Also get from payments
-      const activePayments = await Payment.find({
-        studentId: student._id,
-        status: 'completed',
-        subscriptionEndDate: { $gte: now }
-      })
-        .populate('subscriptionPlanId', 'type board classes classId')
-        .select('subscriptionPlanId subscriptionEndDate');
-      
-      // Combine both sources
-      studentActiveSubs = [
-        ...activeSubsFromArray.map(sub => ({
-          type: sub.type,
-          board: sub.board,
-          class: sub.class,
-          classId: sub.classId,
-          endDate: sub.endDate
-        })),
-        ...activePayments.map(payment => ({
-          type: payment.subscriptionPlanId?.type,
-          board: payment.subscriptionPlanId?.board,
-          class: payment.subscriptionPlanId?.classes?.[0],
-          classId: payment.subscriptionPlanId?.classId,
-          endDate: payment.subscriptionEndDate
-        }))
-      ];
+    // Get from activeSubscriptions array
+    const activeSubsFromArray = (student.activeSubscriptions || []).filter(sub =>
+      new Date(sub.endDate) >= now
+    );
+
+    // Also get from payments
+    const activePayments = await Payment.find({
+      studentId: student._id,
+      status: 'completed',
+      subscriptionEndDate: { $gte: now }
+    })
+      .populate('subscriptionPlanId', 'type board classes classId')
+      .select('subscriptionPlanId subscriptionEndDate');
+
+    // Combine both sources
+    studentActiveSubs = [
+      ...activeSubsFromArray.map(sub => ({
+        type: sub.type,
+        board: sub.board,
+        class: sub.class,
+        classId: sub.classId,
+        endDate: sub.endDate
+      })),
+      ...activePayments.map(payment => ({
+        type: payment.subscriptionPlanId?.type,
+        board: payment.subscriptionPlanId?.board,
+        class: payment.subscriptionPlanId?.classes?.[0],
+        classId: payment.subscriptionPlanId?.classId,
+        endDate: payment.subscriptionEndDate
+      }))
+    ];
   }
-  
+
   // Build query for regular plans - MUST match student's board AND class
   let regularPlans = [];
-  
+
   // Board and class are required for regular plans
   if (board && studentClass) {
     const classNum = parseInt(studentClass);
     if (!isNaN(classNum)) {
-      const regularQuery = { 
+      const regularQuery = {
         isActive: true,
         type: 'regular',
         board: board,
         classes: { $in: [classNum] }, // Check if the student's class is in the plan's classes array
         duration: { $ne: 'demo' } // Exclude demo plans from student view
       };
-      
+
       console.log('Regular Query:', regularQuery);
       regularPlans = await SubscriptionPlan.find(regularQuery)
         .select('name board classes duration price originalPrice description features type')
@@ -649,13 +666,13 @@ exports.getPublicSubscriptionPlans = asyncHandler(async (req, res, next) => {
     if (plan.type === 'regular') {
       // Check if student has active regular subscription for this class
       const hasActiveRegular = studentActiveSubs.some(sub => {
-        return sub.type === 'regular' && 
-               sub.board === plan.board && 
-               plan.classes && 
-               plan.classes.includes(sub.class) &&
-               new Date(sub.endDate) >= now;
+        return sub.type === 'regular' &&
+          sub.board === plan.board &&
+          plan.classes &&
+          plan.classes.includes(sub.class) &&
+          new Date(sub.endDate) >= now;
       });
-      
+
       if (hasActiveRegular) {
         isDisabled = true;
         disabledReason = 'You already have an active subscription for this class';
@@ -665,13 +682,13 @@ exports.getPublicSubscriptionPlans = asyncHandler(async (req, res, next) => {
       const prepClassId = plan.classId?._id || plan.classId;
       if (prepClassId) {
         const hasActivePrep = studentActiveSubs.some(sub => {
-          return sub.type === 'preparation' && 
-                 sub.classId && 
-                 (sub.classId.toString() === prepClassId.toString() || 
-                  (sub.classId._id && sub.classId._id.toString() === prepClassId.toString())) &&
-                 new Date(sub.endDate) >= now;
+          return sub.type === 'preparation' &&
+            sub.classId &&
+            (sub.classId.toString() === prepClassId.toString() ||
+              (sub.classId._id && sub.classId._id.toString() === prepClassId.toString())) &&
+            new Date(sub.endDate) >= now;
         });
-        
+
         if (hasActivePrep) {
           isDisabled = true;
           disabledReason = `You already have an active subscription for ${plan.classId?.name || 'this preparation class'}`;

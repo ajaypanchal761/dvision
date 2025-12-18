@@ -173,6 +173,7 @@ const LiveClassRoom = () => {
           (localVideoContainerRef.current.tagName === 'VIDEO' ? localVideoContainerRef.current : null);
         if (videoElement) {
           // WhatsApp-like behavior: contain mode with black bars, centered
+          // Maintain aspect ratio, center video, fill remaining space with black
           videoElement.style.objectFit = 'contain';
           videoElement.style.width = '100%';
           videoElement.style.height = '100%';
@@ -181,7 +182,12 @@ const LiveClassRoom = () => {
           videoElement.style.position = 'absolute';
           videoElement.style.top = '50%';
           videoElement.style.left = '50%';
-          videoElement.style.backgroundColor = 'black';
+          videoElement.style.backgroundColor = '#000000';
+          videoElement.style.display = 'block';
+          // Ensure container has black background
+          if (localVideoContainerRef.current) {
+            localVideoContainerRef.current.style.backgroundColor = '#000000';
+          }
           
           // Apply camera mirror transform
           // Front camera (user): mirror (scaleX(-1)) for selfie view - left appears as right
@@ -1057,6 +1063,12 @@ const LiveClassRoom = () => {
           <div
             ref={screenShareContainerRef}
             className="w-full h-full"
+            style={{
+              backgroundColor: 'black',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
           />
           
           {/* Local Video (Small overlay) */}
@@ -1067,7 +1079,11 @@ const LiveClassRoom = () => {
               style={{
                 position: 'relative',
                 width: '100%',
-                height: '100%'
+                height: '100%',
+                backgroundColor: 'black',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
               }}
             />
             {!isVideoEnabled && (

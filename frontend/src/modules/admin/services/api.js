@@ -602,8 +602,11 @@ export const subscriptionPlanAPI = {
     });
   },
   // Get preparation classes
-  getPreparationClasses: async () => {
-    return apiRequest('/subscription-plans/admin/preparation-classes', {
+  // all: if true, returns all active preparation classes (for student management)
+  //      if false/undefined, returns only classes missing plans (for plan creation)
+  getPreparationClasses: async (all = false) => {
+    const queryParam = all ? '?all=true' : '';
+    return apiRequest(`/subscription-plans/admin/preparation-classes${queryParam}`, {
       method: 'GET',
     });
   },

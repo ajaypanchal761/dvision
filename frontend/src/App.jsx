@@ -841,6 +841,16 @@ function App() {
           }
         />
         <Route
+          path="/admin/agents/:id/referrals"
+          element={
+            <AdminProtectedRoute>
+              <AdminLayout>
+                <AdminAgentReferrals />
+              </AdminLayout>
+            </AdminProtectedRoute>
+          }
+        />
+        <Route
           path="/admin/teacher-class"
           element={
             <AdminProtectedRoute>
