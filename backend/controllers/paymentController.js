@@ -341,33 +341,60 @@ exports.createOrder = asyncHandler(async (req, res, next) => {
   // Get return URL (frontend URL)
   // IMPORTANT: Cashfree production requires HTTPS URLs only
   console.log('=== ENVIRONMENT URL VARIABLES ===');
-  console.log('process.env.FRONTEND_URL:', process.env.FRONTEND_URL);
-  console.log('process.env.BACKEND_URL:', process.env.BACKEND_URL);
+  console.log('process.env.FRONTEND_URL (raw):', process.env.FRONTEND_URL);
+  console.log('process.env.BACKEND_URL (raw):', process.env.BACKEND_URL);
   console.log('process.env.NODE_ENV:', process.env.NODE_ENV);
 
-  let returnUrl = process.env.FRONTEND_URL || 'https://dvisionacademy.com';
-  let notifyUrl = process.env.BACKEND_URL || 'https://api.dvisionacademy.com';
+  // For PRODUCTION Cashfree, ALWAYS use production domains
+  // Do NOT rely on environment variables which might be cached
+  const cashfreeEnv = process.env.CF_ENV || 'PROD';
+  console.log('Cashfree Environment:', cashfreeEnv);
 
-  // CRITICAL: Strip any http:// and enforce https:// for Cashfree production
-  if (returnUrl.startsWith('http://')) {
-    console.warn('⚠️ STRIPPING HTTP FROM returnUrl and enforcing HTTPS');
+  let returnUrl;
+  let notifyUrl;
+
+  if (cashfreeEnv === 'PROD') {
+    // PRODUCTION MODE: Use production domains ONLY
+    // Cashfree production DOES NOT accept localhost
+    returnUrl = 'https://dvisionacademy.com';
+    notifyUrl = 'https://api.dvisionacademy.com/api/payment/webhook';
+    console.log('🔴 PRODUCTION MODE DETECTED: Using hardcoded production URLs');
+  } else if (cashfreeEnv === 'TEST' || cashfreeEnv === 'SANDBOX') {
+    // TEST/SANDBOX MODE: Use environment variables (can be localhost)
+    returnUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    notifyUrl = process.env.BACKEND_URL || 'http://localhost:5000';
+    notifyUrl = notifyUrl.includes('/api/payment/webhook') ? notifyUrl : `${notifyUrl}/api/payment/webhook`;
+    console.log('🟡 TEST/SANDBOX MODE DETECTED: Using environment variables');
+  } else {
+    // FALLBACK: Use environment variables
+    returnUrl = process.env.FRONTEND_URL || 'https://dvisionacademy.com';
+    notifyUrl = process.env.BACKEND_URL || 'https://api.dvisionacademy.com/api/payment/webhook';
+    console.log('⚪ FALLBACK MODE: Using environment variables with HTTPS defaults');
+  }
+
+  // FORCE HTTPS for all modes
+  if (returnUrl.startsWith('http://') && cashfreeEnv === 'PROD') {
+    console.warn('⚠️  CRITICAL: HTTP detected in PROD mode! Converting to HTTPS');
     returnUrl = returnUrl.replace('http://', 'https://');
   }
-  if (notifyUrl.startsWith('http://')) {
-    console.warn('⚠️ STRIPPING HTTP FROM notifyUrl and enforcing HTTPS');
+  if (notifyUrl.startsWith('http://') && cashfreeEnv === 'PROD') {
+    console.warn('⚠️  CRITICAL: HTTP detected in PROD mode! Converting to HTTPS');
     notifyUrl = notifyUrl.replace('http://', 'https://');
   }
 
-  // Ensure URLs are HTTPS (required by Cashfree production)
-  if (!returnUrl.startsWith('https://') && !returnUrl.startsWith('http://')) {
-    returnUrl = `https://${returnUrl}`;
-  }
-  if (!notifyUrl.startsWith('https://') && !notifyUrl.startsWith('http://')) {
-    notifyUrl = `https://${notifyUrl}`;
+  // Ensure notify URL has the webhook path
+  if (!notifyUrl.includes('/api/payment/webhook')) {
+    if (cashfreeEnv === 'PROD') {
+      notifyUrl = 'https://api.dvisionacademy.com/api/payment/webhook';
+    } else {
+      notifyUrl = `${notifyUrl}/api/payment/webhook`;
+    }
   }
 
   console.log('Final returnUrl:', returnUrl);
   console.log('Final notifyUrl:', notifyUrl);
+  console.log('⚠️  VALIDATE: returnUrl should be https://dvisionacademy.com/payment/return?order_id={order_id}');
+  console.log('⚠️  VALIDATE: notifyUrl should be https://api.dvisionacademy.com/api/payment/webhook');
 
   // Add webhook path to notify URL if not present
   if (!notifyUrl.includes('/api/payment/webhook')) {
@@ -412,18 +439,44 @@ exports.createOrder = asyncHandler(async (req, res, next) => {
   console.log('Plan Price:', plan.price);
 
   // ===== CRITICAL: SAFETY CHECK FOR PRODUCTION =====
-  // Cashfree production ONLY accepts HTTPS URLs
-  const CASHFREE_PROD_REQUIRES_HTTPS = cashfreeConfig.environment === 'PROD';
-  if (CASHFREE_PROD_REQUIRES_HTTPS && returnUrl.startsWith('http://')) {
-    const errorMsg = `❌ FATAL ERROR: Cashfree production requires HTTPS URLs only.\n` +
-      `Return URL received: ${returnUrl}\n` +
-      `This is a critical misconfiguration. To fix:\n` +
-      `1. Ensure FRONTEND_URL in .env starts with https://\n` +
-      `2. Restart the server to reload .env\n` +
-      `3. For local testing, use CF_ENV=TEST instead of PROD\n` +
-      `4. Or use NGROK for HTTP to HTTPS tunneling`;
-    console.error(errorMsg);
-    return next(new ErrorResponse(errorMsg, 500));
+  // Cashfree production ONLY accepts production domain URLs
+  if (cashfreeEnv === 'PROD') {
+    console.log('🔴 PRODUCTION CASHFREE CHECK:');
+    console.log('  ✅ returnUrl:', returnUrl);
+    console.log('  ✅ notifyUrl:', notifyUrl);
+
+    // Verify production URLs are being used
+    if (!returnUrl.includes('dvisionacademy.com')) {
+      const errorMsg = `❌ FATAL ERROR: In PROD mode, return URL must be https://dvisionacademy.com/...\n` +
+        `Received: ${returnUrl}\n` +
+        `Cashfree production only accepts your domain, not localhost or other URLs.`;
+      console.error(errorMsg);
+      return next(new ErrorResponse(errorMsg, 500));
+    }
+
+    if (!notifyUrl.includes('api.dvisionacademy.com')) {
+      const errorMsg = `❌ FATAL ERROR: In PROD mode, notify URL must be https://api.dvisionacademy.com/...\n` +
+        `Received: ${notifyUrl}\n` +
+        `Cashfree production only accepts your domain, not localhost or other URLs.`;
+      console.error(errorMsg);
+      return next(new ErrorResponse(errorMsg, 500));
+    }
+
+    if (!returnUrl.startsWith('https://')) {
+      const errorMsg = `❌ FATAL ERROR: Return URL must use HTTPS in PROD mode.\n` +
+        `Received: ${returnUrl}`;
+      console.error(errorMsg);
+      return next(new ErrorResponse(errorMsg, 500));
+    }
+
+    if (!notifyUrl.startsWith('https://')) {
+      const errorMsg = `❌ FATAL ERROR: Notify URL must use HTTPS in PROD mode.\n` +
+        `Received: ${notifyUrl}`;
+      console.error(errorMsg);
+      return next(new ErrorResponse(errorMsg, 500));
+    }
+
+    console.log('✅ All PRODUCTION security checks passed!');
   }
 
   // Build order data for Cashfree
