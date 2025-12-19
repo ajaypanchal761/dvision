@@ -1034,10 +1034,6 @@ REDIS_HOST=localhost
 REDIS_PORT=6379
 REDIS_PASSWORD=
 
-# Cashfree Payment Gateway (Production)
-CF_CLIENT_ID=845489211da960c5020dca0980984548
-CF_SECRET=cfsk_ma_prod_b7028a3297b6027bdc8bfca6669976a7_9369aabf
-CF_ENV=PROD
 
 # Cashfree Test Credentials (Optional - for testing)
 # TEST_CF_CLIENT_ID=your_test_client_id

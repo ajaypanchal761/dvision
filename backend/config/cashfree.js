@@ -4,10 +4,7 @@ const axios = require('axios');
 // CF_ENV: 'TEST' or 'PROD'
 // Default: PROD (Production mode)
 // 
-// Production Credentials:
-// CF_CLIENT_ID=845489211da960c5020dca0980984548
-// CF_SECRET=cfsk_ma_prod_b7028a3297b6027bdc8bfca6669976a7_9369aabf
-// CF_ENV=PROD
+
 const getCashfreeConfig = () => {
   let env = process.env.CF_ENV || 'PROD'; // Default to PROD (Production)
   let isProd = env === 'PROD';
