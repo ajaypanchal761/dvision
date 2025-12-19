@@ -53,7 +53,7 @@ Dvision Academy is a comprehensive online education platform that enables:
 | **Video SDK** | Agora |
 | **Real-time** | Socket.io |
 | **Queue** | Redis (BullMQ/Bee-Queue) |
-| **Payment** | Razorpay |
+| **Payment** | Cashfree |
 | **Notifications** | Firebase Cloud Messaging |
 | **File Upload** | Multer + Cloudinary |
 | **Email** | Nodemailer (SMTP) |
@@ -609,17 +609,17 @@ Student Can Now Access Recording
 ```
 Student Selects Subscription Plan
     ↓
-POST /api/subscriptions/create-order
+POST /api/payment/create-order
     ↓
 Backend:
-    - Create Razorpay Order
+    - Create Cashfree Order
     - Store Order in MongoDB
     ↓
-Return: { orderId, amount, key }
+Return: { orderId, paymentSessionId, amount, clientId, environment }
     ↓
-Student Completes Payment (Razorpay)
+Student Completes Payment (Cashfree)
     ↓
-[Razorpay Webhook] → POST /api/payments/webhook
+[Cashfree Webhook] → POST /api/payment/webhook
     ↓
 Backend Validates Signature
     ↓
@@ -850,8 +850,8 @@ Student Plays Recording (HLS Stream)
 {
   _id: ObjectId,
   userId: ObjectId,
-  orderId: String, // Razorpay order ID
-  paymentId: String, // Razorpay payment ID
+  cashfreeOrderId: String, // Cashfree order ID
+  cashfreePaymentId: String, // Cashfree payment ID
   amount: Number,
   currency: String,
   status: Enum ['pending', 'completed', 'failed', 'refunded'],
@@ -949,7 +949,9 @@ Student Plays Recording (HLS Stream)
 
 | Method | Endpoint | Description | Auth |
 |--------|----------|-------------|------|
-| POST | `/api/payments/webhook` | Razorpay webhook | No (signed) |
+| POST | `/api/payment/webhook` | Cashfree webhook | No (signed) |
+| POST | `/api/payment/create-order` | Create Cashfree order | Yes (Student) |
+| POST | `/api/payment/verify` | Verify payment | Yes (Student) |
 
 ### File Upload
 
@@ -968,7 +970,7 @@ Student Plays Recording (HLS Stream)
 - MongoDB Atlas account
 - AWS S3 bucket
 - Agora account
-- Razorpay account
+- Cashfree account
 - Redis server (local or cloud)
 - Firebase project
 
@@ -1032,9 +1034,15 @@ REDIS_HOST=localhost
 REDIS_PORT=6379
 REDIS_PASSWORD=
 
-# Razorpay
-RAZORPAY_KEY_ID=your_razorpay_key_id
-RAZORPAY_KEY_SECRET=your_razorpay_secret
+# Cashfree Payment Gateway (Production)
+CF_CLIENT_ID=845489211da960c5020dca0980984548
+CF_SECRET=cfsk_ma_prod_b7028a3297b6027bdc8bfca6669976a7_9369aabf
+CF_ENV=PROD
+
+# Cashfree Test Credentials (Optional - for testing)
+# TEST_CF_CLIENT_ID=your_test_client_id
+# TEST_CF_SECRET=your_test_secret_key
+# Set CF_ENV=TEST to use test credentials
 
 # Firebase
 FIREBASE_SERVER_KEY=your_firebase_server_key
@@ -1633,7 +1641,7 @@ const students = await User.find({
 ## 🔗 External Resources
 
 - [Agora Documentation](https://docs.agora.io/)
-- [Razorpay API Docs](https://razorpay.com/docs/api/)
+- [Cashfree API Docs](https://docs.cashfree.com/)
 - [AWS S3 Documentation](https://docs.aws.amazon.com/s3/)
 - [Socket.io Documentation](https://socket.io/docs/)
 - [MongoDB Atlas](https://www.mongodb.com/cloud/atlas)

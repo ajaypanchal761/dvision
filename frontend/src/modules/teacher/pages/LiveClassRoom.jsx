@@ -1436,7 +1436,7 @@ const LiveClassRoom = () => {
   // Switch camera (front/back)
   const switchCamera = async () => {
     try {
-      if (!localVideoTrackRef.current) return;
+      if (!localVideoTrackRef.current || !clientRef.current) return;
 
       const devices = await AgoraRTC.getCameras();
 
@@ -1472,20 +1472,44 @@ const LiveClassRoom = () => {
       }
 
       if (nextDevice) {
-        // Switch device - this updates the video track
-        await localVideoTrackRef.current.setDevice(nextDevice.deviceId);
+        console.log('[Camera Switch] Starting camera switch to:', nextDevice.label || nextDevice.deviceId);
+        
+        // Store reference to old track
+        const oldVideoTrack = localVideoTrackRef.current;
+        const wasVideoEnabled = oldVideoTrack.enabled;
 
-        // Wait for the device to switch and get updated settings
+        // Unpublish the old video track first
+        try {
+          await clientRef.current.unpublish([oldVideoTrack]);
+          console.log('[Camera Switch] Old video track unpublished');
+        } catch (unpublishErr) {
+          console.warn('[Camera Switch] Error unpublishing old track:', unpublishErr);
+          // Continue anyway - track might not be published
+        }
+
+        // Create a completely new video track with the new camera
+        // This ensures Agora Recording sees a new stream and continues recording
+        const newVideoTrack = await AgoraRTC.createCameraVideoTrack({
+          cameraId: nextDevice.deviceId,
+          encoderConfig: {
+            width: 1280,
+            height: 720,
+            frameRate: 30,
+            bitrateMax: 2000
+          }
+        });
+
+        // Wait a bit for track to initialize
         await new Promise(resolve => setTimeout(resolve, 150));
 
         // Get the actual facingMode from MediaTrackSettings (most reliable method)
-        const trackSettings = localVideoTrackRef.current.getMediaStreamTrack()?.getSettings();
+        const trackSettings = newVideoTrack.getMediaStreamTrack()?.getSettings();
         let detectedFacing = null;
 
         if (trackSettings && trackSettings.facingMode) {
           // facingMode can be 'user' (front) or 'environment' (back)
           detectedFacing = trackSettings.facingMode;
-          console.log('Detected facingMode from track settings:', detectedFacing);
+          console.log('[Camera Switch] Detected facingMode from track settings:', detectedFacing);
         } else {
           // Fallback to device label detection if facingMode is not available
           const deviceLabel = (nextDevice.label || '').toLowerCase();
@@ -1503,39 +1527,42 @@ const LiveClassRoom = () => {
 
           // Determine facing from label
           detectedFacing = isBackCamera ? 'environment' : (isFrontCamera ? 'user' : 'environment');
-          console.log('Detected facingMode from device label:', detectedFacing, 'Label:', deviceLabel);
+          console.log('[Camera Switch] Detected facingMode from device label:', detectedFacing, 'Label:', deviceLabel);
         }
 
         // Update camera facing state
         setCameraFacing(detectedFacing);
-        console.log('Switched camera to device:', nextDevice.label || nextDevice.deviceId, 'Facing:', detectedFacing);
+        console.log('[Camera Switch] Switched camera to device:', nextDevice.label || nextDevice.deviceId, 'Facing:', detectedFacing);
 
-        // Republish the video track to ensure recording picks up the new stream
-        if (clientRef.current && localVideoTrackRef.current) {
-          try {
-            // Unpublish and republish the video track to ensure recording service picks up the new stream
-            await clientRef.current.unpublish([localVideoTrackRef.current]);
-            await new Promise(resolve => setTimeout(resolve, 50));
-            await clientRef.current.publish([localVideoTrackRef.current]);
-            console.log('Video track republished after camera switch');
-          } catch (republishErr) {
-            console.warn('Error republishing video track:', republishErr);
-            // If republish fails, try to just ensure video is playing
-            if (localVideoContainerRef.current && localVideoTrackRef.current && localVideoTrackRef.current.enabled) {
-              try {
-                await localVideoTrackRef.current.play(localVideoContainerRef.current);
-              } catch (playErr) {
-                console.error('Error playing video after camera switch:', playErr);
-              }
-            }
-          }
+        // Set enabled state to match previous state
+        await newVideoTrack.setEnabled(wasVideoEnabled);
+
+        // Update the ref to point to the new track
+        localVideoTrackRef.current = newVideoTrack;
+
+        // Publish the new video track (audio track remains unchanged)
+        try {
+          await clientRef.current.publish([newVideoTrack]);
+          console.log('[Camera Switch] New video track published successfully');
+        } catch (publishErr) {
+          console.error('[Camera Switch] Error publishing new video track:', publishErr);
+          throw publishErr;
         }
 
-        // Ensure video is playing in the container
-        if (localVideoContainerRef.current && localVideoTrackRef.current && localVideoTrackRef.current.enabled) {
+        // Stop and close the old video track to free resources
+        try {
+          oldVideoTrack.stop();
+          oldVideoTrack.close();
+          console.log('[Camera Switch] Old video track stopped and closed');
+        } catch (closeErr) {
+          console.warn('[Camera Switch] Error closing old track:', closeErr);
+        }
+
+        // Play the new video track in the container
+        if (localVideoContainerRef.current && newVideoTrack && newVideoTrack.enabled) {
           try {
-            await localVideoTrackRef.current.play(localVideoContainerRef.current);
-            console.log('Video replayed after camera switch');
+            await newVideoTrack.play(localVideoContainerRef.current);
+            console.log('[Camera Switch] New video track playing successfully');
 
             // Apply correct transform to video element after switch
             setTimeout(() => {
@@ -1550,16 +1577,16 @@ const LiveClassRoom = () => {
                   videoElement.style.transform = 'scaleX(1)';
                 }
                 videoElement.style.transition = 'transform 0.2s ease-in-out';
-                console.log('Applied video transform after camera switch:', detectedFacing);
+                console.log('[Camera Switch] Applied video transform:', detectedFacing);
               }
             }, 100);
           } catch (playErr) {
-            console.warn('Error replaying video after camera switch:', playErr);
+            console.warn('[Camera Switch] Error playing new video track:', playErr);
             // Retry after a short delay
             setTimeout(async () => {
-              if (localVideoContainerRef.current && localVideoTrackRef.current && localVideoTrackRef.current.enabled) {
+              if (localVideoContainerRef.current && newVideoTrack && newVideoTrack.enabled) {
                 try {
-                  await localVideoTrackRef.current.play(localVideoContainerRef.current);
+                  await newVideoTrack.play(localVideoContainerRef.current);
                   // Apply transform after retry
                   setTimeout(() => {
                     const videoElement = localVideoContainerRef.current?.querySelector('video');
@@ -1569,17 +1596,29 @@ const LiveClassRoom = () => {
                     }
                   }, 100);
                 } catch (retryErr) {
-                  console.error('Error replaying video on retry:', retryErr);
+                  console.error('[Camera Switch] Error replaying video on retry:', retryErr);
                 }
               }
             }, 300);
           }
         }
+
+        // Update status via socket
+        if (socketRef.current) {
+          socketRef.current.emit('participant-status', {
+            liveClassId: id,
+            isMuted: !localAudioTrackRef.current?.enabled,
+            isVideoEnabled: newVideoTrack.enabled
+          });
+        }
+
+        console.log('[Camera Switch] Camera switch completed successfully');
       } else {
-        console.warn('No alternative camera found to switch');
+        console.warn('[Camera Switch] No alternative camera found to switch');
       }
     } catch (err) {
-      console.error('Error switching camera:', err);
+      console.error('[Camera Switch] Error switching camera:', err);
+      setError('Failed to switch camera. Please try again.');
     }
   };
 

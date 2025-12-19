@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { FiHome, FiVideo, FiFileText, FiMessageCircle, FiUser, FiTrendingUp, FiUsers } from 'react-icons/fi';
+import { FiHome, FiVideo, FiFileText, FiMessageCircle, FiUser, FiTrendingUp, FiUsers, FiBell } from 'react-icons/fi';
 import { ROUTES } from '../../constants/routes';
 
 /**
@@ -46,7 +46,7 @@ const BottomNav = () => {
               <span className="text-[10px] sm:text-xs font-bold whitespace-nowrap">Statistics</span>
             </button>
 
-          {/* Referrals */}
+            {/* Referrals */}
             <button
             onClick={() => navigate(ROUTES.AGENT_REFERRALS)}
             className={`flex flex-col items-center gap-1 px-2 sm:px-3 py-1.5 sm:py-2 rounded-xl transition-all min-w-0 flex-1 ${location.pathname === ROUTES.AGENT_REFERRALS
@@ -56,6 +56,18 @@ const BottomNav = () => {
             >
             <FiUsers className={`text-xl sm:text-2xl flex-shrink-0 ${location.pathname === ROUTES.AGENT_REFERRALS ? 'scale-110' : ''} transition-transform`} />
             <span className="text-[10px] sm:text-xs font-bold whitespace-nowrap">Referrals</span>
+            </button>
+
+            {/* Notifications */}
+            <button
+              onClick={() => navigate(ROUTES.AGENT_NOTIFICATIONS)}
+              className={`flex flex-col items-center gap-1 px-2 sm:px-3 py-1.5 sm:py-2 rounded-xl transition-all min-w-0 flex-1 ${location.pathname === ROUTES.AGENT_NOTIFICATIONS
+                  ? 'text-[var(--app-dark-blue)] bg-blue-50'
+                  : 'text-gray-600 hover:text-[var(--app-dark-blue)]'
+                }`}
+            >
+              <FiBell className={`text-xl sm:text-2xl flex-shrink-0 ${location.pathname === ROUTES.AGENT_NOTIFICATIONS ? 'scale-110' : ''} transition-transform`} />
+              <span className="text-[10px] sm:text-xs font-bold whitespace-nowrap">Notifications</span>
             </button>
 
             {/* Profile */}

@@ -26,5 +26,6 @@ export const ROUTES = {
   AGENT_REFERRALS: '/teacher/agent/referrals',
   AGENT_PROFILE: '/teacher/agent/profile',
   AGENT_BANK_DETAILS: '/teacher/agent/bank-details',
+  AGENT_NOTIFICATIONS: '/teacher/agent/notifications',
 };
 

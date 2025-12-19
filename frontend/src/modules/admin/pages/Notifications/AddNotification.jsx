@@ -10,7 +10,6 @@ const AddNotification = () => {
   const [notificationType, setNotificationType] = useState('students') // 'students', 'teachers', 'both', 'class'
   const [selectedClass, setSelectedClass] = useState('')
   const [allClasses, setAllClasses] = useState([])
-  const [uniqueClasses, setUniqueClasses] = useState([9, 10, 11, 12])
   const [notificationTitle, setNotificationTitle] = useState('')
   const [notificationBody, setNotificationBody] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -21,14 +20,10 @@ const AddNotification = () => {
   useEffect(() => {
     const fetchClasses = async () => {
       try {
-        const response = await classAPI.getAll()
+        const response = await classAPI.getAll({ limit: 1000 }) // Get all classes
         if (response.success && response.data?.classes) {
           const activeClasses = response.data.classes.filter(c => c.isActive)
           setAllClasses(activeClasses)
-          
-          // Extract unique class numbers
-          const classes = [...new Set(activeClasses.map(c => c.class))].filter(Boolean).sort((a, b) => a - b)
-          setUniqueClasses(classes.length > 0 ? classes : [9, 10, 11, 12])
         }
       } catch (err) {
         console.error('Error fetching classes:', err)
@@ -39,7 +34,7 @@ const AddNotification = () => {
 
   // Fetch campaign data if in edit mode
   useEffect(() => {
-    if (isEditMode && id) {
+    if (isEditMode && id && allClasses.length > 0) {
       const fetchCampaign = async () => {
         try {
           setLoading(true)
@@ -63,8 +58,18 @@ const AddNotification = () => {
             } else if (campaign.recipientType) {
               setNotificationType(campaign.recipientType === 'student' ? 'students' : 'teachers')
             }
-            if (campaign.classNumber) {
-              setSelectedClass(campaign.classNumber.toString())
+            if (campaign.classId) {
+              setSelectedClass(campaign.classId.toString())
+            } else if (campaign.classNumber) {
+              // Backward compatibility: if classNumber exists, try to find matching class
+              const matchingClass = allClasses.find(c => 
+                c.type === 'regular' && c.class === campaign.classNumber
+              )
+              if (matchingClass) {
+                setSelectedClass(matchingClass._id.toString())
+              } else {
+                setSelectedClass(campaign.classNumber.toString())
+              }
             } else if (campaign.filters?.class) {
               setSelectedClass(campaign.filters.class.toString())
             }
@@ -78,7 +83,7 @@ const AddNotification = () => {
       }
       fetchCampaign()
     }
-  }, [isEditMode, id])
+  }, [isEditMode, id, allClasses])
 
   const handleSubmit = async () => {
     if (!notificationTitle.trim() || !notificationBody.trim()) {
@@ -99,7 +104,8 @@ const AddNotification = () => {
         title: notificationTitle.trim(),
         body: notificationBody.trim(),
         notificationType,
-        classNumber: notificationType === 'class' ? parseInt(selectedClass) : null
+        classId: notificationType === 'class' ? selectedClass : null,
+        classNumber: null // Keep for backward compatibility but prefer classId
       }
 
       let response
@@ -253,11 +259,18 @@ const AddNotification = () => {
                   className="w-full px-3 py-2 text-xs sm:text-sm border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-[#1e3a5f] focus:border-[#1e3a5f] outline-none transition-all duration-200 bg-white"
                 >
                   <option value="">Select Class</option>
-                  {uniqueClasses.map((classNum) => (
-                    <option key={classNum} value={classNum}>
-                      Class {classNum}
-                    </option>
-                  ))}
+                  {allClasses.map((classItem) => {
+                    // Display name for regular classes: "Class 10 - RBSE" or "Class 10" if no board
+                    // Display name for preparation classes: "JEE Preparation" or the name field
+                    const displayName = classItem.type === 'regular' 
+                      ? (classItem.board ? `Class ${classItem.class} - ${classItem.board}` : `Class ${classItem.class}`)
+                      : (classItem.name || classItem.classCode || 'Preparation Class')
+                    return (
+                      <option key={classItem._id} value={classItem._id}>
+                        {displayName}
+                      </option>
+                    )
+                  })}
                 </select>
               </div>
             </div>

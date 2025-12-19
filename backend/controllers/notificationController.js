@@ -410,7 +410,11 @@ exports.sendNotificationToFiltered = asyncHandler(async (req, res) => {
     // Build query for students
     const query = {
       isActive: true,
-      fcmToken: { $exists: true, $ne: null }
+      $or: [
+        { 'fcmTokens.app': { $exists: true, $ne: null } },
+        { 'fcmTokens.web': { $exists: true, $ne: null } },
+        { fcmToken: { $exists: true, $ne: null } }
+      ]
     };
 
     if (userIds && Array.isArray(userIds) && userIds.length > 0) {
@@ -436,7 +440,11 @@ exports.sendNotificationToFiltered = asyncHandler(async (req, res) => {
       // Otherwise get all active teachers
       const teachers = await Teacher.find({
         isActive: true,
-        fcmToken: { $exists: true, $ne: null }
+        $or: [
+          { 'fcmTokens.app': { $exists: true, $ne: null } },
+          { 'fcmTokens.web': { $exists: true, $ne: null } },
+          { fcmToken: { $exists: true, $ne: null } }
+        ]
       }).select('_id');
       userIdsToNotify = teachers.map(t => t._id.toString());
     }
@@ -610,8 +618,9 @@ exports.getCampaign = asyncHandler(async (req, res) => {
 // @route   POST /api/admin/notifications/campaigns
 // @access  Private (Admin)
 exports.createCampaign = asyncHandler(async (req, res) => {
-  const { title, body, notificationType, classNumber } = req.body;
+  const { title, body, notificationType, classNumber, classId } = req.body;
   const adminId = req.user._id;
+  const Class = require('../models/Class');
 
   if (!title || !body) {
     throw new ErrorResponse('Title and body are required', 400);
@@ -621,16 +630,29 @@ exports.createCampaign = asyncHandler(async (req, res) => {
     throw new ErrorResponse('Valid notification type is required (students, teachers, both, or class)', 400);
   }
 
-  // If type is 'class', classNumber is required
-  if (notificationType === 'class' && !classNumber) {
-    throw new ErrorResponse('Class number is required for class-based notifications', 400);
+  // If type is 'class', classId or classNumber is required
+  if (notificationType === 'class' && !classId && !classNumber) {
+    throw new ErrorResponse('Class ID or class number is required for class-based notifications', 400);
+  }
+
+  // If classId is provided, validate it exists
+  let classItem = null;
+  if (notificationType === 'class' && classId) {
+    classItem = await Class.findById(classId);
+    if (!classItem) {
+      throw new ErrorResponse('Class not found', 404);
+    }
+    if (!classItem.isActive) {
+      throw new ErrorResponse('Selected class is not active', 400);
+    }
   }
 
   const campaign = await NotificationCampaign.create({
     title,
     body,
     notificationType,
-    classNumber: notificationType === 'class' ? parseInt(classNumber) : null,
+    classId: notificationType === 'class' && classId ? classId : null,
+    classNumber: notificationType === 'class' && !classId && classNumber ? parseInt(classNumber) : null,
     createdBy: adminId
   });
 
@@ -642,7 +664,11 @@ exports.createCampaign = asyncHandler(async (req, res) => {
     // Send to all students
     const students = await Student.find({
       isActive: true,
-      fcmToken: { $exists: true, $ne: null }
+      $or: [
+        { 'fcmTokens.app': { $exists: true, $ne: null } },
+        { 'fcmTokens.web': { $exists: true, $ne: null } },
+        { fcmToken: { $exists: true, $ne: null } }
+      ]
     }).select('_id');
     
     const studentIds = students.map(s => s._id.toString());
@@ -661,7 +687,11 @@ exports.createCampaign = asyncHandler(async (req, res) => {
     // Send to all teachers
     const teachers = await Teacher.find({
       isActive: true,
-      fcmToken: { $exists: true, $ne: null }
+      $or: [
+        { 'fcmTokens.app': { $exists: true, $ne: null } },
+        { 'fcmTokens.web': { $exists: true, $ne: null } },
+        { fcmToken: { $exists: true, $ne: null } }
+      ]
     }).select('_id');
     
     const teacherIds = teachers.map(t => t._id.toString());
@@ -680,12 +710,20 @@ exports.createCampaign = asyncHandler(async (req, res) => {
     // Send to all students and teachers
     const students = await Student.find({
       isActive: true,
-      fcmToken: { $exists: true, $ne: null }
+      $or: [
+        { 'fcmTokens.app': { $exists: true, $ne: null } },
+        { 'fcmTokens.web': { $exists: true, $ne: null } },
+        { fcmToken: { $exists: true, $ne: null } }
+      ]
     }).select('_id');
     
     const teachers = await Teacher.find({
       isActive: true,
-      fcmToken: { $exists: true, $ne: null }
+      $or: [
+        { 'fcmTokens.app': { $exists: true, $ne: null } },
+        { 'fcmTokens.web': { $exists: true, $ne: null } },
+        { fcmToken: { $exists: true, $ne: null } }
+      ]
     }).select('_id');
 
     const studentIds = students.map(s => s._id.toString());
@@ -715,19 +753,86 @@ exports.createCampaign = asyncHandler(async (req, res) => {
       }
     }
   } else if (campaign.notificationType === 'class') {
-    // Send to students of that class
-    if (!campaign.classNumber) {
-      throw new ErrorResponse('Class number is required for class-based notifications', 400);
+    // Send to students and teachers of that class
+    let studentIds = [];
+    let teacherIds = [];
+
+    if (campaign.classId) {
+      // Fetch the class to determine its type
+      const classItem = await Class.findById(campaign.classId);
+      if (!classItem) {
+        throw new ErrorResponse('Class not found', 404);
+      }
+
+      if (classItem.type === 'regular') {
+        // For regular classes: find students with matching class and board
+        const students = await Student.find({
+          isActive: true,
+          class: classItem.class,
+          board: classItem.board,
+          $or: [
+            { 'fcmTokens.app': { $exists: true, $ne: null } },
+            { 'fcmTokens.web': { $exists: true, $ne: null } },
+            { fcmToken: { $exists: true, $ne: null } }
+          ]
+        }).select('_id');
+        studentIds = students.map(s => s._id.toString());
+
+          // Find teachers who teach this class
+          const teachers = await Teacher.find({
+            isActive: true,
+            classes: { $in: [classItem.class] },
+            $or: [
+              { 'fcmTokens.app': { $exists: true, $ne: null } },
+              { 'fcmTokens.web': { $exists: true, $ne: null } },
+              { fcmToken: { $exists: true, $ne: null } }
+            ]
+          }).select('_id');
+        teacherIds = teachers.map(t => t._id.toString());
+      } else if (classItem.type === 'preparation') {
+        // For preparation classes: find students with active subscriptions to this class
+        const students = await Student.find({
+          isActive: true,
+          'activeSubscriptions.classId': campaign.classId,
+          'activeSubscriptions.endDate': { $gte: new Date() },
+          $or: [
+            { 'fcmTokens.app': { $exists: true, $ne: null } },
+            { 'fcmTokens.web': { $exists: true, $ne: null } },
+            { fcmToken: { $exists: true, $ne: null } }
+          ]
+        }).select('_id');
+        studentIds = students.map(s => s._id.toString());
+
+        // For preparation classes, we might not have direct teacher-class mapping
+        // So we'll skip teachers for now, or you can add logic based on your requirements
+      }
+    } else if (campaign.classNumber) {
+      // Backward compatibility: use classNumber
+      const students = await Student.find({
+        isActive: true,
+        class: parseInt(campaign.classNumber),
+        $or: [
+          { 'fcmTokens.app': { $exists: true, $ne: null } },
+          { 'fcmTokens.web': { $exists: true, $ne: null } },
+          { fcmToken: { $exists: true, $ne: null } }
+        ]
+      }).select('_id');
+      studentIds = students.map(s => s._id.toString());
+
+      // Find teachers who teach this class
+      const teachers = await Teacher.find({
+        isActive: true,
+        classes: { $in: [parseInt(campaign.classNumber)] },
+        $or: [
+          { 'fcmTokens.app': { $exists: true, $ne: null } },
+          { 'fcmTokens.web': { $exists: true, $ne: null } },
+          { fcmToken: { $exists: true, $ne: null } }
+        ]
+      }).select('_id');
+      teacherIds = teachers.map(t => t._id.toString());
     }
 
-    const students = await Student.find({
-      isActive: true,
-      class: parseInt(campaign.classNumber),
-      fcmToken: { $exists: true, $ne: null }
-    }).select('_id');
-
-    const studentIds = students.map(s => s._id.toString());
-
+    // Send to students
     if (studentIds.length > 0) {
       const studentResult = await notificationService.sendToMultipleUsers(
         studentIds,
@@ -736,7 +841,20 @@ exports.createCampaign = asyncHandler(async (req, res) => {
         {}
       );
       if (studentResult.success) {
-        totalSent = studentResult.successCount || 0;
+        totalSent += studentResult.successCount || 0;
+      }
+    }
+
+    // Send to teachers
+    if (teacherIds.length > 0) {
+      const teacherResult = await notificationService.sendToMultipleUsers(
+        teacherIds,
+        'teacher',
+        notification,
+        {}
+      );
+      if (teacherResult.success) {
+        totalSent += teacherResult.successCount || 0;
       }
     }
   }
@@ -761,7 +879,8 @@ exports.createCampaign = asyncHandler(async (req, res) => {
 // @route   PUT /api/admin/notifications/campaigns/:id
 // @access  Private (Admin)
 exports.updateCampaign = asyncHandler(async (req, res) => {
-  const { title, body, notificationType, classNumber } = req.body;
+  const { title, body, notificationType, classNumber, classId } = req.body;
+  const Class = require('../models/Class');
 
   let campaign = await NotificationCampaign.findById(req.params.id);
 
@@ -783,12 +902,26 @@ exports.updateCampaign = asyncHandler(async (req, res) => {
     campaign.notificationType = notificationType;
   }
   if (notificationType === 'class') {
-    if (!classNumber) {
-      throw new ErrorResponse('Class number is required for class-based notifications', 400);
+    if (classId) {
+      // Validate classId exists
+      const classItem = await Class.findById(classId);
+      if (!classItem) {
+        throw new ErrorResponse('Class not found', 404);
+      }
+      if (!classItem.isActive) {
+        throw new ErrorResponse('Selected class is not active', 400);
+      }
+      campaign.classId = classId;
+      campaign.classNumber = null; // Clear classNumber when classId is used
+    } else if (classNumber) {
+      campaign.classNumber = parseInt(classNumber);
+      campaign.classId = null; // Clear classId when classNumber is used
+    } else {
+      throw new ErrorResponse('Class ID or class number is required for class-based notifications', 400);
     }
-    campaign.classNumber = parseInt(classNumber);
   } else {
     campaign.classNumber = null;
+    campaign.classId = null;
   }
 
   await campaign.save();
@@ -801,7 +934,11 @@ exports.updateCampaign = asyncHandler(async (req, res) => {
     if (campaign.notificationType === 'students') {
       const students = await Student.find({
         isActive: true,
-        fcmToken: { $exists: true, $ne: null }
+        $or: [
+          { 'fcmTokens.app': { $exists: true, $ne: null } },
+          { 'fcmTokens.web': { $exists: true, $ne: null } },
+          { fcmToken: { $exists: true, $ne: null } }
+        ]
       }).select('_id');
       
       const studentIds = students.map(s => s._id.toString());
@@ -819,7 +956,11 @@ exports.updateCampaign = asyncHandler(async (req, res) => {
     } else if (campaign.notificationType === 'teachers') {
       const teachers = await Teacher.find({
         isActive: true,
-        fcmToken: { $exists: true, $ne: null }
+        $or: [
+          { 'fcmTokens.app': { $exists: true, $ne: null } },
+          { 'fcmTokens.web': { $exists: true, $ne: null } },
+          { fcmToken: { $exists: true, $ne: null } }
+        ]
       }).select('_id');
       
       const teacherIds = teachers.map(t => t._id.toString());
@@ -837,12 +978,20 @@ exports.updateCampaign = asyncHandler(async (req, res) => {
     } else if (campaign.notificationType === 'both') {
       const students = await Student.find({
         isActive: true,
-        fcmToken: { $exists: true, $ne: null }
+        $or: [
+          { 'fcmTokens.app': { $exists: true, $ne: null } },
+          { 'fcmTokens.web': { $exists: true, $ne: null } },
+          { fcmToken: { $exists: true, $ne: null } }
+        ]
       }).select('_id');
       
       const teachers = await Teacher.find({
         isActive: true,
-        fcmToken: { $exists: true, $ne: null }
+        $or: [
+          { 'fcmTokens.app': { $exists: true, $ne: null } },
+          { 'fcmTokens.web': { $exists: true, $ne: null } },
+          { fcmToken: { $exists: true, $ne: null } }
+        ]
       }).select('_id');
 
       const studentIds = students.map(s => s._id.toString());
@@ -872,25 +1021,104 @@ exports.updateCampaign = asyncHandler(async (req, res) => {
         }
       }
     } else if (campaign.notificationType === 'class') {
-      if (campaign.classNumber) {
+      let studentIds = [];
+      let teacherIds = [];
+      const Class = require('../models/Class');
+
+      if (campaign.classId) {
+        // Fetch the class to determine its type
+        const classItem = await Class.findById(campaign.classId);
+        if (!classItem) {
+          throw new ErrorResponse('Class not found', 404);
+        }
+
+        if (classItem.type === 'regular') {
+          // For regular classes: find students with matching class and board
+          const students = await Student.find({
+            isActive: true,
+            class: classItem.class,
+            board: classItem.board,
+            $or: [
+              { 'fcmTokens.app': { $exists: true, $ne: null } },
+              { 'fcmTokens.web': { $exists: true, $ne: null } },
+              { fcmToken: { $exists: true, $ne: null } }
+            ]
+          }).select('_id');
+          studentIds = students.map(s => s._id.toString());
+
+          // Find teachers who teach this class
+          const teachers = await Teacher.find({
+            isActive: true,
+            classes: { $in: [classItem.class] },
+            $or: [
+              { 'fcmTokens.app': { $exists: true, $ne: null } },
+              { 'fcmTokens.web': { $exists: true, $ne: null } },
+              { fcmToken: { $exists: true, $ne: null } }
+            ]
+          }).select('_id');
+          teacherIds = teachers.map(t => t._id.toString());
+        } else if (classItem.type === 'preparation') {
+          // For preparation classes: find students with active subscriptions to this class
+          const students = await Student.find({
+            isActive: true,
+            'activeSubscriptions.classId': campaign.classId,
+            'activeSubscriptions.endDate': { $gte: new Date() },
+            $or: [
+              { 'fcmTokens.app': { $exists: true, $ne: null } },
+              { 'fcmTokens.web': { $exists: true, $ne: null } },
+              { fcmToken: { $exists: true, $ne: null } }
+            ]
+          }).select('_id');
+          studentIds = students.map(s => s._id.toString());
+        }
+      } else if (campaign.classNumber) {
+        // Backward compatibility: use classNumber
         const students = await Student.find({
           isActive: true,
           class: parseInt(campaign.classNumber),
-          fcmToken: { $exists: true, $ne: null }
+          $or: [
+            { 'fcmTokens.app': { $exists: true, $ne: null } },
+            { 'fcmTokens.web': { $exists: true, $ne: null } },
+            { fcmToken: { $exists: true, $ne: null } }
+          ]
         }).select('_id');
+        studentIds = students.map(s => s._id.toString());
 
-        const studentIds = students.map(s => s._id.toString());
+        // Find teachers who teach this class
+        const teachers = await Teacher.find({
+          isActive: true,
+          classes: { $in: [parseInt(campaign.classNumber)] },
+          $or: [
+            { 'fcmTokens.app': { $exists: true, $ne: null } },
+            { 'fcmTokens.web': { $exists: true, $ne: null } }
+          ]
+        }).select('_id');
+        teacherIds = teachers.map(t => t._id.toString());
+      }
 
-        if (studentIds.length > 0) {
-          const studentResult = await notificationService.sendToMultipleUsers(
-            studentIds,
-            'student',
-            notification,
-            {}
-          );
-          if (studentResult.success) {
-            totalSent = studentResult.successCount || 0;
-          }
+      // Send to students
+      if (studentIds.length > 0) {
+        const studentResult = await notificationService.sendToMultipleUsers(
+          studentIds,
+          'student',
+          notification,
+          {}
+        );
+        if (studentResult.success) {
+          totalSent += studentResult.successCount || 0;
+        }
+      }
+
+      // Send to teachers
+      if (teacherIds.length > 0) {
+        const teacherResult = await notificationService.sendToMultipleUsers(
+          teacherIds,
+          'teacher',
+          notification,
+          {}
+        );
+        if (teacherResult.success) {
+          totalSent += teacherResult.successCount || 0;
         }
       }
     }
@@ -949,7 +1177,11 @@ exports.sendCampaign = asyncHandler(async (req, res) => {
     // Send to all students
     const students = await Student.find({
       isActive: true,
-      fcmToken: { $exists: true, $ne: null }
+      $or: [
+        { 'fcmTokens.app': { $exists: true, $ne: null } },
+        { 'fcmTokens.web': { $exists: true, $ne: null } },
+        { fcmToken: { $exists: true, $ne: null } }
+      ]
     }).select('_id');
     
     const studentIds = students.map(s => s._id.toString());
@@ -968,7 +1200,11 @@ exports.sendCampaign = asyncHandler(async (req, res) => {
     // Send to all teachers
     const teachers = await Teacher.find({
       isActive: true,
-      fcmToken: { $exists: true, $ne: null }
+      $or: [
+        { 'fcmTokens.app': { $exists: true, $ne: null } },
+        { 'fcmTokens.web': { $exists: true, $ne: null } },
+        { fcmToken: { $exists: true, $ne: null } }
+      ]
     }).select('_id');
     
     const teacherIds = teachers.map(t => t._id.toString());
@@ -987,12 +1223,20 @@ exports.sendCampaign = asyncHandler(async (req, res) => {
     // Send to all students and teachers
     const students = await Student.find({
       isActive: true,
-      fcmToken: { $exists: true, $ne: null }
+      $or: [
+        { 'fcmTokens.app': { $exists: true, $ne: null } },
+        { 'fcmTokens.web': { $exists: true, $ne: null } },
+        { fcmToken: { $exists: true, $ne: null } }
+      ]
     }).select('_id');
     
     const teachers = await Teacher.find({
       isActive: true,
-      fcmToken: { $exists: true, $ne: null }
+      $or: [
+        { 'fcmTokens.app': { $exists: true, $ne: null } },
+        { 'fcmTokens.web': { $exists: true, $ne: null } },
+        { fcmToken: { $exists: true, $ne: null } }
+      ]
     }).select('_id');
 
     const studentIds = students.map(s => s._id.toString());
@@ -1023,24 +1267,83 @@ exports.sendCampaign = asyncHandler(async (req, res) => {
     }
   } else if (campaign.notificationType === 'class') {
     // Send to all students and teachers in a specific class
-    if (!campaign.classNumber) {
-      throw new ErrorResponse('Class number is required for class-based notifications', 400);
+    let studentIds = [];
+    let teacherIds = [];
+    const Class = require('../models/Class');
+
+    if (campaign.classId) {
+      // Fetch the class to determine its type
+      const classItem = await Class.findById(campaign.classId);
+      if (!classItem) {
+        throw new ErrorResponse('Class not found', 404);
+      }
+
+      if (classItem.type === 'regular') {
+        // For regular classes: find students with matching class and board
+        const students = await Student.find({
+          isActive: true,
+          class: classItem.class,
+          board: classItem.board,
+          $or: [
+            { 'fcmTokens.app': { $exists: true, $ne: null } },
+            { 'fcmTokens.web': { $exists: true, $ne: null } },
+            { fcmToken: { $exists: true, $ne: null } }
+          ]
+        }).select('_id');
+        studentIds = students.map(s => s._id.toString());
+
+          // Find teachers who teach this class
+          const teachers = await Teacher.find({
+            isActive: true,
+            classes: { $in: [classItem.class] },
+            $or: [
+              { 'fcmTokens.app': { $exists: true, $ne: null } },
+              { 'fcmTokens.web': { $exists: true, $ne: null } },
+              { fcmToken: { $exists: true, $ne: null } }
+            ]
+          }).select('_id');
+        teacherIds = teachers.map(t => t._id.toString());
+      } else if (classItem.type === 'preparation') {
+        // For preparation classes: find students with active subscriptions to this class
+        const students = await Student.find({
+          isActive: true,
+          'activeSubscriptions.classId': campaign.classId,
+          'activeSubscriptions.endDate': { $gte: new Date() },
+          $or: [
+            { 'fcmTokens.app': { $exists: true, $ne: null } },
+            { 'fcmTokens.web': { $exists: true, $ne: null } },
+            { fcmToken: { $exists: true, $ne: null } }
+          ]
+        }).select('_id');
+        studentIds = students.map(s => s._id.toString());
+      }
+    } else if (campaign.classNumber) {
+      // Backward compatibility: use classNumber
+      const students = await Student.find({
+        isActive: true,
+        class: parseInt(campaign.classNumber),
+        $or: [
+          { 'fcmTokens.app': { $exists: true, $ne: null } },
+          { 'fcmTokens.web': { $exists: true, $ne: null } },
+          { fcmToken: { $exists: true, $ne: null } }
+        ]
+      }).select('_id');
+      studentIds = students.map(s => s._id.toString());
+
+      // Find teachers who teach this class
+      const teachers = await Teacher.find({
+        isActive: true,
+        classes: { $in: [parseInt(campaign.classNumber)] },
+        $or: [
+          { 'fcmTokens.app': { $exists: true, $ne: null } },
+          { 'fcmTokens.web': { $exists: true, $ne: null } },
+          { fcmToken: { $exists: true, $ne: null } }
+        ]
+      }).select('_id');
+      teacherIds = teachers.map(t => t._id.toString());
+    } else {
+      throw new ErrorResponse('Class ID or class number is required for class-based notifications', 400);
     }
-
-    const students = await Student.find({
-      isActive: true,
-      class: parseInt(campaign.classNumber),
-      fcmToken: { $exists: true, $ne: null }
-    }).select('_id');
-
-    const teachers = await Teacher.find({
-      isActive: true,
-      classes: { $in: [parseInt(campaign.classNumber)] },
-      fcmToken: { $exists: true, $ne: null }
-    }).select('_id');
-
-    const studentIds = students.map(s => s._id.toString());
-    const teacherIds = teachers.map(t => t._id.toString());
 
     if (studentIds.length > 0) {
       const studentResult = await notificationService.sendToMultipleUsers(

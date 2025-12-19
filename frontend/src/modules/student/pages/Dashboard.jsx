@@ -618,6 +618,17 @@ const Dashboard = () => {
                     minute: '2-digit',
                     hour12: true
                   });
+                  
+                  // Format end time if available
+                  let endTimeStr = null;
+                  if (liveClass.scheduledEndTime) {
+                    const endTime = new Date(liveClass.scheduledEndTime);
+                    endTimeStr = endTime.toLocaleTimeString('en-IN', {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                      hour12: true
+                    });
+                  }
 
                   return (
                     <div
@@ -646,7 +657,9 @@ const Dashboard = () => {
                               <div className="p-1 bg-[var(--app-dark-blue)]/10 rounded-lg">
                                 <FiClock className="text-[var(--app-dark-blue)] text-xs" />
                               </div>
-                              <span className="font-medium">{timeStr}</span>
+                              <span className="font-medium">
+                                {timeStr}{endTimeStr ? ` - ${endTimeStr}` : ''}
+                              </span>
                             </div>
                           </div>
                         </div>

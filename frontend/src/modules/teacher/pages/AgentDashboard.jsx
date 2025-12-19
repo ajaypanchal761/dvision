@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiCopy, FiShare2, FiTrendingUp, FiUsers, FiCheckCircle, FiClock, FiArrowRight } from 'react-icons/fi';
+import { FiCopy, FiShare2, FiTrendingUp, FiUsers, FiCheckCircle, FiClock, FiArrowRight, FiBell } from 'react-icons/fi';
 import { ROUTES } from '../constants/routes';
 import BottomNav from '../components/common/BottomNav';
-import { agentAPI } from '../services/api';
+import { agentAPI, notificationAPI } from '../services/api';
 
 /**
  * Agent Dashboard Page
@@ -26,12 +26,32 @@ const AgentDashboard = () => {
   const [recentReferralStudents, setRecentReferralStudents] = useState([]);
   const [monthWiseBreakdown, setMonthWiseBreakdown] = useState([]);
   const [copySuccess, setCopySuccess] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
     fetchAgentData();
     fetchStatistics();
     fetchReferralLink();
+    fetchUnreadCount();
+    
+    // Poll for unread count every 30 seconds
+    const pollInterval = setInterval(() => {
+      fetchUnreadCount();
+    }, 30000);
+    
+    return () => clearInterval(pollInterval);
   }, []);
+
+  const fetchUnreadCount = async () => {
+    try {
+      const response = await notificationAPI.getUnreadCount();
+      if (response.success && response.data?.unreadCount !== undefined) {
+        setUnreadCount(response.data.unreadCount);
+      }
+    } catch (err) {
+      console.error('Error fetching unread count:', err);
+    }
+  };
 
   const fetchAgentData = async () => {
     try {
@@ -125,13 +145,27 @@ const AgentDashboard = () => {
                 {loading ? 'Loading...' : agentData.name}
               </h1>
             </div>
-            {agentData.profileImage && (
-              <img
-                src={agentData.profileImage}
-                alt="Profile"
-                className="w-10 h-10 sm:w-12 sm:h-12 rounded-full object-cover border-2 border-white/20"
-              />
-            )}
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => navigate(ROUTES.AGENT_NOTIFICATIONS)}
+                className="relative p-2 text-white hover:bg-white/10 rounded-full transition-colors"
+                title="Notifications"
+              >
+                <FiBell className="text-xl sm:text-2xl" />
+                {unreadCount > 0 && (
+                  <span className="absolute top-0 right-0 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-xs font-bold">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
+                )}
+              </button>
+              {agentData.profileImage && (
+                <img
+                  src={agentData.profileImage}
+                  alt="Profile"
+                  className="w-10 h-10 sm:w-12 sm:h-12 rounded-full object-cover border-2 border-white/20"
+                />
+              )}
+            </div>
           </div>
         </div>
       </header>

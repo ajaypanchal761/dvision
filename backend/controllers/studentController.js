@@ -169,6 +169,40 @@ exports.register = asyncHandler(async (req, res) => {
     console.log('Created new student registration data:', student._id);
   }
 
+  // Send notification to agent if student was referred
+  if (student.referralAgentId) {
+    try {
+      const notificationService = require('../services/notificationService');
+      const Agent = require('../models/Agent');
+      const agent = await Agent.findById(student.referralAgentId);
+      
+      if (agent && agent.isActive) {
+        const notificationTitle = 'New Student Registration!';
+        const notificationBody = `${student.name || 'A student'} has registered using your referral link`;
+        const notificationData = {
+          type: 'student_registered',
+          studentId: student._id.toString(),
+          studentName: student.name || 'Student',
+          studentPhone: student.phone,
+          studentClass: student.class,
+          studentBoard: student.board,
+          url: '/agent/referrals'
+        };
+
+        await notificationService.sendToUser(
+          agent._id.toString(),
+          'agent',
+          { title: notificationTitle, body: notificationBody },
+          notificationData
+        );
+        console.log(`✓ Notification sent to agent ${agent.name} for new student registration`);
+      }
+    } catch (notificationError) {
+      console.error('Error sending notification to agent:', notificationError);
+      // Don't fail the registration if notification fails
+    }
+  }
+
   console.log('Final stored student data:', {
     _id: student._id,
     phone: student.phone,

@@ -40,6 +40,30 @@ exports.getClassStatistics = asyncHandler(async (req, res) => {
   });
 });
 
+// @desc    Get all classes without pagination (Admin) - For dropdowns and filters
+// @route   GET /api/admin/classes/all
+// @access  Private/Admin
+exports.getAllClassesWithoutPagination = asyncHandler(async (req, res) => {
+  const { type, isActive } = req.query;
+
+  const query = {};
+  
+  if (type) query.type = type;
+  if (isActive !== undefined) query.isActive = isActive === 'true';
+
+  // Get all classes without pagination
+  const classes = await Class.find(query)
+    .sort({ createdAt: -1 });
+
+  res.status(200).json({
+    success: true,
+    count: classes.length,
+    data: {
+      classes
+    }
+  });
+});
+
 // @desc    Get all classes (Admin)
 // @route   GET /api/admin/classes
 // @access  Private/Admin

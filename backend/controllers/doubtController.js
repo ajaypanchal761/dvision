@@ -137,21 +137,28 @@ exports.createDoubt = asyncHandler(async (req, res) => {
     // Get all active admins with FCM tokens (admins receive all doubts)
     const admins = await Admin.find({
       isActive: true,
-      fcmToken: { $exists: true, $ne: null }
+      $or: [
+        { 'fcmTokens.app': { $exists: true, $ne: null } },
+        { 'fcmTokens.web': { $exists: true, $ne: null } },
+        { fcmToken: { $exists: true, $ne: null } }
+      ]
     }).select('_id');
 
     const adminIds = admins.map(admin => admin._id.toString());
     const teacherIdString = teacher._id.toString();
+    const studentName = doubt.studentId?.name || 'A student';
 
-    // Prepare notification
-    const notification = {
+    // Prepare notification for admins
+    const adminNotification = {
       title: 'New Doubt Submitted',
-      body: `${doubt.studentId?.name || 'A student'} has submitted a new doubt`
+      body: `${studentName} has submitted a new doubt`
     };
 
-    const notificationData = {
+    const adminNotificationData = {
       type: 'doubt',
       doubtId: doubt._id.toString(),
+      studentId: doubt.studentId?._id.toString(),
+      studentName: studentName,
       url: '/doubts'
     };
 
@@ -160,23 +167,36 @@ exports.createDoubt = asyncHandler(async (req, res) => {
       await notificationService.sendToMultipleUsers(
         adminIds,
         'admin',
-        notification,
-        notificationData
+        adminNotification,
+        adminNotificationData
       ).catch(err => {
         console.error('Error sending notification to admins:', err);
       });
     }
 
-    // Send to selected teacher
-    if (teacher.fcmToken) {
-      await notificationService.sendToToken(
-        teacher.fcmToken,
-        notification,
-        notificationData
-      ).catch(err => {
-        console.error('Error sending notification to teacher:', err);
-      });
-    }
+    // Prepare notification for teacher
+    const teacherNotification = {
+      title: 'New Doubt Assigned',
+      body: `${studentName} has submitted a doubt for you to answer`
+    };
+
+    const teacherNotificationData = {
+      type: 'doubt',
+      doubtId: doubt._id.toString(),
+      studentId: doubt.studentId?._id.toString(),
+      studentName: studentName,
+      url: '/doubts'
+    };
+
+    // Send to selected teacher using sendToUser (handles all FCM token types)
+    await notificationService.sendToUser(
+      teacherIdString,
+      'teacher',
+      teacherNotification,
+      teacherNotificationData
+    ).catch(err => {
+      console.error('Error sending notification to teacher:', err);
+    });
   } catch (notificationError) {
     // Log error but don't fail the request
     console.error('Error sending notifications for new doubt:', notificationError);
@@ -394,17 +414,19 @@ exports.answerDoubt = asyncHandler(async (req, res) => {
   try {
     const answeredByName = req.user.name || (doubt.answeredBy?.name || 'Someone');
     const userRoleForNotification = req.userRole || req.user?.role;
+    const answeredByRole = userRoleForNotification === 'teacher' ? 'Teacher' : 'Admin';
 
     const notification = {
       title: 'Your Doubt Has Been Answered',
-      body: `${answeredByName} has answered your doubt`
+      body: `${answeredByName} (${answeredByRole}) has answered your doubt`
     };
 
     const notificationData = {
-      type: 'doubt_answer', // This will be used as the notification type
+      type: 'doubt_answer',
       doubtId: doubt._id.toString(),
       answeredBy: answeredByName,
-      answeredByRole: userRoleForNotification,
+      answeredByRole: answeredByRole,
+      answeredById: req.user._id.toString(),
       url: '/doubts'
     };
 
