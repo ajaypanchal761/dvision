@@ -339,25 +339,92 @@ exports.createOrder = asyncHandler(async (req, res, next) => {
   const orderId = `order_${studentIdShort}_${timestamp}`;
 
   // Get return URL (frontend URL)
-  // For localhost testing, use localhost URL; for production, use production domain
-  const isLocalhost = !process.env.FRONTEND_URL || process.env.FRONTEND_URL.includes('localhost');
-  const returnUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
-  const notifyUrl = `${process.env.BACKEND_URL || 'http://localhost:5000'}/api/payment/webhook`;
+  // IMPORTANT: Cashfree production requires HTTPS URLs only
+  console.log('=== ENVIRONMENT URL VARIABLES ===');
+  console.log('process.env.FRONTEND_URL:', process.env.FRONTEND_URL);
+  console.log('process.env.BACKEND_URL:', process.env.BACKEND_URL);
+  console.log('process.env.NODE_ENV:', process.env.NODE_ENV);
 
-  // Warn if using localhost with production Cashfree
+  let returnUrl = process.env.FRONTEND_URL || 'https://dvisionacademy.com';
+  let notifyUrl = process.env.BACKEND_URL || 'https://api.dvisionacademy.com';
+
+  // CRITICAL: Strip any http:// and enforce https:// for Cashfree production
+  if (returnUrl.startsWith('http://')) {
+    console.warn('⚠️ STRIPPING HTTP FROM returnUrl and enforcing HTTPS');
+    returnUrl = returnUrl.replace('http://', 'https://');
+  }
+  if (notifyUrl.startsWith('http://')) {
+    console.warn('⚠️ STRIPPING HTTP FROM notifyUrl and enforcing HTTPS');
+    notifyUrl = notifyUrl.replace('http://', 'https://');
+  }
+
+  // Ensure URLs are HTTPS (required by Cashfree production)
+  if (!returnUrl.startsWith('https://') && !returnUrl.startsWith('http://')) {
+    returnUrl = `https://${returnUrl}`;
+  }
+  if (!notifyUrl.startsWith('https://') && !notifyUrl.startsWith('http://')) {
+    notifyUrl = `https://${notifyUrl}`;
+  }
+
+  console.log('Final returnUrl:', returnUrl);
+  console.log('Final notifyUrl:', notifyUrl);
+
+  // Add webhook path to notify URL if not present
+  if (!notifyUrl.includes('/api/payment/webhook')) {
+    notifyUrl = `${notifyUrl}/api/payment/webhook`;
+  }
+
+  // Warn if using localhost/http with production Cashfree
+  const isLocalhost = returnUrl.includes('localhost') || returnUrl.includes('127.0.0.1');
   if (isLocalhost && cashfreeConfig.environment === 'PROD') {
-    console.warn('⚠️  WARNING: Using localhost with Cashfree PROD mode.');
-    console.warn('   Localhost is not whitelisted in Cashfree production.');
-    console.warn('   Solutions:');
-    console.warn('   1. Use TEST mode for local testing: Set CF_ENV=TEST in .env');
-    console.warn('   2. Whitelist localhost in Cashfree dashboard (not recommended)');
-    console.warn('   3. Test from production domain: https://dvisionacademy.com');
+    console.warn('⚠️  ⚠️  ⚠️  CRITICAL WARNING ⚠️  ⚠️  ⚠️');
+    console.warn('Using localhost with Cashfree PRODUCTION API');
+    console.warn('');
+    console.warn('CASHFREE PRODUCTION DOES NOT SUPPORT LOCALHOST');
+    console.warn('');
+    console.warn('To fix this, you MUST do ONE of the following:');
+    console.warn('');
+    console.warn('Option 1: Use NGROK tunneling (RECOMMENDED for local testing)');
+    console.warn('  1. Install ngrok: https://ngrok.com/download');
+    console.warn('  2. Run: ngrok http 5000');
+    console.warn('  3. Update BACKEND_URL and FRONTEND_URL in .env with ngrok URLs');
+    console.warn('  4. Add ngrok URL to Cashfree dashboard whitelist');
+    console.warn('');
+    console.warn('Option 2: Use TEST/SANDBOX mode (RECOMMENDED for quick testing)');
+    console.warn('  1. Add TEST credentials to .env:');
+    console.warn('     CF_ENV=TEST');
+    console.warn('     CF_CLIENT_ID=TEST103954469d9f07939b8254f92d8064459301');
+    console.warn('     CF_SECRET=cfsk_ma_test_aee2b63fdbfea01d9eb63072375cdcf4_b99408c6');
+    console.warn('  2. This uses Cashfree sandbox - accepts any URL');
+    console.warn('');
+    console.warn('Option 3: Deploy and test from production domain');
+    console.warn('  1. Deploy to: https://dvisionacademy.com');
+    console.warn('  2. Requires full production setup');
+    console.warn('');
+    console.warn('Current Return URL:', returnUrl);
+    console.warn('Current Notify URL:', notifyUrl);
+    console.warn('');
   }
 
   console.log('=== BUILDING ORDER DATA ===');
   console.log('Order ID:', orderId);
   console.log('Return URL:', returnUrl);
   console.log('Plan Price:', plan.price);
+
+  // ===== CRITICAL: SAFETY CHECK FOR PRODUCTION =====
+  // Cashfree production ONLY accepts HTTPS URLs
+  const CASHFREE_PROD_REQUIRES_HTTPS = cashfreeConfig.environment === 'PROD';
+  if (CASHFREE_PROD_REQUIRES_HTTPS && returnUrl.startsWith('http://')) {
+    const errorMsg = `❌ FATAL ERROR: Cashfree production requires HTTPS URLs only.\n` +
+      `Return URL received: ${returnUrl}\n` +
+      `This is a critical misconfiguration. To fix:\n` +
+      `1. Ensure FRONTEND_URL in .env starts with https://\n` +
+      `2. Restart the server to reload .env\n` +
+      `3. For local testing, use CF_ENV=TEST instead of PROD\n` +
+      `4. Or use NGROK for HTTP to HTTPS tunneling`;
+    console.error(errorMsg);
+    return next(new ErrorResponse(errorMsg, 500));
+  }
 
   // Build order data for Cashfree
   const orderData = {
