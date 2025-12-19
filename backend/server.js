@@ -84,6 +84,23 @@ app.options('*', cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
+// ===== WEBHOOK RAW BODY MIDDLEWARE =====
+// CRITICAL: Must come AFTER express.json() but BEFORE API routes
+// This creates a special handler for the webhook that parses raw body
+app.post('/api/payment/webhook',
+  express.raw({ type: 'application/json' }),
+  (req, res, next) => {
+    try {
+      req.rawBody = req.body; // Save raw body for signature verification
+      req.body = JSON.parse(req.body.toString()); // Parse for processing
+      next();
+    } catch (error) {
+      console.error('Error parsing webhook body:', error);
+      return res.status(400).json({ error: 'Invalid JSON' });
+    }
+  }
+);
+
 // ===== STATIC FILES =====
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 

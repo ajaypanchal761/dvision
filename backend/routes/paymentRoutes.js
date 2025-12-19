@@ -22,6 +22,7 @@ router.get('/admin/stats', protect, authorize('admin', 'super_admin'), getPaymen
 // ===== WEBHOOK ENDPOINT (PUBLIC - NOT PROTECTED) =====
 // Cashfree calls this endpoint to notify about payment status
 // Security: Uses cryptographic signature verification (x-webhook-signature header)
+// Note: Raw body middleware is configured at app level in server.js
 router.post('/webhook', handlePaymentWebhook);
 
 module.exports = router;

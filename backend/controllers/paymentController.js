@@ -1110,10 +1110,21 @@ const verifyWebhookSignature = (req) => {
     }
 
     const { secretKey } = cashfree.getCashfreeConfig();
-    const body = JSON.stringify(req.body);
+
+    // Use raw body for signature verification (NOT parsed JSON)
+    // This is critical - Cashfree signature is calculated on the raw request body
+    let rawBody;
+    if (req.rawBody instanceof Buffer) {
+      rawBody = req.rawBody.toString('utf-8');
+    } else if (typeof req.rawBody === 'string') {
+      rawBody = req.rawBody;
+    } else {
+      console.error('Raw body not available for signature verification');
+      return false;
+    }
 
     // Cashfree signature format: HMAC-SHA256(timestamp + body, secretKey)
-    const payload = `${timestamp}${body}`;
+    const payload = `${timestamp}${rawBody}`;
     const expectedSignature = crypto
       .createHmac('sha256', secretKey)
       .update(payload)
