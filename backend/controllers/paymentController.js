@@ -582,7 +582,16 @@ exports.verifyPayment = asyncHandler(async (req, res, next) => {
   }
 
   if (payment.status === 'completed') {
-    return next(new ErrorResponse('Payment already verified', 400));
+    // Idempotent response: if payment already verified, return success
+    console.log('Payment already verified for order:', orderId);
+    return res.status(200).json({
+      success: true,
+      message: 'Payment already verified',
+      data: {
+        paymentId: payment._id,
+        status: payment.status
+      }
+    });
   }
 
   // Verify payment with Cashfree API (most reliable method)
