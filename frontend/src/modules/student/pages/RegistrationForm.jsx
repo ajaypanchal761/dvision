@@ -297,29 +297,80 @@ const RegistrationForm = () => {
   };
 
   return (
-    <div className="min-h-screen w-full h-screen flex flex-col">
-      {/* Back Button */}
-      <div className="pt-3 sm:pt-4 md:pt-6 px-3 sm:px-4 pb-2 flex-shrink-0">
-        <button
-          onClick={() => navigate(-1)}
-          className="flex items-center gap-1.5 sm:gap-2 text-[var(--app-black)]"
-        >
-          <FiArrowLeft className="text-base sm:text-lg md:text-xl" />
-          <span className="font-semibold text-xs sm:text-sm md:text-base">Back</span>
-        </button>
+    <div className="min-h-screen w-full bg-white flex flex-col">
+      {/* Single Box with Left Straight and Right Curved */}
+      <div 
+        className="bg-[var(--app-dark-blue)] text-white h-20 sm:h-24 md:h-28 relative overflow-hidden"
+        style={{
+          borderBottomRightRadius: '300px',
+        }}
+      >
+        {/* Animated Waves Pattern */}
+        <div className="absolute bottom-0 left-0 w-full h-8 sm:h-10 md:h-12 overflow-hidden">
+          <svg 
+            className="absolute bottom-0 w-full h-full"
+            viewBox="0 0 1200 120" 
+            preserveAspectRatio="none"
+          >
+            <path 
+              d="M0,60 Q300,20 600,60 T1200,60 L1200,120 L0,120 Z" 
+              fill="rgba(255,255,255,0.1)"
+            >
+              <animate 
+                attributeName="d" 
+                values="M0,60 Q300,20 600,60 T1200,60 L1200,120 L0,120 Z;M0,60 Q300,40 600,60 T1200,60 L1200,120 L0,120 Z;M0,60 Q300,20 600,60 T1200,60 L1200,120 L0,120 Z" 
+                dur="3s" 
+                repeatCount="indefinite"
+              />
+            </path>
+            <path 
+              d="M0,80 Q300,40 600,80 T1200,80 L1200,120 L0,120 Z" 
+              fill="rgba(255,255,255,0.05)"
+            >
+              <animate 
+                attributeName="d" 
+                values="M0,80 Q300,40 600,80 T1200,80 L1200,120 L0,120 Z;M0,80 Q300,60 600,80 T1200,80 L1200,120 L0,120 Z;M0,80 Q300,40 600,80 T1200,80 L1200,120 L0,120 Z" 
+                dur="4s" 
+                repeatCount="indefinite"
+              />
+            </path>
+          </svg>
+        </div>
+        
+        {/* Decorative Circles */}
+        <div className="absolute top-3 right-6 w-16 h-16 sm:w-20 sm:h-20 bg-white/10 rounded-full blur-xl"></div>
+        <div className="absolute top-8 right-16 w-12 h-12 sm:w-16 sm:h-16 bg-white/5 rounded-full blur-lg"></div>
+        <div className="absolute bottom-6 left-10 w-20 h-20 sm:w-24 sm:h-24 bg-white/10 rounded-full blur-xl"></div>
+        
+        <div className="pt-5 sm:pt-6 md:pt-8 px-4 sm:px-6 md:px-8 relative z-10">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <button
+              onClick={() => navigate(-1)}
+              className="p-1.5 sm:p-2 text-white hover:bg-white/10 rounded-full transition-colors"
+            >
+              <FiArrowLeft className="text-lg sm:text-xl md:text-2xl" />
+            </button>
+            <h1 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold text-white">Sign Up</h1>
+          </div>
+        </div>
       </div>
 
-      {/* Registration Form Card */}
-      <div className="w-full flex-1 overflow-y-auto px-3 sm:px-4 pb-4 sm:pb-6 md:pb-8 flex flex-col items-center justify-center">
-        {/* Title - Above Form */}
-        <div className="text-center mb-4 sm:mb-6 md:mb-8 w-full max-w-sm sm:max-w-md">
-          <h2 className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold text-[var(--app-dark-blue)] mb-1 sm:mb-2">Create Your Account</h2>
-          <p className="text-black/80 text-[10px] sm:text-xs md:text-sm">Sign up to get started</p>
+      {/* Main Content Area */}
+      <div className="flex-1 px-4 sm:px-6 md:px-8 py-4 sm:py-6 md:py-8 flex items-center justify-center relative overflow-hidden">
+        {/* Background Decorative Elements */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          {/* Gradient Circles */}
+          <div className="absolute top-1/4 left-1/4 w-48 h-48 sm:w-64 sm:h-64 bg-[var(--app-dark-blue)]/5 rounded-full blur-3xl"></div>
+          <div className="absolute bottom-1/4 right-1/4 w-60 h-60 sm:w-80 sm:h-80 bg-[var(--app-teal)]/5 rounded-full blur-3xl"></div>
+          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-72 h-72 sm:w-96 sm:h-96 bg-[var(--app-dark-blue)]/3 rounded-full blur-3xl"></div>
         </div>
-        <div className="w-full max-w-sm sm:max-w-md bg-white rounded-xl sm:rounded-2xl md:rounded-3xl p-3 sm:p-4 md:p-6 shadow-2xl border border-gray-200">
-          <h3 className="text-sm sm:text-base md:text-lg font-bold text-[var(--app-black)] mb-3 sm:mb-4 md:mb-6">
-            Enter your profile details!
-          </h3>
+        
+        {/* Registration Form Card */}
+        <div className="w-full max-w-md relative z-10">
+          <div className="bg-white rounded-xl sm:rounded-2xl md:rounded-3xl p-3 sm:p-4 md:p-6 shadow-2xl border border-gray-200">
+            <h3 className="text-sm sm:text-base md:text-lg font-bold text-[var(--app-black)] mb-3 sm:mb-4 md:mb-6">
+              Enter your profile details!
+            </h3>
 
           <form onSubmit={handleSubmit} autoComplete="off" noValidate className="space-y-3 sm:space-y-4 md:space-y-5">
             {/* Error Message */}
@@ -559,7 +610,53 @@ const RegistrationForm = () => {
               {isLoading ? 'Sending OTP...' : 'Continue'}
             </button>
           </form>
+          </div>
         </div>
+      </div>
+
+      {/* Bottom Colored Pattern */}
+      <div 
+        className="bg-[var(--app-dark-blue)] h-12 sm:h-14 md:h-16 relative mt-auto overflow-hidden"
+        style={{
+          borderTopLeftRadius: '300px',
+        }}
+      >
+        {/* Animated Waves Pattern */}
+        <div className="absolute top-0 left-0 w-full h-full overflow-hidden">
+          <svg 
+            className="absolute top-0 w-full h-full"
+            viewBox="0 0 1200 120" 
+            preserveAspectRatio="none"
+          >
+            <path 
+              d="M0,40 Q300,80 600,40 T1200,40 L1200,0 L0,0 Z" 
+              fill="rgba(255,255,255,0.1)"
+            >
+              <animate 
+                attributeName="d" 
+                values="M0,40 Q300,80 600,40 T1200,40 L1200,0 L0,0 Z;M0,40 Q300,60 600,40 T1200,40 L1200,0 L0,0 Z;M0,40 Q300,80 600,40 T1200,40 L1200,0 L0,0 Z" 
+                dur="3s" 
+                repeatCount="indefinite"
+              />
+            </path>
+            <path 
+              d="M0,20 Q300,60 600,20 T1200,20 L1200,0 L0,0 Z" 
+              fill="rgba(255,255,255,0.05)"
+            >
+              <animate 
+                attributeName="d" 
+                values="M0,20 Q300,60 600,20 T1200,20 L1200,0 L0,0 Z;M0,20 Q300,40 600,20 T1200,20 L1200,0 L0,0 Z;M0,20 Q300,60 600,20 T1200,20 L1200,0 L0,0 Z" 
+                dur="4s" 
+                repeatCount="indefinite"
+              />
+            </path>
+          </svg>
+        </div>
+        
+        {/* Decorative Circles */}
+        <div className="absolute bottom-3 left-6 w-16 h-16 sm:w-20 sm:h-20 bg-white/10 rounded-full blur-xl"></div>
+        <div className="absolute bottom-8 left-16 w-12 h-12 sm:w-16 sm:h-16 bg-white/5 rounded-full blur-lg"></div>
+        <div className="absolute top-6 right-10 w-20 h-20 sm:w-24 sm:h-24 bg-white/10 rounded-full blur-xl"></div>
       </div>
 
       {/* Login Modal - Number Already Exists */}

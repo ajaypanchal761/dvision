@@ -18,6 +18,7 @@ const Login = () => {
   const [error, setError] = useState('');
   const [selectedCountryCode, setSelectedCountryCode] = useState('+91');
   const [showCountryDropdown, setShowCountryDropdown] = useState(false);
+  const [isInputFocused, setIsInputFocused] = useState(false);
 
   // Popular country codes
   const countryCodes = [
@@ -114,13 +115,13 @@ const Login = () => {
     <div className="min-h-screen w-full bg-white flex flex-col">
       {/* Single Box with Left Straight and Right Curved */}
       <div 
-        className="bg-[var(--app-dark-blue)] text-white h-32 sm:h-40 md:h-48 relative overflow-hidden"
+        className="bg-[var(--app-dark-blue)] text-white h-24 sm:h-28 md:h-32 relative overflow-hidden"
         style={{
           borderBottomRightRadius: '300px',
         }}
       >
         {/* Animated Waves Pattern */}
-        <div className="absolute bottom-0 left-0 w-full h-16 sm:h-20 md:h-24 overflow-hidden">
+        <div className="absolute bottom-0 left-0 w-full h-12 sm:h-14 md:h-16 overflow-hidden">
           <svg 
             className="absolute bottom-0 w-full h-full"
             viewBox="0 0 1200 120" 
@@ -177,15 +178,11 @@ const Login = () => {
         <div className="w-full max-w-md relative z-10">
           {/* Logo */}
           <div className="mb-4 sm:mb-5 md:mb-6 flex justify-center">
-            <div className="relative">
-              {/* Glow effect behind logo */}
-              <div className="absolute inset-0 bg-[var(--app-dark-blue)]/20 rounded-full blur-2xl scale-150"></div>
-              <Image
-                src={logoImage}
-                alt="D'Vision Academy Logo"
-                className="h-20 sm:h-24 md:h-28 lg:h-32 w-auto object-contain relative z-10"
-              />
-            </div>
+            <Image
+              src={logoImage}
+              alt="D'Vision Academy Logo"
+              className="h-28 sm:h-32 md:h-36 lg:h-40 w-auto object-contain"
+            />
           </div>
           
           <form onSubmit={handleSendOTP} autoComplete="off" noValidate className="space-y-4 sm:space-y-5 md:space-y-6">
@@ -194,13 +191,19 @@ const Login = () => {
               <label className="block text-sm sm:text-base md:text-lg font-medium text-[var(--app-black)] mb-2 sm:mb-3">
                 Mobile Number
               </label>
-              <div className="relative flex items-stretch">
+              <div className={`relative flex items-stretch rounded-lg sm:rounded-xl border transition-all ${
+                isInputFocused 
+                  ? 'border-[var(--app-dark-blue)] ring-2 ring-[var(--app-dark-blue)]/20' 
+                  : 'border-gray-300'
+              }`}>
                 {/* Country Code Dropdown */}
                 <div className="relative flex-shrink-0">
                   <button
                     type="button"
                     onClick={() => setShowCountryDropdown(!showCountryDropdown)}
-                    className="flex items-center justify-center gap-1 sm:gap-1.5 px-3 sm:px-4 md:px-5 h-full rounded-l-lg sm:rounded-l-xl border border-r-0 border-gray-300 bg-gray-50 hover:bg-gray-100 transition-colors min-h-[48px] sm:min-h-[52px] md:min-h-[56px] w-auto"
+                    className={`flex items-center justify-center gap-1 sm:gap-1.5 px-3 sm:px-4 md:px-5 h-full rounded-l-lg sm:rounded-l-xl bg-gray-50 hover:bg-gray-100 transition-colors min-h-[48px] sm:min-h-[52px] md:min-h-[56px] w-auto ${
+                      isInputFocused ? 'border-0' : 'border-r border-gray-300'
+                    }`}
                   >
                     <span className="text-[var(--app-black)]/70 font-medium text-sm sm:text-base md:text-lg whitespace-nowrap">
                       {selectedCountryCode}
@@ -255,12 +258,14 @@ const Login = () => {
                     const value = e.target.value.replace(/\D/g, '').slice(0, 15);
                     setPhone(value);
                   }}
+                  onFocus={() => setIsInputFocused(true)}
+                  onBlur={() => setIsInputFocused(false)}
                   autoComplete="off"
                   autoCapitalize="off"
                   autoCorrect="off"
                   spellCheck="false"
                   inputMode="numeric"
-                  className="flex-1 pl-3 sm:pl-4 md:pl-5 pr-3 sm:pr-4 md:pr-5 py-3 sm:py-3.5 md:py-4 rounded-r-lg sm:rounded-r-xl border border-gray-300 bg-gray-50 focus:outline-none focus:border-[var(--app-dark-blue)] focus:ring-2 focus:ring-[var(--app-dark-blue)]/20 focus:bg-white transition-all text-sm sm:text-base md:text-lg text-[var(--app-black)] placeholder:text-gray-400 h-full min-h-[48px] sm:min-h-[52px] md:min-h-[56px]"
+                  className="flex-1 pl-3 sm:pl-4 md:pl-5 pr-3 sm:pr-4 md:pr-5 py-3 sm:py-3.5 md:py-4 rounded-r-lg sm:rounded-r-xl border-0 bg-gray-50 focus:outline-none focus:bg-white transition-all text-sm sm:text-base md:text-lg text-[var(--app-black)] placeholder:text-gray-400 h-full min-h-[48px] sm:min-h-[52px] md:min-h-[56px]"
                   required
                 />
               </div>
@@ -291,7 +296,7 @@ const Login = () => {
             {/* Sign In Button */}
             <button
               type="submit"
-              className="w-full bg-[var(--app-dark-blue)] text-white py-2.5 sm:py-3 md:py-3.5 rounded-lg sm:rounded-xl font-bold text-sm sm:text-base md:text-lg hover:opacity-90 transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full bg-[var(--app-dark-blue)] text-white py-3 sm:py-4 md:py-4.5 rounded-lg sm:rounded-xl font-bold text-sm sm:text-base md:text-lg hover:opacity-90 transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={isLoading || !phone || phone.length < 10}
             >
               {isLoading ? 'Sending OTP...' : 'Sign In'}

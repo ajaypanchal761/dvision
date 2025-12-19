@@ -15,6 +15,7 @@ const Profile = () => {
   const location = useLocation();
   const { user, logout, getCurrentUser } = useAuth();
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -37,6 +38,12 @@ const Profile = () => {
       isMounted = false;
     };
   }, [getCurrentUser]);
+
+  const handleLogout = () => {
+    setShowLogoutConfirm(false);
+    logout();
+    navigate(ROUTES.LOGIN);
+  };
 
   const menuItems = [
     {
@@ -79,12 +86,7 @@ const Profile = () => {
       id: 'logout',
       label: 'Log Out',
       icon: FiLogOut,
-      onClick: () => {
-        if (window.confirm('Are you sure you want to log out?')) {
-          logout();
-          navigate(ROUTES.LOGIN);
-        }
-      }
+      onClick: () => setShowLogoutConfirm(true)
     }
   ];
 
@@ -183,6 +185,41 @@ const Profile = () => {
           })}
         </div>
       </div>
+
+      {/* Logout Confirmation Modal */}
+      {showLogoutConfirm && (
+        <div 
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4" 
+          onClick={() => setShowLogoutConfirm(false)}
+        >
+          <div 
+            className="bg-white rounded-xl sm:rounded-2xl shadow-2xl max-w-sm w-full p-4 sm:p-5 md:p-6 relative" 
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-base sm:text-lg md:text-xl font-bold text-gray-800 mb-1.5 sm:mb-2">
+              Logout
+            </h3>
+            <p className="text-gray-600 mb-4 sm:mb-5 md:mb-6 text-xs sm:text-sm md:text-base">
+              Are you sure you want to log out?
+            </p>
+            <div className="flex gap-2 sm:gap-3">
+              <button
+                onClick={() => setShowLogoutConfirm(false)}
+                className="flex-1 px-3 sm:px-4 py-2 sm:py-2.5 md:py-3 bg-white border-2 border-gray-300 text-gray-700 rounded-lg sm:rounded-xl font-bold hover:bg-gray-50 hover:border-gray-400 transition-all shadow-sm hover:shadow-md text-xs sm:text-sm md:text-base"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleLogout}
+                className="group relative overflow-hidden flex-1 px-3 sm:px-4 py-2 sm:py-2.5 md:py-3 bg-gradient-to-r from-red-500 via-red-500 to-red-600 hover:from-red-600 hover:via-red-500 hover:to-red-500 text-white rounded-lg sm:rounded-xl font-bold transition-all duration-300 shadow-lg hover:shadow-xl text-xs sm:text-sm md:text-base"
+              >
+                <span className="relative z-10">Logout</span>
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Bottom Navigation Bar */}
       <BottomNav />

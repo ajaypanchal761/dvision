@@ -702,7 +702,7 @@ exports.getMe = asyncHandler(async (req, res) => {
 // @route   PUT /api/student/profile
 // @access  Private
 exports.updateProfile = asyncHandler(async (req, res) => {
-  const { name, email } = req.body;
+  const { name, email, profileImageBase64 } = req.body;
 
   // req.user is already the Student document from auth middleware
   if (!req.user || !req.user._id) {
@@ -717,6 +717,22 @@ exports.updateProfile = asyncHandler(async (req, res) => {
 
   if (name) student.name = name;
   if (email) student.email = email;
+
+  // Handle profile image upload if provided
+  if (profileImageBase64) {
+    try {
+      const uploadResult = await uploadToCloudinary(profileImageBase64, {
+        folder: 'students/profile',
+        resource_type: 'image',
+        public_id: `student_${student._id}_${Date.now()}`
+      });
+      student.profileImage = uploadResult.url;
+      console.log('Profile image updated. URL:', student.profileImage);
+    } catch (uploadError) {
+      console.error('Profile image upload error:', uploadError);
+      throw new ErrorResponse('Failed to upload profile image', 500);
+    }
+  }
 
   await student.save();
 

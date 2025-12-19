@@ -2,6 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ROUTES } from '../constants/routes';
 import { useAuth } from '../context/AuthContext';
+import logoImage from '../assets/logo.png';
+import Image from '../components/common/Image';
 
 /**
  * Final OTP Verification Page
@@ -10,13 +12,13 @@ import { useAuth } from '../context/AuthContext';
 const FinalOTP = () => {
   const navigate = useNavigate();
   const { verifyOTP, resendOTP } = useAuth();
-  const [otp, setOtp] = useState(['', '', '', '', '', '']);
+  const [otp, setOtp] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isResending, setIsResending] = useState(false);
   const [error, setError] = useState('');
   const [phone, setPhone] = useState('');
   const [isRegistration, setIsRegistration] = useState(false);
-  const inputRefs = useRef([]);
+  const inputRef = useRef(null);
 
   useEffect(() => {
     // Get phone from sessionStorage
@@ -35,54 +37,28 @@ const FinalOTP = () => {
       return;
     }
 
-    // Focus first input on mount
-    if (inputRefs.current[0]) {
-      inputRefs.current[0].focus();
+    // Focus input on mount
+    if (inputRef.current) {
+      inputRef.current.focus();
     }
   }, [navigate]);
 
-  const handleOtpChange = (index, value) => {
-    // Only allow numbers
-    if (value && !/^\d$/.test(value)) return;
-
-    const newOtp = [...otp];
-    newOtp[index] = value;
-    setOtp(newOtp);
+  const handleOtpChange = (e) => {
+    const value = e.target.value.replace(/\D/g, '').slice(0, 6);
+    setOtp(value);
     setError('');
-
-    // Auto-focus next input
-    if (value && index < 5) {
-      inputRefs.current[index + 1]?.focus();
-    }
-  };
-
-  const handleKeyDown = (index, e) => {
-    // Handle backspace
-    if (e.key === 'Backspace' && !otp[index] && index > 0) {
-      inputRefs.current[index - 1]?.focus();
-    }
   };
 
   const handlePaste = (e) => {
     e.preventDefault();
-    const pastedData = e.clipboardData.getData('text').slice(0, 6);
-    const newOtp = [...otp];
-    for (let i = 0; i < pastedData.length && i < 6; i++) {
-      if (/^\d$/.test(pastedData[i])) {
-        newOtp[i] = pastedData[i];
-      }
-    }
-    setOtp(newOtp);
-    // Focus last filled input or next empty
-    const nextIndex = Math.min(pastedData.length, 5);
-    inputRefs.current[nextIndex]?.focus();
+    const pastedData = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
+    setOtp(pastedData);
   };
 
   const handleVerify = async (e) => {
     e.preventDefault();
-    const otpString = otp.join('');
     
-    if (otpString.length !== 6) {
+    if (otp.length !== 6) {
       setError('Please enter complete 6-digit OTP');
       return;
     }
@@ -92,7 +68,7 @@ const FinalOTP = () => {
 
     try {
       // Verify OTP (registration data already stored in backend)
-      const result = await verifyOTP(phone, otpString);
+      const result = await verifyOTP(phone, otp);
       
       if (result.success) {
         // Clear sessionStorage
@@ -121,10 +97,10 @@ const FinalOTP = () => {
       if (result.success) {
         // Show success message
         alert('OTP resent successfully!');
-        // Clear OTP fields
-        setOtp(['', '', '', '', '', '']);
-        if (inputRefs.current[0]) {
-          inputRefs.current[0].focus();
+        // Clear OTP field
+        setOtp('');
+        if (inputRef.current) {
+          inputRef.current.focus();
         }
       } else {
         setError(result.message || 'Failed to resend OTP');
@@ -136,19 +112,19 @@ const FinalOTP = () => {
     }
   };
 
-  const isOtpComplete = otp.every(digit => digit !== '');
+  const isOtpComplete = otp.length === 6;
 
   return (
     <div className="min-h-screen w-full bg-white flex flex-col">
       {/* Header Section */}
       <div 
-        className="bg-[var(--app-dark-blue)] text-white h-32 sm:h-40 md:h-48 relative overflow-hidden"
+        className="bg-[var(--app-dark-blue)] text-white h-24 sm:h-28 md:h-32 relative overflow-hidden"
         style={{
-          borderBottomRightRadius: '300px',
+          borderBottomRightRadius: '200px',
         }}
       >
         {/* Animated Waves Pattern */}
-        <div className="absolute bottom-0 left-0 w-full h-16 sm:h-20 md:h-24 overflow-hidden">
+        <div className="absolute bottom-0 left-0 w-full h-12 sm:h-14 md:h-16 overflow-hidden">
           <svg 
             className="absolute bottom-0 w-full h-full"
             viewBox="0 0 1200 120" 
@@ -211,6 +187,15 @@ const FinalOTP = () => {
         </div>
         
         <div className="w-full max-w-sm sm:max-w-md relative z-10">
+          {/* Logo */}
+          <div className="mb-4 sm:mb-5 md:mb-6 flex justify-center">
+            <Image
+              src={logoImage}
+              alt="D'Vision Academy Logo"
+              className="h-28 sm:h-32 md:h-36 lg:h-40 w-auto object-contain"
+            />
+          </div>
+          
           {/* Title */}
           <div className="text-center mb-4 sm:mb-5 md:mb-6">
             <p className="text-black/80 text-xs sm:text-sm md:text-base mb-2">
@@ -228,23 +213,20 @@ const FinalOTP = () => {
                 </div>
               )}
 
-              {/* OTP Input Fields */}
-              <div className="flex justify-center gap-1 sm:gap-1.5 md:gap-2 lg:gap-2.5">
-                {otp.map((digit, index) => (
-                  <input
-                    key={index}
-                    ref={(el) => (inputRefs.current[index] = el)}
-                    type="text"
-                    inputMode="numeric"
-                    maxLength={1}
-                    value={digit}
-                    onChange={(e) => handleOtpChange(index, e.target.value)}
-                    onKeyDown={(e) => handleKeyDown(index, e)}
-                    onPaste={handlePaste}
-                    className="w-7 h-7 sm:w-8 sm:h-8 md:w-10 md:h-10 lg:w-12 lg:h-12 text-center text-sm sm:text-base md:text-lg lg:text-xl font-bold rounded-lg sm:rounded-xl border-2 border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-[var(--app-dark-blue)] focus:border-[var(--app-dark-blue)] transition-all text-[var(--app-black)]"
-                    required
-                  />
-                ))}
+              {/* OTP Input Field */}
+              <div>
+                <input
+                  ref={inputRef}
+                  type="tel"
+                  inputMode="numeric"
+                  maxLength={6}
+                  value={otp}
+                  onChange={handleOtpChange}
+                  onPaste={handlePaste}
+                  placeholder="Enter 6-digit OTP"
+                  className="w-full px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 rounded-lg sm:rounded-xl border-0 bg-gray-50 focus:outline-none focus:bg-white transition-all text-base sm:text-lg md:text-xl lg:text-2xl font-semibold text-[var(--app-black)] placeholder:text-gray-400 text-center tracking-wider"
+                  required
+                />
               </div>
 
               {/* Resend OTP */}
@@ -266,7 +248,7 @@ const FinalOTP = () => {
               <button
                 type="submit"
                 disabled={!isOtpComplete || isLoading}
-                className="w-full bg-[var(--app-dark-blue)] text-white py-2 sm:py-2.5 md:py-3 rounded-lg sm:rounded-xl font-semibold text-xs sm:text-sm md:text-base hover:opacity-90 transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full bg-[var(--app-dark-blue)] text-white py-3 sm:py-4 md:py-4.5 rounded-lg sm:rounded-xl font-semibold text-xs sm:text-sm md:text-base hover:opacity-90 transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isLoading 
                   ? 'Verifying...' 

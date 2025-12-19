@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiArrowLeft, FiUser, FiMail, FiPhone, FiBook, FiFileText } from 'react-icons/fi';
+import { FiArrowLeft, FiUser, FiMail, FiPhone, FiBook, FiFileText, FiCamera } from 'react-icons/fi';
 import { ROUTES } from '../constants/routes';
 import { useAuth } from '../context/AuthContext';
 import BottomNav from '../components/common/BottomNav';
@@ -21,6 +21,10 @@ const EditProfile = () => {
     board: ''
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [profileImage, setProfileImage] = useState(null);
+  const [profileImagePreview, setProfileImagePreview] = useState(null);
+  const [successMessage, setSuccessMessage] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
 
   useEffect(() => {
     if (user) {
@@ -31,6 +35,9 @@ const EditProfile = () => {
         class: user.class || '',
         board: user.board || ''
       });
+      if (user.profileImage) {
+        setProfileImagePreview(user.profileImage);
+      }
     }
   }, [user]);
 
@@ -41,27 +48,92 @@ const EditProfile = () => {
     });
   };
 
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        setErrorMessage('Please select an image file');
+        setTimeout(() => setErrorMessage(''), 3000);
+        return;
+      }
+      
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        setErrorMessage('Image size should be less than 5MB');
+        setTimeout(() => setErrorMessage(''), 3000);
+        return;
+      }
+
+      setProfileImage(file);
+      setErrorMessage('');
+      
+      // Create preview
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setProfileImagePreview(reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
+    setErrorMessage('');
+    setSuccessMessage('');
     
     try {
-      const result = await updateUser({
+      // Prepare update data
+      const updateData = {
         name: formData.fullName,
         email: formData.email
-      });
-      
-      if (result.success) {
-        setIsSubmitting(false);
-        alert('Profile updated successfully!');
-        navigate(ROUTES.PROFILE);
+      };
+
+      // If profile image is selected, convert to base64
+      if (profileImage) {
+        const reader = new FileReader();
+        reader.onloadend = async () => {
+          const base64String = reader.result;
+          updateData.profileImageBase64 = base64String;
+          
+          try {
+            const result = await updateUser(updateData);
+            
+            if (result.success) {
+              setIsSubmitting(false);
+              setSuccessMessage('Profile updated successfully!');
+              setTimeout(() => {
+                navigate(ROUTES.PROFILE);
+              }, 1500);
+            } else {
+              setIsSubmitting(false);
+              setErrorMessage(result.message || 'Failed to update profile. Please try again.');
+            }
+          } catch (error) {
+            setIsSubmitting(false);
+            setErrorMessage(error.message || 'Failed to update profile. Please try again.');
+          }
+        };
+        reader.readAsDataURL(profileImage);
       } else {
-        setIsSubmitting(false);
-        alert(result.message || 'Failed to update profile. Please try again.');
+        // No image to upload, just update other fields
+        const result = await updateUser(updateData);
+        
+        if (result.success) {
+          setIsSubmitting(false);
+          setSuccessMessage('Profile updated successfully!');
+          setTimeout(() => {
+            navigate(ROUTES.PROFILE);
+          }, 1500);
+        } else {
+          setIsSubmitting(false);
+          setErrorMessage(result.message || 'Failed to update profile. Please try again.');
+        }
       }
     } catch (error) {
       setIsSubmitting(false);
-      alert(error.message || 'Failed to update profile. Please try again.');
+      setErrorMessage(error.message || 'Failed to update profile. Please try again.');
     }
   };
 
@@ -86,6 +158,46 @@ const EditProfile = () => {
       <div className="px-4 sm:px-6 mt-6 flex justify-center">
         <div className="w-full max-w-md bg-white rounded-xl shadow-lg p-5 sm:p-6 border border-gray-200">
           <form onSubmit={handleSubmit} className="space-y-5">
+            {/* Error Message */}
+            {errorMessage && (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm font-medium">
+                {errorMessage}
+              </div>
+            )}
+
+            {/* Profile Photo Upload */}
+            <div className="flex flex-col items-center mb-4">
+              <div className="relative">
+                {profileImagePreview ? (
+                  <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full overflow-hidden border-4 border-[var(--app-dark-blue)]">
+                    <img
+                      src={profileImagePreview}
+                      alt="Profile"
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                ) : (
+                  <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full bg-[var(--app-dark-blue)] flex items-center justify-center border-4 border-[var(--app-dark-blue)]">
+                    <FiUser className="text-white text-3xl sm:text-4xl" />
+                  </div>
+                )}
+                <label
+                  htmlFor="profileImage"
+                  className="absolute -bottom-2 -right-2 w-10 h-10 bg-[var(--app-dark-blue)] rounded-full flex items-center justify-center cursor-pointer hover:bg-[var(--app-dark-blue)]/90 transition-colors shadow-lg border-2 border-white"
+                >
+                  <FiCamera className="text-white text-lg" />
+                  <input
+                    type="file"
+                    id="profileImage"
+                    accept="image/*"
+                    onChange={handleImageChange}
+                    className="hidden"
+                  />
+                </label>
+              </div>
+              <p className="text-xs text-gray-500 mt-2 text-center">Click camera icon to change photo</p>
+            </div>
+
             {/* Full Name Field */}
             <div>
               <label className="block text-sm font-bold text-gray-700 mb-2">
@@ -199,6 +311,13 @@ const EditProfile = () => {
             >
               {isSubmitting ? 'Saving...' : 'Save Changes'}
             </button>
+
+            {/* Success Message */}
+            {successMessage && (
+              <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg text-sm font-medium">
+                {successMessage}
+              </div>
+            )}
           </form>
         </div>
       </div>

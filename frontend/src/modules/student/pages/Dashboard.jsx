@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiBell, FiUser, FiSearch, FiVideo, FiBook, FiFileText, FiClock, FiCalendar } from 'react-icons/fi';
-import { MdMic } from 'react-icons/md';
+import { FiBell, FiUser, FiVideo, FiBook, FiFileText, FiClock, FiCalendar } from 'react-icons/fi';
 import { ROUTES } from '../constants/routes';
 import { useAuth } from '../context/AuthContext';
 import { notificationAPI, studentAPI, liveClassAPI, bannerAPI } from '../services/api';
@@ -18,7 +17,6 @@ const Dashboard = () => {
   const [unreadCount, setUnreadCount] = useState(0);
   const [allCourses, setAllCourses] = useState([]);
   const [loadingCourses, setLoadingCourses] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [upcomingLiveClasses, setUpcomingLiveClasses] = useState([]);
   const [currentBannerSlide, setCurrentBannerSlide] = useState(0);
@@ -226,28 +224,14 @@ const Dashboard = () => {
     }
   }, [user, defaultCourses]);
 
-  // Filter courses based on search and category
+  // Filter courses based on category
   const filteredCourses = useMemo(() => {
-    let filtered = allCourses;
+    return allCourses;
+  }, [allCourses]);
 
-    // Filter by search query
-    if (searchQuery.trim()) {
-      filtered = filtered.filter(
-        (course) =>
-          course.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          course.subject.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-    }
-
-    // Filter by category (if implemented)
-    // For now, we'll show all courses as "Available Courses"
-
-    return filtered;
-  }, [allCourses, searchQuery]);
-
-  // Use all filtered courses instead of just top 6
+  // Show only first 2 courses on dashboard
   const displayCourses = useMemo(() => {
-    return filteredCourses;
+    return filteredCourses.slice(0, 2);
   }, [filteredCourses]);
 
   // Check if user has active subscription
@@ -327,8 +311,8 @@ const Dashboard = () => {
           >
             <FiBell className="text-white text-lg sm:text-xl md:text-2xl" />
             {unreadCount > 0 && (
-              <span className="absolute top-0.5 right-0.5 sm:top-1 sm:right-1 w-4 h-4 sm:w-5 sm:h-5 bg-red-500 rounded-full flex items-center justify-center border-2 border-white animate-pulse-badge">
-                <span className="text-white text-[10px] sm:text-xs font-bold">
+              <span className="absolute top-0.5 right-0.5 sm:top-1 sm:right-1 w-3 h-3 sm:w-3.5 sm:h-3.5 bg-red-500 rounded-full flex items-center justify-center border border-white animate-pulse-badge">
+                <span className="text-white text-[8px] sm:text-[9px] font-bold">
                   {unreadCount > 9 ? '9+' : unreadCount}
                 </span>
               </span>
@@ -341,26 +325,9 @@ const Dashboard = () => {
       <header className="bg-[var(--app-dark-blue)] text-white relative" style={{ borderRadius: '0 0 50% 50% / 0 0 30px 30px' }}>
         <div className="px-3 sm:px-4 md:px-6 pt-20 sm:pt-24 md:pt-26 pb-4 sm:pb-6 md:pb-8">
           {/* Main Heading */}
-          <h1 className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold mb-3 sm:mb-4 md:mb-5 leading-tight animate-slide-in-left">
-            Find your favorite Course here!
+          <h1 className="text-base sm:text-lg md:text-xl lg:text-2xl font-medium mb-3 sm:mb-4 md:mb-5 leading-tight animate-slide-in-left text-center tracking-tight drop-shadow-lg">
+            Start Your Learning Adventure
           </h1>
-
-          {/* Search Bar */}
-          <div className="relative mb-3 sm:mb-4">
-            <div className="absolute left-3 sm:left-4 top-1/2 transform -translate-y-1/2">
-              <FiSearch className="text-gray-400 text-sm sm:text-base md:text-lg" />
-            </div>
-            <input
-              type="text"
-              placeholder="Search Course"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 sm:pl-12 pr-10 sm:pr-12 py-2.5 sm:py-3 md:py-3.5 rounded-lg sm:rounded-xl bg-white text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-white/50 shadow-md text-sm sm:text-base"
-            />
-            <button className="absolute right-3 sm:right-4 top-1/2 transform -translate-y-1/2 p-1.5 sm:p-2 hover:bg-gray-100 rounded-full transition-colors">
-              <MdMic className="text-gray-600 text-sm sm:text-base md:text-lg" />
-            </button>
-          </div>
 
           {/* Category/Filter Buttons - Half in header, half below */}
           <div className="flex gap-1.5 sm:gap-2 -mb-10 sm:-mb-12 md:-mb-14 relative z-10 justify-center">
@@ -380,31 +347,31 @@ const Dashboard = () => {
                       navigate('/quizzes');
                     }
                   }}
-                  className={`flex flex-col items-center gap-0.5 sm:gap-1 p-2 sm:p-2.5 rounded-lg bg-white border-2 transition-all shadow-md hover:shadow-lg hover:scale-105 active:scale-95 w-[22%] sm:w-[24%] max-w-[90px] sm:max-w-[100px] ${selectedCategory === category.id
+                  className={`flex flex-col items-center gap-0.5 sm:gap-1 p-3 sm:p-3.5 md:p-4 rounded-lg bg-white border-2 transition-all shadow-md hover:shadow-lg hover:scale-105 active:scale-95 w-[28%] sm:w-[30%] max-w-[140px] sm:max-w-[160px] md:max-w-[180px] ${selectedCategory === category.id
                     ? 'border-[var(--app-dark-blue)] shadow-lg bg-blue-50'
                     : 'border-gray-200 hover:border-[var(--app-dark-blue)]/30'
                     }`}
                 >
-                  <div className={`p-1.5 sm:p-2 rounded-full ${selectedCategory === category.id
+                  <div className={`p-2 sm:p-2.5 md:p-3 rounded-full ${selectedCategory === category.id
                     ? 'bg-[var(--app-dark-blue)]'
                     : 'bg-gray-100'
                     }`}>
                     <IconComponent
-                      className={`text-xs sm:text-sm md:text-base ${selectedCategory === category.id
+                      className={`text-sm sm:text-base md:text-lg ${selectedCategory === category.id
                         ? 'text-white'
                         : 'text-gray-600'
                         }`}
                     />
                   </div>
                   <span
-                    className={`text-[9px] sm:text-[10px] font-bold ${selectedCategory === category.id
+                    className={`text-[10px] sm:text-xs md:text-sm font-bold ${selectedCategory === category.id
                       ? 'text-[var(--app-dark-blue)]'
                       : 'text-gray-700'
                       }`}
                   >
                     {category.name}
                   </span>
-                  <span className="text-[8px] sm:text-[9px] text-gray-500 text-center leading-tight">
+                  <span className="text-[9px] sm:text-[10px] md:text-xs text-gray-500 text-center leading-tight">
                     {category.description}
                   </span>
                 </button>
@@ -462,11 +429,11 @@ const Dashboard = () => {
                 <p className="text-gray-600 text-lg">No courses available.</p>
               </div>
             ) : (
-              <div className="flex gap-3 sm:gap-4 overflow-x-auto pb-2 -mx-3 sm:-mx-4 md:-mx-6 px-3 sm:px-4 md:px-6 scrollbar-hide">
+              <div className="grid grid-cols-2 gap-3 sm:gap-4">
                 {displayCourses.map((course, index) => (
                   <div
                     key={course.id}
-                    className="bg-white rounded-lg sm:rounded-xl overflow-hidden shadow-md hover:shadow-lg transition-shadow cursor-pointer flex-shrink-0 w-[140px] sm:w-[170px] md:w-[200px] animate-fade-in-up"
+                    className="bg-white rounded-lg sm:rounded-xl overflow-hidden shadow-md hover:shadow-lg transition-shadow cursor-pointer w-full animate-fade-in-up"
                     style={{ animationDelay: `${index * 0.1}s` }}
                     onClick={() => {
                       // Only navigate if it's not a default course
