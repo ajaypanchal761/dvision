@@ -1,68 +1,45 @@
-const axios = require('axios');
+const axios = require("axios");
+const crypto = require("crypto");
 
-// Cashfree API configuration (Test + Live using CF_ENV)
-// CF_ENV: 'TEST' or 'PROD'
-// Default: PROD (Production mode)
-// 
+/**
+ * Cashfree Production Configuration
+ * ---------------------------------
+ * ENV REQUIRED:
+ * CF_CLIENT_ID=xxxx
+ * CF_SECRET=xxxx
+ */
 
 const getCashfreeConfig = () => {
-  let env = process.env.CF_ENV || 'PROD'; // Default to PROD (Production)
-  let isProd = env === 'PROD';
-
-  // In TEST mode use TEST_CF_*; in PROD use CF_*
-  let clientId = isProd ? process.env.CF_CLIENT_ID : process.env.TEST_CF_CLIENT_ID;
-  let secretKey = isProd ? process.env.CF_SECRET : process.env.TEST_CF_SECRET;
-
-  // Safety: if env is PROD but credentials look like TEST, fall back to TEST mode
-  if (isProd && clientId && clientId.startsWith('TEST')) {
-    console.warn('⚠️  Cashfree credentials look like TEST in PROD env. Falling back to TEST mode.');
-    env = 'TEST';
-    isProd = false;
-    clientId = process.env.TEST_CF_CLIENT_ID || clientId;
-    secretKey = process.env.TEST_CF_SECRET || secretKey;
-  }
-
-  const environment = env;
+  const clientId = process.env.CF_CLIENT_ID;
+  const secretKey = process.env.CF_SECRET;
 
   if (!clientId || !secretKey) {
-    console.error('❌ ERROR: Cashfree credentials not found in environment variables.');
-    console.error('   Required for PROD: CF_CLIENT_ID, CF_SECRET, CF_ENV=PROD');
-    console.error('   Required for TEST: TEST_CF_CLIENT_ID, TEST_CF_SECRET, CF_ENV=TEST');
-    console.error('   Payment features will not work without valid credentials.');
-    return null;
+    console.error("❌ Cashfree production credentials missing");
+    throw new Error("Cashfree PROD credentials not found");
   }
 
-  const baseURL = environment === 'PROD'
-    ? 'https://api.cashfree.com/pg'
-    : 'https://sandbox.cashfree.com/pg';
+  const baseURL = "https://api.cashfree.com/pg";
 
-  // Log configuration status (without exposing full credentials)
-  console.log('✅ Cashfree Configuration Loaded:');
-  console.log(`   Environment: ${environment}`);
-  console.log(`   Client ID: ${clientId.substring(0, 8)}...${clientId.substring(clientId.length - 4)}`);
-  console.log(`   Secret Key: ${secretKey.substring(0, 10)}...${secretKey.substring(secretKey.length - 4)}`);
-  console.log(`   Base URL: ${baseURL}`);
+  console.log("✅ Cashfree running in PRODUCTION mode");
+  console.log(`Client ID: ${clientId.slice(0, 8)}****`);
+  console.log(`Base URL: ${baseURL}`);
 
   return {
     clientId,
     secretKey,
-    environment,
     baseURL,
     headers: {
-      'x-client-id': clientId,
-      'x-client-secret': secretKey,
-      'x-api-version': '2023-08-01',
-      'Content-Type': 'application/json'
+      "x-client-id": clientId,
+      "x-client-secret": secretKey,
+      "x-api-version": "2023-08-01",
+      "Content-Type": "application/json"
     }
   };
 };
 
-// Create axios instance for Cashfree API
+// Axios Client
 const createCashfreeClient = () => {
   const config = getCashfreeConfig();
-  if (!config) {
-    return null;
-  }
 
   return axios.create({
     baseURL: config.baseURL,
@@ -71,62 +48,60 @@ const createCashfreeClient = () => {
   });
 };
 
-// Helper function to create order
+// Create Order / Payment Session
 const createOrder = async (orderData) => {
   const client = createCashfreeClient();
-  if (!client) {
-    throw new Error('Cashfree client not initialized. Please check your credentials.');
-  }
 
   try {
-    // Cashfree API endpoint for creating payment session
-    const response = await client.post('/orders', orderData);
+    const response = await client.post("/orders", orderData);
     return response.data;
   } catch (error) {
-    console.error('Cashfree order creation error:', error.response?.data || error.message);
+    console.error(
+      "❌ Cashfree order creation error:",
+      error.response?.data || error.message
+    );
     throw error;
   }
 };
 
-// Helper function to get order details
+// Get Order Details
 const getOrderDetails = async (orderId) => {
   const client = createCashfreeClient();
-  if (!client) {
-    throw new Error('Cashfree client not initialized. Please check your credentials.');
-  }
 
   try {
     const response = await client.get(`/orders/${orderId}`);
     return response.data;
   } catch (error) {
-    console.error('Cashfree get order error:', error.response?.data || error.message);
+    console.error(
+      "❌ Cashfree get order error:",
+      error.response?.data || error.message
+    );
     throw error;
   }
 };
 
-// Helper function to verify payment signature
-const verifyPaymentSignature = (orderId, orderAmount, referenceId, txStatus, paymentSignature) => {
-  const config = getCashfreeConfig();
-  if (!config) {
-    return false;
-  }
+// Verify Payment Signature
+const verifyPaymentSignature = (
+  orderId,
+  orderAmount,
+  referenceId,
+  txStatus,
+  paymentSignature
+) => {
+  const { secretKey } = getCashfreeConfig();
 
-  // Cashfree signature verification
-  const message = `${orderId}${orderAmount}${referenceId}${txStatus}`;
-  const crypto = require('crypto');
+  const payload = `${orderId}${orderAmount}${referenceId}${txStatus}`;
+
   const generatedSignature = crypto
-    .createHmac('sha256', config.secretKey)
-    .update(message)
-    .digest('base64');
+    .createHmac("sha256", secretKey)
+    .update(payload)
+    .digest("base64");
 
   return generatedSignature === paymentSignature;
 };
 
 module.exports = {
-  getCashfreeConfig,
-  createCashfreeClient,
   createOrder,
   getOrderDetails,
   verifyPaymentSignature
 };
-
