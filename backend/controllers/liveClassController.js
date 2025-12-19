@@ -1514,12 +1514,15 @@ exports.createLiveClass = asyncHandler(async (req, res) => {
   const teacher = await Teacher.findById(req.user._id).select('name');
   const teacherName = teacher?.name || 'Teacher';
 
-  // Format start time for notification
-  const startTimeFormatted = scheduledStartTime.toLocaleTimeString('en-IN', {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: true
-  });
+  // Format start time for notification in IST
+  // scheduledStartTime is stored in UTC, convert to IST for display
+  // Reuse istOffsetMs already declared above
+  const scheduledStartTimeForDisplay = new Date(scheduledStartTime.getTime() + istOffsetMs);
+  const hours = scheduledStartTimeForDisplay.getUTCHours();
+  const minutes = scheduledStartTimeForDisplay.getUTCMinutes();
+  const ampm = hours >= 12 ? 'PM' : 'AM';
+  const displayHours = hours % 12 || 12;
+  const startTimeFormatted = `${displayHours}:${String(minutes).padStart(2, '0')} ${ampm}`;
 
   // Get enrolled students for this class based on class type
   const Payment = require('../models/Payment');
@@ -1766,12 +1769,15 @@ exports.startLiveClass = asyncHandler(async (req, res) => {
     const teacherName = teacher?.name || 'Teacher';
     const subjectName = subject?.name || 'Subject';
 
-    // Format actual start time for notification
-    const startTimeFormatted = actualStartTime.toLocaleTimeString('en-IN', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true
-    });
+    // Format actual start time for notification in IST
+    // actualStartTime is stored in UTC, convert to IST for display
+    const istOffsetMs = 5.5 * 60 * 60 * 1000; // IST is UTC+5:30
+    const actualStartTimeIST = new Date(actualStartTime.getTime() + istOffsetMs);
+    const hours = actualStartTimeIST.getUTCHours();
+    const minutes = actualStartTimeIST.getUTCMinutes();
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    const displayHours = hours % 12 || 12;
+    const startTimeFormatted = `${displayHours}:${String(minutes).padStart(2, '0')} ${ampm}`;
 
     let students = [];
 
