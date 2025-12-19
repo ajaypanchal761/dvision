@@ -36,7 +36,7 @@ exports.checkStudentExists = asyncHandler(async (req, res) => {
 // @route   POST /api/student/register
 // @access  Public
 exports.register = asyncHandler(async (req, res) => {
-  const { phone, name, email, class: studentClass, board, profileImageBase64, referralAgentId } = req.body;
+  const { phone, name, email, class: studentClass, board, profileImageBase64, referralAgentId, password } = req.body;
 
   // Also check query parameter for referralAgentId (for URL-based referrals)
   const referralAgentIdFromQuery = req.query.ref || req.query.referralAgentId;
@@ -70,6 +70,13 @@ exports.register = asyncHandler(async (req, res) => {
   // Validate required fields for registration
   if (!name || !email || !studentClass || !board) {
     throw new ErrorResponse('Please provide all required fields: name, email, class, and board', 400);
+  }
+
+  // Validate password if provided
+  if (password) {
+    if (password.length < 6) {
+      throw new ErrorResponse('Password must be at least 6 characters long', 400);
+    }
   }
 
   // Parse class
@@ -113,6 +120,13 @@ exports.register = asyncHandler(async (req, res) => {
     isPhoneVerified: false, // Will be verified after OTP
     isActive: true
   };
+
+  // Store password temporarily (will be saved during OTP verification)
+  // We'll store it in a temporary field or pass it through session
+  // For now, we'll store it in the student object but not save it until OTP is verified
+  if (password) {
+    studentData.password = password; // Will be hashed by pre-save hook
+  }
 
   if (name && typeof name === 'string' && name.trim().length > 0) {
     studentData.name = name.trim();
@@ -248,14 +262,18 @@ exports.register = asyncHandler(async (req, res) => {
   });
 });
 
-// @desc    Login student (send OTP)
+// @desc    Login student (with password)
 // @route   POST /api/student/login
 // @access  Public
 exports.login = asyncHandler(async (req, res) => {
-  const { phone } = req.body;
+  const { phone, password } = req.body;
 
   if (!phone) {
     throw new ErrorResponse('Please provide a phone number', 400);
+  }
+
+  if (!password) {
+    throw new ErrorResponse('Please provide a password', 400);
   }
 
   const phoneRegex = /^\+?[1-9]\d{1,14}$/;
@@ -263,58 +281,60 @@ exports.login = asyncHandler(async (req, res) => {
     throw new ErrorResponse('Please provide a valid phone number with country code', 400);
   }
 
-  // Check if student exists
-  const student = await Student.findOne({ phone });
+  // Check if student exists and include password field
+  const student = await Student.findOne({ phone }).select('+password');
 
   if (!student) {
     throw new ErrorResponse('Student not found. Please register first.', 404);
   }
 
-  // Check if it's a test number
-  const isTestNumber = otpService.isTestNumber(phone);
-
-  // For test numbers, auto-verify if not already verified
-  if (isTestNumber && !student.isPhoneVerified) {
-    console.log(`[TEST MODE] Auto-verifying test number: ${phone}`);
-    student.isPhoneVerified = true;
-    await student.save();
-  } else if (!isTestNumber && !student.isPhoneVerified) {
-    // For non-test numbers, require verification
+  // Check if phone is verified
+  if (!student.isPhoneVerified) {
     throw new ErrorResponse('Phone number not verified. Please complete registration first.', 400);
   }
 
-  // Check resend cooldown (skip for test numbers)
-  if (!isTestNumber) {
-    const canResend = await otpService.canResendOTP(phone);
-    if (!canResend) {
-      throw new ErrorResponse(
-        `Please wait ${process.env.OTP_RESEND_COOLDOWN_SECONDS || 60} seconds before requesting a new OTP`,
-        429
-      );
+  // Check if student has a password set
+  if (!student.password) {
+    throw new ErrorResponse('Password not set. Please reset your password or contact support.', 400);
+  }
+
+  // Check password
+  const isPasswordMatch = await student.matchPassword(password);
+
+  if (!isPasswordMatch) {
+    throw new ErrorResponse('Invalid phone number or password', 401);
+  }
+
+  // Check subscription validity
+  if (student.subscription && student.subscription.status === 'active' && student.subscription.endDate) {
+    const now = new Date();
+    const endDate = new Date(student.subscription.endDate);
+
+    if (now > endDate) {
+      // Subscription expired
+      student.subscription.status = 'expired';
+      await student.save();
     }
   }
 
-  // Send OTP using 2Factor.in (will bypass SMS for test numbers)
-  const result = await otpService.sendOTP(phone, process.env.TWOFACTOR_TEMPLATE_NAME);
-
-  // Update last OTP sent time
-  student.lastOtpSentAt = new Date();
-  await student.save();
-
-  // Store resend cooldown (skip for test numbers)
-  if (!isTestNumber) {
-    await otpService.storeResendCooldown(phone);
-  }
+  const token = generateToken(student._id, 'student');
 
   res.status(200).json({
     success: true,
-    message: result.message || (isTestNumber
-      ? 'OTP sent successfully (Test Mode - Use OTP: 123456)'
-      : 'OTP sent successfully to your phone number'),
+    message: 'Login successful',
     data: {
-      phone: phone.replace(/\d(?=\d{4})/g, '*'),
-      expiresIn: `${process.env.OTP_EXPIRY_MINUTES || 5} minutes`,
-      isTest: isTestNumber
+      student: {
+        _id: student._id,
+        name: student.name,
+        phone: student.phone,
+        email: student.email,
+        class: student.class,
+        board: student.board,
+        isPhoneVerified: student.isPhoneVerified,
+        subscription: student.subscription,
+        profileImage: student.profileImage
+      },
+      token
     }
   });
 });

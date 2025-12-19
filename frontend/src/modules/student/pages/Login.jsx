@@ -7,13 +7,15 @@ import logoImage from '../assets/logo.png';
 import Image from '../components/common/Image';
 
 /**
- * Login Page - OTP Based
- * Mobile number login with OTP verification
+ * Login Page - Password Based
+ * Mobile number login with password authentication
  */
 const Login = () => {
   const navigate = useNavigate();
-  const { sendOTP } = useAuth();
+  const { getCurrentUser } = useAuth();
   const [phone, setPhone] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPasswordStep, setShowPasswordStep] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [selectedCountryCode, setSelectedCountryCode] = useState('+91');
@@ -51,40 +53,71 @@ const Login = () => {
     }
   }, [navigate]);
 
-  const handleSendOTP = async (e) => {
+  const handlePhoneSubmit = async (e) => {
     e.preventDefault();
     setError('');
     
-    console.log('[Login] Starting login process...');
-    
     if (!phone || phone.length < 10) {
-      console.log('[Login] Validation failed: Invalid phone number');
       setError('Please enter a valid mobile number');
+      return;
+    }
+
+    // Move to password step
+    setShowPasswordStep(true);
+  };
+
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    setError('');
+    
+    if (!password || password.length < 6) {
+      setError('Please enter a valid password (minimum 6 characters)');
       return;
     }
 
     setIsLoading(true);
     const fullPhone = `${selectedCountryCode}${phone}`;
+    console.log('[Login] Starting login process...');
     console.log('[Login] Phone number:', fullPhone);
 
     try {
       console.log('[Login] Importing studentAPI...');
-      // Login student - POST API Call (sends OTP)
+      // Login student - POST API Call (with password)
       const { studentAPI } = await import('../services/api');
       console.log('[Login] Calling studentAPI.login...');
       
-      const result = await studentAPI.login(fullPhone);
+      const result = await studentAPI.login(fullPhone, password);
       console.log('[Login] API Response:', result);
       
       if (result.success) {
-        console.log('[Login] Success! Storing phone and navigating to OTP page...');
-        // Store phone number for OTP verification page
-        sessionStorage.setItem('login_phone', fullPhone);
-        // Navigate to OTP verification page
-        navigate(ROUTES.FINAL_OTP);
+        console.log('[Login] Success! Logging in...');
+        // Store token and user data
+        if (result.data?.token) {
+          localStorage.setItem('dvision_token', result.data.token);
+        }
+        if (result.data?.student) {
+          localStorage.setItem('dvision_user', JSON.stringify(result.data.student));
+        }
+        
+        // Update AuthContext by fetching current user
+        // This ensures the context is updated before navigation
+        try {
+          const userResult = await getCurrentUser();
+          if (userResult.success) {
+            // Use window.location for hard redirect to ensure AuthContext is properly initialized
+            window.location.href = ROUTES.DASHBOARD;
+          } else {
+            // If getCurrentUser fails, still navigate (token is stored)
+            navigate(ROUTES.DASHBOARD, { replace: true });
+          }
+        } catch (err) {
+          console.warn('Error updating auth context:', err);
+          // Use window.location for hard redirect to ensure clean state
+          window.location.href = ROUTES.DASHBOARD;
+        }
       } else {
         console.error('[Login] API returned success=false:', result);
-        setError(result.message || 'Failed to login');
+        setError(result.message || 'Invalid phone number or password');
       }
     } catch (error) {
       console.error('[Login] Error occurred:', {
@@ -185,7 +218,8 @@ const Login = () => {
             />
           </div>
           
-          <form onSubmit={handleSendOTP} autoComplete="off" noValidate className="space-y-4 sm:space-y-5 md:space-y-6">
+          {!showPasswordStep ? (
+            <form onSubmit={handlePhoneSubmit} autoComplete="off" noValidate className="space-y-4 sm:space-y-5 md:space-y-6">
             {/* Mobile Number Input */}
             <div>
               <label className="block text-sm sm:text-base md:text-lg font-medium text-[var(--app-black)] mb-2 sm:mb-3">
@@ -272,7 +306,7 @@ const Login = () => {
             </div>
 
             {/* Error Message */}
-            {error && (
+            {error && !showPasswordStep && (
               <div className="bg-red-50 border border-red-200 text-red-700 px-2.5 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 rounded-lg sm:rounded-xl text-xs sm:text-sm">
                 <p className="mb-1.5 sm:mb-2">{error}</p>
                 {error.includes("don't have an account") && (
@@ -293,15 +327,84 @@ const Login = () => {
               </div>
             )}
 
-            {/* Sign In Button */}
+            {/* Continue Button */}
             <button
               type="submit"
               className="w-full bg-[var(--app-dark-blue)] text-white py-3 sm:py-4 md:py-4.5 rounded-lg sm:rounded-xl font-bold text-sm sm:text-base md:text-lg hover:opacity-90 transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={isLoading || !phone || phone.length < 10}
             >
-              {isLoading ? 'Sending OTP...' : 'Sign In'}
+              Continue
             </button>
           </form>
+          ) : (
+            <form onSubmit={handleLogin} autoComplete="off" noValidate className="space-y-4 sm:space-y-5 md:space-y-6">
+              {/* Back Button */}
+              <button
+                type="button"
+                onClick={() => {
+                  setShowPasswordStep(false);
+                  setPassword('');
+                  setError('');
+                }}
+                className="flex items-center gap-2 text-[var(--app-dark-blue)] hover:opacity-80 transition-opacity mb-2"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+                <span className="text-sm font-medium">Back</span>
+              </button>
+
+              {/* Phone Display */}
+              <div className="bg-gray-50 rounded-lg sm:rounded-xl p-3 sm:p-4 border-2 border-gray-200">
+                <p className="text-xs sm:text-sm text-gray-600 mb-1">Phone Number</p>
+                <p className="text-sm sm:text-base font-semibold text-[var(--app-black)]">
+                  {selectedCountryCode}{phone}
+                </p>
+              </div>
+
+              {/* Password Input */}
+              <div>
+                <label className="block text-sm sm:text-base md:text-lg font-medium text-[var(--app-black)] mb-2 sm:mb-3">
+                  Password
+                </label>
+                <input
+                  type="password"
+                  placeholder="Enter your password"
+                  value={password}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    setError('');
+                  }}
+                  onFocus={() => setIsInputFocused(true)}
+                  onBlur={() => setIsInputFocused(false)}
+                  autoComplete="current-password"
+                  className={`w-full px-3 sm:px-4 md:px-5 py-3 sm:py-3.5 md:py-4 rounded-lg sm:rounded-xl border-2 transition-all text-sm sm:text-base md:text-lg text-[var(--app-black)] placeholder:text-gray-400 ${
+                    isInputFocused 
+                      ? 'border-[var(--app-dark-blue)] ring-2 ring-[var(--app-dark-blue)]/20' 
+                      : 'border-gray-300'
+                  }`}
+                  required
+                  minLength={6}
+                />
+              </div>
+
+              {/* Error Message */}
+              {error && (
+                <div className="bg-red-50 border border-red-200 text-red-700 px-2.5 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 rounded-lg sm:rounded-xl text-xs sm:text-sm">
+                  {error}
+                </div>
+              )}
+
+              {/* Sign In Button */}
+              <button
+                type="submit"
+                className="w-full bg-[var(--app-dark-blue)] text-white py-3 sm:py-4 md:py-4.5 rounded-lg sm:rounded-xl font-bold text-sm sm:text-base md:text-lg hover:opacity-90 transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={isLoading || !password || password.length < 6}
+              >
+                {isLoading ? 'Signing In...' : 'Sign In'}
+              </button>
+            </form>
+          )}
 
           {/* Footer Text */}
           <div className="mt-6 sm:mt-8 md:mt-10 text-center">
