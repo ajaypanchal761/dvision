@@ -152,7 +152,7 @@ exports.register = asyncHandler(async (req, res) => {
   if (finalReferralAgentId) {
     const Agent = require('../models/Agent');
     const mongoose = require('mongoose');
-    
+
     // Validate ObjectId format
     if (mongoose.Types.ObjectId.isValid(finalReferralAgentId)) {
       // Check if agent exists and is active
@@ -189,7 +189,7 @@ exports.register = asyncHandler(async (req, res) => {
       const notificationService = require('../services/notificationService');
       const Agent = require('../models/Agent');
       const agent = await Agent.findById(student.referralAgentId);
-      
+
       if (agent && agent.isActive) {
         const notificationTitle = 'New Student Registration!';
         const notificationBody = `${student.name || 'A student'} has registered using your referral link`;
@@ -999,11 +999,11 @@ exports.getCourseById = asyncHandler(async (req, res) => {
   if (course.classId) {
     const preparationClassIds = [
       ...activePayments
-      .filter(payment =>
-        payment.subscriptionPlanId &&
-        payment.subscriptionPlanId.type === 'preparation' &&
-        payment.subscriptionPlanId.classId
-      )
+        .filter(payment =>
+          payment.subscriptionPlanId &&
+          payment.subscriptionPlanId.type === 'preparation' &&
+          payment.subscriptionPlanId.classId
+        )
         .map(payment => payment.subscriptionPlanId.classId._id || payment.subscriptionPlanId.classId),
       ...activeSubsFromArray
         .filter(sub => sub.type === 'preparation' && sub.classId)
@@ -1020,6 +1020,9 @@ exports.getCourseById = asyncHandler(async (req, res) => {
     throw new ErrorResponse('Course not available. Please check your subscription.', 403);
   }
 
+  // Normalize chapter PDF URLs before returning
+  normalizeChapterPdfUrls(course);
+
   res.status(200).json({
     success: true,
     data: {
@@ -1027,6 +1030,38 @@ exports.getCourseById = asyncHandler(async (req, res) => {
     }
   });
 });
+
+// Normalize chapter PDF URLs before sending to clients (safety net)
+// This helps handle malformed stored URLs like '/.dvisionacademy.com/api/uploads/..'
+const normalizeChapterPdfUrls = (courseDoc) => {
+  try {
+    if (!courseDoc || !courseDoc.chapters) return courseDoc;
+    courseDoc.chapters = courseDoc.chapters.map(ch => {
+      if (!ch || !ch.pdfUrl) return ch;
+      const url = String(ch.pdfUrl);
+      // If it already looks absolute (http), leave it
+      if (url.startsWith('http') || url.startsWith('//')) return ch;
+      // If contains '/uploads/', extract that portion
+      const uploadIndex = url.indexOf('/uploads/');
+      if (uploadIndex !== -1) {
+        ch.pdfUrl = url.substring(uploadIndex);
+        return ch;
+      }
+      // If contains '/api/uploads/', extract '/uploads/...' as well
+      const apiUploadIndex = url.indexOf('/api/uploads/');
+      if (apiUploadIndex !== -1) {
+        const suffix = url.substring(apiUploadIndex + '/api'.length); // keep '/uploads/...'
+        ch.pdfUrl = suffix;
+        return ch;
+      }
+      // Otherwise, leave as-is (could be relative like '/uploads/...')
+      return ch;
+    });
+  } catch (e) {
+    console.error('Error normalizing chapter pdf urls:', e.message);
+  }
+  return courseDoc;
+};
 
 // @desc    Update FCM token (supports platform: 'app' or 'web')
 // @route   PUT /api/student/fcm-token

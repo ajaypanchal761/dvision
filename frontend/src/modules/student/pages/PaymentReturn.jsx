@@ -201,25 +201,5 @@ const PaymentReturn = () => {
 };
 
 export default PaymentReturn;
-              <button
-                onClick={() => navigate(ROUTES.SUBSCRIPTION_PLANS)}
-                className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white font-bold py-3 rounded-lg hover:shadow-lg transition-all duration-200"
-              >
-                Try Again
-              </button>
-              <button
-                onClick={() => navigate(ROUTES.DASHBOARD)}
-                className="w-full bg-gray-200 text-gray-700 font-bold py-3 rounded-lg hover:bg-gray-300 transition-all duration-200"
-              >
-                Go to Dashboard
-              </button>
-            </div >
-          </>
-        )}
-      </div >
-    </div >
-  );
-};
 
-export default PaymentReturn;
 

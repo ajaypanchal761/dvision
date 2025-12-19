@@ -65,10 +65,42 @@ const CourseDetails = () => {
   }, [id]);
 
   const handlePdfView = (pdfUrl) => {
-    if (pdfUrl) {
-      const fullUrl = pdfUrl.startsWith('http') ? pdfUrl : `${getApiBaseUrl()}${pdfUrl}`;
-      window.open(fullUrl, '_blank');
+    if (!pdfUrl) return;
+
+    // If already absolute URL, use it
+    if (pdfUrl.startsWith('http')) {
+      window.open(pdfUrl, '_blank');
+      return;
     }
+
+    // If protocol-relative URL (//...), prefix protocol
+    if (pdfUrl.startsWith('//')) {
+      window.open(`${window.location.protocol}${pdfUrl}`, '_blank');
+      return;
+    }
+
+    // If url contains the current hostname (but stored with an extra leading slash),
+    // extract suffix from hostname occurrence and build correct absolute URL.
+    try {
+      const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
+      const protocol = typeof window !== 'undefined' ? window.location.protocol : 'https:';
+
+      const hostIndex = hostname ? pdfUrl.indexOf(hostname) : -1;
+      if (hostIndex !== -1) {
+        // e.g. pdfUrl = '/.dvisionacademy.com/api/uploads/..' -> find hostname and keep suffix
+        const suffix = pdfUrl.substring(hostIndex + hostname.length) || '';
+        const fullUrl = `${protocol}//${hostname}${suffix}`;
+        window.open(fullUrl, '_blank');
+        return;
+      }
+    } catch (e) {
+      // fallthrough to default behavior
+      console.error('Error normalizing pdfUrl', e);
+    }
+
+    // Default: relative path like /uploads/..., prefix API base
+    const fullUrl = pdfUrl.startsWith('/') ? `${getApiBaseUrl()}${pdfUrl}` : `${getApiBaseUrl()}/${pdfUrl}`;
+    window.open(fullUrl, '_blank');
   };
 
   if (isLoading) {
@@ -107,17 +139,17 @@ const CourseDetails = () => {
       <header className="sticky top-0 z-50 bg-[var(--app-dark-blue)] text-white relative" style={{ borderRadius: '0 0 50% 50% / 0 0 30px 30px' }}>
         <div className="px-2 sm:px-3 pt-2 sm:pt-3 pb-2 sm:pb-3">
           <div className="flex items-center justify-between">
-          <button
-            onClick={() => navigate('/my-courses')}
+            <button
+              onClick={() => navigate('/my-courses')}
               className="p-1.5 sm:p-2 text-white hover:bg-white/10 rounded-full transition-colors"
-          >
+            >
               <FiArrowLeft className="text-lg sm:text-xl" />
-          </button>
-          <button
+            </button>
+            <button
               className="p-1.5 sm:p-2 text-white hover:bg-white/10 rounded-full transition-colors"
-          >
+            >
               <FiShare2 className="text-lg sm:text-xl" />
-          </button>
+            </button>
           </div>
         </div>
       </header>
@@ -217,14 +249,14 @@ const CourseDetails = () => {
                           </span>
                         </div>
                       </div>
-                      
+
                       {/* Chapter Content */}
                       <div className="flex-1 min-w-0">
                         {/* Chapter Title */}
                         <h4 className="font-bold text-gray-900 text-xs sm:text-sm mb-1.5 leading-tight">
                           {chapter.chapterName}
                         </h4>
-                        
+
                         {/* Chapter Description */}
                         {chapter.chapterDetails && (
                           <p className="text-gray-600 text-[10px] sm:text-xs mb-2.5 leading-relaxed">
