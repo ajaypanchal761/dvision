@@ -217,7 +217,7 @@ export const studentAPI = {
   },
 
   // Register student (with all data and send OTP)
-  register: async (phone, name, email, studentClass, board, profileImageBase64 = null, referralAgentId = null) => {
+  register: async (phone, name, email, studentClass, board, profileImageBase64 = null, referralAgentId = null, password = null) => {
     const body = {
       phone,
       name,
@@ -234,17 +234,21 @@ export const studentAPI = {
       body.referralAgentId = referralAgentId;
     }
 
+    if (password) {
+      body.password = password;
+    }
+
     return apiRequest('/student/register', {
       method: 'POST',
       body: body,
     });
   },
 
-  // Login student (send OTP)
-  login: async (phone) => {
+  // Login student (with password)
+  login: async (phone, password) => {
     return apiRequest('/student/login', {
       method: 'POST',
-      body: { phone },
+      body: { phone, password },
     });
   },
 

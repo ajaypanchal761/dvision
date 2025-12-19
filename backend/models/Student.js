@@ -30,6 +30,10 @@ const studentSchema = new mongoose.Schema({
     enum: ['CBSE', 'RBSE'],
     required: [true, 'Please provide a board']
   },
+  password: {
+    type: String,
+    select: false // Don't return password by default
+  },
   isPhoneVerified: {
     type: Boolean,
     default: false
@@ -119,6 +123,29 @@ studentSchema.index({ 'activeSubscriptions.endDate': 1 });
 studentSchema.index({ 'activeSubscriptions.type': 1 });
 studentSchema.index({ 'activeSubscriptions.classId': 1 });
 studentSchema.index({ referralAgentId: 1 });
+
+// Hash password before saving
+studentSchema.pre('save', async function(next) {
+  // Only hash password if it's been modified (or is new)
+  if (!this.isModified('password')) {
+    return next();
+  }
+
+  // Hash password with cost of 12
+  if (this.password) {
+    const salt = await bcrypt.genSalt(12);
+    this.password = await bcrypt.hash(this.password, salt);
+  }
+  next();
+});
+
+// Method to compare password
+studentSchema.methods.matchPassword = async function(enteredPassword) {
+  if (!this.password) {
+    return false;
+  }
+  return await bcrypt.compare(enteredPassword, this.password);
+};
 
 module.exports = mongoose.model('Student', studentSchema);
 

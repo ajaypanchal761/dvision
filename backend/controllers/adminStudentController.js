@@ -123,7 +123,8 @@ exports.createStudent = asyncHandler(async (req, res) => {
     isActive,
     profileImageBase64,
     subscriptionPlanId, // regular plan
-    preparationPlanIds = [] // array of prep plan ids
+    preparationPlanIds = [], // array of prep plan ids
+    password
   } = req.body;
   
   if (!name || !phone || !studentClass || !board) {
@@ -154,6 +155,13 @@ exports.createStudent = asyncHandler(async (req, res) => {
     }
   }
   
+  // Validate password if provided
+  if (password) {
+    if (password.length < 6) {
+      throw new ErrorResponse('Password must be at least 6 characters long', 400);
+    }
+  }
+
   // Prepare student data
   const studentData = {
     name,
@@ -165,6 +173,11 @@ exports.createStudent = asyncHandler(async (req, res) => {
     isPhoneVerified: true,
     profileImage: profileImageUrl
   };
+
+  // Add password if provided (will be hashed by pre-save hook)
+  if (password) {
+    studentData.password = password;
+  }
 
   // Helper to compute end date
   const computeEndDate = (duration, validityDays = null) => {
@@ -289,7 +302,8 @@ exports.updateStudent = asyncHandler(async (req, res) => {
     profileImageBase64,
     subscriptionPlanId,
     preparationPlanIds = [],
-    removeSubscription
+    removeSubscription,
+    password
   } = req.body;
   
   let student = await Student.findById(req.params.id);
@@ -345,6 +359,14 @@ exports.updateStudent = asyncHandler(async (req, res) => {
   
   // Update isActive if provided
   if (isActive !== undefined) student.isActive = isActive;
+
+  // Update password if provided
+  if (password !== undefined && password !== null && password !== '') {
+    if (password.length < 6) {
+      throw new ErrorResponse('Password must be at least 6 characters long', 400);
+    }
+    student.password = password; // Will be hashed by pre-save hook
+  }
   
   // Handle profile image update
   if (profileImageBase64) {

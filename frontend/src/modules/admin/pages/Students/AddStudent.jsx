@@ -13,6 +13,7 @@ const AddStudent = () => {
     mobile: '',
     class: '',
     board: '',
+    password: '',
     status: 'Active',
     subscriptionStatus: 'none',
     selectedPlanId: '',
@@ -265,6 +266,13 @@ const AddStudent = () => {
         throw new Error('Please select a valid class for the selected board')
       }
 
+      // Validate password if provided
+      if (formData.password && formData.password.length < 6) {
+        setError('Password must be at least 6 characters long')
+        setIsLoading(false)
+        return
+      }
+
       // Prepare data for backend
       const studentData = {
         name: formData.name.trim(),
@@ -273,6 +281,11 @@ const AddStudent = () => {
         class: classNumber,
         board: formData.board.trim(),
         isActive: formData.status === 'Active',
+      }
+
+      // Add password if provided
+      if (formData.password) {
+        studentData.password = formData.password
       }
 
       // Add subscription plan if active subscription is selected
@@ -405,6 +418,24 @@ const AddStudent = () => {
                     placeholder="Enter email address"
                     disabled={isLoading}
                   />
+                </div>
+
+                <div>
+                  <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1.5 sm:mb-2">
+                    Password <span className="text-gray-500 text-[10px]">(Optional - min 6 characters)</span>
+                  </label>
+                  <input
+                    type="password"
+                    value={formData.password}
+                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    className="w-full px-3 sm:px-4 py-2 sm:py-2.5 md:py-3 border-2 border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-[#1e3a5f] focus:border-[#1e3a5f] outline-none transition-all duration-200 text-sm sm:text-base"
+                    placeholder="Enter password (optional)"
+                    disabled={isLoading}
+                    minLength={6}
+                  />
+                  {formData.password && formData.password.length > 0 && formData.password.length < 6 && (
+                    <p className="text-xs text-red-500 mt-1">Password must be at least 6 characters</p>
+                  )}
                 </div>
 
                 <div>

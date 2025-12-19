@@ -20,6 +20,8 @@ const RegistrationForm = () => {
     email: '',
     class: '',
     board: '',
+    password: '',
+    confirmPassword: '',
   });
   const [profilePhoto, setProfilePhoto] = useState(null);
   const [profilePhotoPreview, setProfilePhotoPreview] = useState(null);
@@ -58,6 +60,8 @@ const RegistrationForm = () => {
       email: '',
       class: '',
       board: '',
+      password: '',
+      confirmPassword: '',
     });
     setProfilePhoto(null);
     setProfilePhotoPreview(null);
@@ -250,6 +254,19 @@ const RegistrationForm = () => {
         console.warn('Could not check student existence:', checkError);
       }
 
+      // Validate password
+      if (!formData.password || formData.password.length < 6) {
+        setError('Password must be at least 6 characters long');
+        setIsLoading(false);
+        return;
+      }
+
+      if (formData.password !== formData.confirmPassword) {
+        setError('Passwords do not match');
+        setIsLoading(false);
+        return;
+      }
+
       // Register student - POST API Call (stores data and sends OTP)
       console.log('Step 2: Registering student (POST /student/register)...');
       console.log('Referral Agent ID from URL:', referralAgentId);
@@ -261,7 +278,8 @@ const RegistrationForm = () => {
         formData.class,
         formData.board,
         profilePhotoPreview, // base64 image if available
-        referralAgentId // referral agent ID from URL query parameter
+        referralAgentId, // referral agent ID from URL query parameter
+        formData.password // password
       );
       console.log('Register Result:', registerResult);
 
@@ -292,7 +310,10 @@ const RegistrationForm = () => {
       formData.mobileNumber &&
       formData.email &&
       formData.class &&
-      formData.board
+      formData.board &&
+      formData.password &&
+      formData.confirmPassword &&
+      formData.password === formData.confirmPassword
     );
   };
 
@@ -568,6 +589,41 @@ const RegistrationForm = () => {
                   </>
                 )}
               </div>
+            </div>
+
+            {/* Password */}
+            <div>
+              <label className="block text-[10px] sm:text-xs md:text-sm font-medium text-[var(--app-black)] mb-1 sm:mb-1.5 md:mb-2">
+                Password <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="password"
+                placeholder="Enter your password (min 6 characters)"
+                value={formData.password}
+                onChange={(e) => handleInputChange('password', e.target.value)}
+                className="w-full px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 rounded-lg sm:rounded-xl border-2 border-gray-300 bg-white focus:outline-none focus:border-[var(--app-dark-blue)] focus:ring-2 focus:ring-[var(--app-dark-blue)]/20 transition-all text-xs sm:text-sm md:text-base text-[var(--app-black)] placeholder:text-gray-400"
+                required
+                minLength={6}
+              />
+            </div>
+
+            {/* Confirm Password */}
+            <div>
+              <label className="block text-[10px] sm:text-xs md:text-sm font-medium text-[var(--app-black)] mb-1 sm:mb-1.5 md:mb-2">
+                Confirm Password <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="password"
+                placeholder="Confirm your password"
+                value={formData.confirmPassword}
+                onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
+                className="w-full px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 rounded-lg sm:rounded-xl border-2 border-gray-300 bg-white focus:outline-none focus:border-[var(--app-dark-blue)] focus:ring-2 focus:ring-[var(--app-dark-blue)]/20 transition-all text-xs sm:text-sm md:text-base text-[var(--app-black)] placeholder:text-gray-400"
+                required
+                minLength={6}
+              />
+              {formData.password && formData.confirmPassword && formData.password !== formData.confirmPassword && (
+                <p className="text-red-500 text-[10px] sm:text-xs mt-1">Passwords do not match</p>
+              )}
             </div>
 
             {/* Profile Photo Upload */}
