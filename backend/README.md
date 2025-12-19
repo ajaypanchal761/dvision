@@ -1035,11 +1035,6 @@ REDIS_PORT=6379
 REDIS_PASSWORD=
 
 
-# Cashfree Test Credentials (Optional - for testing)
-# TEST_CF_CLIENT_ID=your_test_client_id
-# TEST_CF_SECRET=your_test_secret_key
-# Set CF_ENV=TEST to use test credentials
-
 # Firebase
 FIREBASE_SERVER_KEY=your_firebase_server_key
 FIREBASE_PROJECT_ID=your_project_id
