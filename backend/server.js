@@ -78,21 +78,32 @@ app.use(cors({
 
 // Handle preflight OPTIONS requests explicitly
 app.options('*', cors());
-
-// ===== BODY PARSER =====
-// Note: For file uploads, multer handles the body parsing, but we still need these for other routes
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-
 // ===== WEBHOOK RAW BODY MIDDLEWARE =====
-// CRITICAL: Must come AFTER express.json() but BEFORE API routes
-// This creates a special handler for the webhook that parses raw body
+// CRITICAL: This middleware must be registered BEFORE the global body parsers
+// so that the raw request bytes are available for signature verification.
 app.post('/api/payment/webhook',
   express.raw({ type: 'application/json' }),
   (req, res, next) => {
     try {
-      req.rawBody = req.body; // Save raw body for signature verification
-      req.body = JSON.parse(req.body.toString()); // Parse for processing
+      // Save raw body for signature verification.
+      // If express.raw delivered a Buffer, keep the raw string.
+      // If it's already a string/object (fallback), handle gracefully.
+      if (Buffer.isBuffer(req.body)) {
+        req.rawBody = req.body; // Buffer
+        req.body = JSON.parse(req.body.toString('utf-8'));
+      } else if (typeof req.body === 'string') {
+        req.rawBody = Buffer.from(req.body, 'utf-8');
+        req.body = JSON.parse(req.body);
+      } else if (typeof req.body === 'object' && req.body !== null) {
+        // Fallback: already-parsed object (shouldn't happen if ordering is correct)
+        req.rawBody = Buffer.from(JSON.stringify(req.body), 'utf-8');
+        // keep req.body as-is
+      } else {
+        // Unknown body type
+        console.error('Unexpected webhook body type:', typeof req.body);
+        return res.status(400).json({ error: 'Invalid webhook body' });
+      }
+
       next();
     } catch (error) {
       console.error('Error parsing webhook body:', error);
@@ -100,6 +111,11 @@ app.post('/api/payment/webhook',
     }
   }
 );
+
+// ===== BODY PARSER =====
+// Note: For file uploads, multer handles the body parsing, but we still need these for other routes
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // ===== STATIC FILES =====
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
