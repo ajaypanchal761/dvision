@@ -1418,8 +1418,8 @@ exports.createLiveClass = asyncHandler(async (req, res) => {
   }
 
   // Convert startTime and endTime to Date objects
-  // startTime and endTime are in format "HH:MM"
-  const today = new Date();
+  // startTime and endTime are in format "HH:MM" (assumed to be in IST - UTC+5:30)
+  // We need to convert IST time to UTC for storage
   const [startHours, startMinutes] = startTime.split(':').map(Number);
   const [endHours, endMinutes] = endTime.split(':').map(Number);
   
@@ -1428,15 +1428,30 @@ exports.createLiveClass = asyncHandler(async (req, res) => {
     throw new ErrorResponse('Invalid time format. Please use HH:MM format', 400);
   }
   
-  const scheduledStartTime = new Date(today);
-  scheduledStartTime.setHours(startHours, startMinutes, 0, 0);
+  // Get current date in IST to determine which day the class is scheduled for
+  const now = new Date();
+  const istOffsetMs = 5.5 * 60 * 60 * 1000; // IST is UTC+5:30 = 19800000 ms
+  const istNow = new Date(now.getTime() + istOffsetMs);
   
-  const scheduledEndTime = new Date(today);
-  scheduledEndTime.setHours(endHours, endMinutes, 0, 0);
+  // Get today's date components in IST
+  const year = istNow.getUTCFullYear();
+  const month = istNow.getUTCMonth();
+  const day = istNow.getUTCDate();
+  
+  // Create scheduledStartTime: interpret input time as IST, convert to UTC
+  // Example: 17:00 IST = 11:30 UTC (17:00 - 5:30)
+  // Create date in IST timezone first, then subtract offset to get UTC
+  const scheduledStartTimeIST = new Date(Date.UTC(year, month, day, startHours, startMinutes, 0, 0));
+  const scheduledStartTime = new Date(scheduledStartTimeIST.getTime() - istOffsetMs);
+  
+  // Create scheduledEndTime: interpret input time as IST, convert to UTC
+  const scheduledEndTimeIST = new Date(Date.UTC(year, month, day, endHours, endMinutes, 0, 0));
+  let scheduledEndTime = new Date(scheduledEndTimeIST.getTime() - istOffsetMs);
 
   // If end time is before or equal to start time, assume it's next day
   if (scheduledEndTime <= scheduledStartTime) {
-    scheduledEndTime.setDate(scheduledEndTime.getDate() + 1);
+    const nextDayIST = new Date(Date.UTC(year, month, day + 1, endHours, endMinutes, 0, 0));
+    scheduledEndTime = new Date(nextDayIST.getTime() - istOffsetMs);
   }
 
   // Verify teacher is assigned to this class and subject combination
