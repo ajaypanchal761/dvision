@@ -30,6 +30,7 @@ const {
 } = require('../controllers/adminTeacherController');
 const {
   getAllClasses,
+  getAllClassesWithoutPagination,
   getClass,
   getClassStatistics,
   createClass,
@@ -108,6 +109,7 @@ router.get('/teachers/:id/attendance', protect, authorize('admin', 'super_admin'
 
 // Admin Class Management Routes
 router.get('/classes/statistics', protect, authorize('admin', 'super_admin'), getClassStatistics);
+router.get('/classes/all', protect, authorize('admin', 'super_admin'), getAllClassesWithoutPagination);
 router.get('/classes', protect, authorize('admin', 'super_admin'), getAllClasses);
 router.get('/classes/:id', protect, authorize('admin', 'super_admin'), getClass);
 router.post('/classes', protect, authorize('admin', 'super_admin'), createClass);

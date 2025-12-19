@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { 
   FiType, 
   FiBook, 
@@ -22,14 +22,18 @@ import { liveClassAPI } from '../services/api';
  */
 const CreateLiveClass = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  
+  // Check if prefill data is passed from notification
+  const prefillData = location.state?.prefillData || null;
   
   const [formData, setFormData] = useState({
-    classId: '',
-    subjectId: '',
-    title: '',
-    description: '',
-    startTime: '',
-    endTime: '',
+    classId: prefillData?.classId || '',
+    subjectId: prefillData?.subjectId || '',
+    title: prefillData?.title || '',
+    description: prefillData?.description || '',
+    startTime: prefillData?.startTime || '',
+    endTime: prefillData?.endTime || '',
   });
   
   const [assignedOptions, setAssignedOptions] = useState({
@@ -72,6 +76,36 @@ const CreateLiveClass = () => {
     fetchAssignedOptions();
   }, []);
 
+  // Track if prefill data has been applied
+  const [prefillApplied, setPrefillApplied] = useState(false);
+
+  // Update form data when prefill data is available and options are loaded
+  useEffect(() => {
+    if (prefillData && !prefillApplied && assignedOptions.classes.length > 0 && assignedOptions.subjects.length > 0) {
+      // Verify that the pre-filled classId and subjectId exist in assigned options
+      const classExists = assignedOptions.classes.some(
+        cls => (cls._id?.toString() || cls._id) === (prefillData.classId?.toString() || prefillData.classId)
+      );
+      const subjectExists = assignedOptions.subjects.some(
+        sub => (sub._id?.toString() || sub._id) === (prefillData.subjectId?.toString() || prefillData.subjectId)
+      );
+
+      if (classExists && subjectExists) {
+        setFormData(prev => ({
+          ...prev,
+          classId: prefillData.classId?.toString() || prefillData.classId,
+          subjectId: prefillData.subjectId?.toString() || prefillData.subjectId,
+          title: prefillData.title || prev.title,
+          description: prefillData.description || prev.description,
+          startTime: prefillData.startTime || prev.startTime,
+          endTime: prefillData.endTime || prev.endTime,
+        }));
+        setPrefillApplied(true);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prefillData, assignedOptions.classes.length, assignedOptions.subjects.length]);
+
   // Filter subjects based on selected class
   useEffect(() => {
     if (formData.classId && assignedOptions.classSubjectCombinations) {
@@ -85,14 +119,22 @@ const CreateLiveClass = () => {
       });
       
       setFilteredSubjects(validSubjects);
+      
+      // Reset subject if class changes (but not if we just applied prefill data)
+      if (!prefillApplied) {
+        const prevClassId = formData.classId;
+        // Only reset if this is a user-initiated change, not initial load
+        setFormData(prev => {
+          if (prev.classId && prev.classId !== prevClassId && prev.subjectId) {
+            return { ...prev, subjectId: '' };
+          }
+          return prev;
+        });
+      }
     } else {
       setFilteredSubjects([]);
     }
-    
-    // Reset subject if class changes
-    if (formData.classId) {
-      setFormData(prev => ({ ...prev, subjectId: '' }));
-    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [formData.classId, assignedOptions.classSubjectCombinations, assignedOptions.subjects]);
 
   const handleInputChange = (field, value) => {

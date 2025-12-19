@@ -3,6 +3,8 @@ const axios = require('axios');
 // Cashfree API configuration (Test + Live using CF_ENV)
 // CF_ENV: 'TEST' or 'PROD'
 // Default: PROD (Production mode)
+// 
+
 const getCashfreeConfig = () => {
   let env = process.env.CF_ENV || 'PROD'; // Default to PROD (Production)
   let isProd = env === 'PROD';
@@ -13,7 +15,7 @@ const getCashfreeConfig = () => {
 
   // Safety: if env is PROD but credentials look like TEST, fall back to TEST mode
   if (isProd && clientId && clientId.startsWith('TEST')) {
-    console.warn('Cashfree credentials look like TEST in PROD env. Falling back to TEST mode.');
+    console.warn('⚠️  Cashfree credentials look like TEST in PROD env. Falling back to TEST mode.');
     env = 'TEST';
     isProd = false;
     clientId = process.env.TEST_CF_CLIENT_ID || clientId;
@@ -23,13 +25,23 @@ const getCashfreeConfig = () => {
   const environment = env;
 
   if (!clientId || !secretKey) {
-    console.warn('Warning: Cashfree credentials not found in environment variables. Payment features will not work.');
+    console.error('❌ ERROR: Cashfree credentials not found in environment variables.');
+    console.error('   Required for PROD: CF_CLIENT_ID, CF_SECRET, CF_ENV=PROD');
+    console.error('   Required for TEST: TEST_CF_CLIENT_ID, TEST_CF_SECRET, CF_ENV=TEST');
+    console.error('   Payment features will not work without valid credentials.');
     return null;
   }
 
   const baseURL = environment === 'PROD'
     ? 'https://api.cashfree.com/pg'
     : 'https://sandbox.cashfree.com/pg';
+
+  // Log configuration status (without exposing full credentials)
+  console.log('✅ Cashfree Configuration Loaded:');
+  console.log(`   Environment: ${environment}`);
+  console.log(`   Client ID: ${clientId.substring(0, 8)}...${clientId.substring(clientId.length - 4)}`);
+  console.log(`   Secret Key: ${secretKey.substring(0, 10)}...${secretKey.substring(secretKey.length - 4)}`);
+  console.log(`   Base URL: ${baseURL}`);
 
   return {
     clientId,

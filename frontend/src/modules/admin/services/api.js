@@ -490,7 +490,14 @@ export const classAPI = {
       method: 'GET',
     });
   },
-  // Get all classes
+  // Get all classes without pagination (for dropdowns and filters)
+  getAllWithoutPagination: async (params = {}) => {
+    const queryString = new URLSearchParams(params).toString();
+    return apiRequest(`/admin/classes/all${queryString ? `?${queryString}` : ''}`, {
+      method: 'GET',
+    });
+  },
+  // Get all classes (with pagination)
   getAll: async (params = {}) => {
     const queryString = new URLSearchParams(params).toString();
     return apiRequest(`/admin/classes${queryString ? `?${queryString}` : ''}`, {

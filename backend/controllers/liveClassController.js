@@ -1283,9 +1283,16 @@ exports.getUpcomingLiveClasses = asyncHandler(async (req, res) => {
     .sort({ scheduledStartTime: -1 }) // Latest first (descending order)
     .limit(10); // Limit to 10 upcoming classes
 
-  // Format the response - send raw scheduledStartTime, let frontend format it
+  // Format the response - send raw scheduledStartTime and scheduledEndTime, let frontend format it
   // This ensures timezone is handled correctly on client side
   const formattedClasses = liveClasses.map(liveClass => {
+    // Calculate end time: use scheduledEndTime if available, otherwise calculate from scheduledStartTime + duration
+    let scheduledEndTime = liveClass.scheduledEndTime;
+    if (!scheduledEndTime && liveClass.duration && liveClass.duration > 0) {
+      scheduledEndTime = new Date(liveClass.scheduledStartTime);
+      scheduledEndTime.setMinutes(scheduledEndTime.getMinutes() + liveClass.duration);
+    }
+    
     return {
       _id: liveClass._id,
       id: liveClass._id.toString(),
@@ -1295,7 +1302,8 @@ exports.getUpcomingLiveClasses = asyncHandler(async (req, res) => {
       subject: liveClass.subjectId?.name || 'Subject',
       subjectId: liveClass.subjectId?._id || liveClass.subjectId,
       image: null, // No image in live class model
-      scheduledStartTime: liveClass.scheduledStartTime // Send raw date, format on frontend
+      scheduledStartTime: liveClass.scheduledStartTime, // Send raw date, format on frontend
+      scheduledEndTime: scheduledEndTime || null // Send raw date, format on frontend
     };
   });
 
@@ -1487,38 +1495,188 @@ exports.createLiveClass = asyncHandler(async (req, res) => {
 
   await liveClass.save();
 
-  // Get enrolled students for this class
-  const students = await Student.find({
-    class: classItem.class,
-    board: classItem.board,
-    isActive: true,
-    'subscription.status': 'active'
+  // Get teacher name for notification
+  const teacher = await Teacher.findById(req.user._id).select('name');
+  const teacherName = teacher?.name || 'Teacher';
+
+  // Format start time for notification
+  const startTimeFormatted = scheduledStartTime.toLocaleTimeString('en-IN', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true
+  });
+
+  // Get enrolled students for this class based on class type
+  const Payment = require('../models/Payment');
+  const now = new Date();
+  let students = [];
+
+  if (classItem.type === 'regular') {
+    // For regular classes: find students by class and board with active subscriptions
+    // First, get all active payments
+    const activePayments = await Payment.find({
+      status: 'completed',
+      subscriptionEndDate: { $gte: now }
+    })
+      .populate({
+        path: 'subscriptionPlanId',
+        select: 'type board classes'
+      })
+      .populate({
+        path: 'studentId',
+        select: '_id name fcmToken fcmTokens isActive class board'
+      });
+
+    // Filter payments for regular plans matching this class and board
+    const validPayments = activePayments.filter(payment => {
+      if (!payment.subscriptionPlanId || !payment.studentId) return false;
+      const plan = payment.subscriptionPlanId;
+      const student = payment.studentId;
+      
+      return plan.type === 'regular' &&
+             plan.board === classItem.board &&
+             plan.classes && plan.classes.includes(classItem.class) &&
+             student.isActive &&
+             student.class === classItem.class &&
+             student.board === classItem.board;
+    });
+
+    // Get unique student IDs from payments
+    const studentIdsFromPayments = [...new Set(validPayments.map(p => p.studentId._id.toString()))];
+    
+    // Also check activeSubscriptions array on Student model
+    const studentsWithActiveSubs = await Student.find({
+      isActive: true,
+      class: classItem.class,
+      board: classItem.board,
+      'activeSubscriptions.type': 'regular',
+      'activeSubscriptions.board': classItem.board,
+      'activeSubscriptions.class': classItem.class,
+      'activeSubscriptions.endDate': { $gte: now }
+    }).select('_id');
+    const activeSubStudentIds = studentsWithActiveSubs.map(s => s._id.toString());
+    
+    // Combine both sources
+    const allStudentIds = [...new Set([...studentIdsFromPayments, ...activeSubStudentIds])];
+    
+    if (allStudentIds.length > 0) {
+      // Get students with FCM tokens
+      students = await Student.find({
+        _id: { $in: allStudentIds },
+        isActive: true,
+        $or: [
+          { 'fcmTokens.app': { $exists: true, $ne: null } },
+          { 'fcmTokens.web': { $exists: true, $ne: null } },
+          { fcmToken: { $exists: true, $ne: null } }
+        ]
+      });
+    }
+  } else if (classItem.type === 'preparation') {
+    // For preparation classes: find students with active subscriptions to this class
+    const activePayments = await Payment.find({
+      status: 'completed',
+      subscriptionEndDate: { $gte: now }
+    })
+      .populate({
+        path: 'subscriptionPlanId',
+        select: 'type classId',
+        populate: {
+          path: 'classId',
+          select: '_id'
+        }
+      })
+      .populate({
+        path: 'studentId',
+        select: '_id name fcmToken fcmTokens isActive'
+      });
+
+    // Filter valid payments for this preparation class
+    const validPayments = activePayments.filter(payment => {
+      if (!payment.subscriptionPlanId || !payment.studentId) return false;
+      const plan = payment.subscriptionPlanId;
+      
+      return plan.type === 'preparation' &&
+             plan.classId &&
+             plan.classId._id.toString() === classItem._id.toString() &&
+             payment.studentId.isActive;
+    });
+    
+    const studentIds = [...new Set(validPayments.map(p => p.studentId._id.toString()))];
+    
+    // Also check activeSubscriptions array
+    const studentsWithActiveSubs = await Student.find({
+      isActive: true,
+      'activeSubscriptions.classId': classItem._id,
+      'activeSubscriptions.endDate': { $gte: now }
+    }).select('_id');
+    const activeSubStudentIds = studentsWithActiveSubs.map(s => s._id.toString());
+    
+    // Combine both sources
+    const allStudentIds = [...new Set([...studentIds, ...activeSubStudentIds])];
+    
+    if (allStudentIds.length > 0) {
+      students = await Student.find({
+        _id: { $in: allStudentIds },
+        isActive: true,
+        $or: [
+          { 'fcmTokens.app': { $exists: true, $ne: null } },
+          { 'fcmTokens.web': { $exists: true, $ne: null } },
+          { fcmToken: { $exists: true, $ne: null } }
+        ]
+      });
+    }
+  }
+
+  // Log for debugging
+  console.log('[createLiveClass] Found students for notification:', {
+    classType: classItem.type,
+    classId: classItem._id.toString(),
+    className: classItem.name || `Class ${classItem.class}`,
+    studentCount: students.length,
+    studentIds: students.map(s => s._id.toString())
   });
 
   // Send notifications to students
   if (students.length > 0) {
-    const notificationTitle = 'New Live Class Available!';
-    const notificationBody = `${subject.name} live class is available. Join now!`;
+    const notificationTitle = 'New Live Class Scheduled!';
+    const notificationBody = `${subject.name} class by ${teacherName} starts at ${startTimeFormatted}`;
     const notificationData = {
       type: 'live_class_created',
       liveClassId: liveClass._id.toString(),
+      subject: subject.name,
+      teacherName: teacherName,
+      startTime: scheduledStartTime.toISOString(),
       url: '/live-classes'
     };
 
-    for (const student of students) {
-      if (student.fcmToken) {
-        try {
-          await notificationService.sendToUser(
-            student._id.toString(),
-            'student',
-            { title: notificationTitle, body: notificationBody },
-            notificationData
-          );
-        } catch (err) {
-          console.error(`Error sending notification to student ${student._id}:`, err);
-        }
-      }
+    const studentIds = students.map(s => s._id.toString());
+    console.log('[createLiveClass] Sending notifications to students:', {
+      count: studentIds.length,
+      studentIds: studentIds
+    });
+    
+    try {
+      const result = await notificationService.sendToMultipleUsers(
+        studentIds,
+        'student',
+        { title: notificationTitle, body: notificationBody },
+        notificationData
+      );
+      console.log('[createLiveClass] Notification send result:', {
+        success: result.success,
+        successCount: result.successCount,
+        failureCount: result.failureCount,
+        totalSaved: result.totalSaved
+      });
+    } catch (err) {
+      console.error('[createLiveClass] Error sending notifications to students:', err);
     }
+  } else {
+    console.log('[createLiveClass] No students found to notify for class:', {
+      classType: classItem.type,
+      classId: classItem._id.toString(),
+      className: classItem.name || `Class ${classItem.class}`
+    });
   }
 
   // Populate and return
@@ -1565,6 +1723,7 @@ exports.startLiveClass = asyncHandler(async (req, res) => {
   // Update status
   liveClass.status = 'live';
   liveClass.actualStartTime = new Date();
+  const actualStartTime = liveClass.actualStartTime;
 
   console.log('[LiveClass] startLiveClass', {
     liveClassId: liveClass._id.toString(),
@@ -1581,6 +1740,165 @@ exports.startLiveClass = asyncHandler(async (req, res) => {
   }
 
   await liveClass.save();
+
+  // Send notifications to students when teacher starts the class
+  try {
+    const Payment = require('../models/Payment');
+    const now = new Date();
+    const classItem = liveClass.classId;
+    const subject = liveClass.subjectId;
+    const teacher = liveClass.teacherId;
+    const teacherName = teacher?.name || 'Teacher';
+    const subjectName = subject?.name || 'Subject';
+
+    // Format actual start time for notification
+    const startTimeFormatted = actualStartTime.toLocaleTimeString('en-IN', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true
+    });
+
+    let students = [];
+
+    if (classItem.type === 'regular') {
+      // For regular classes: find students by class and board with active subscriptions
+      const activePayments = await Payment.find({
+        status: 'completed',
+        subscriptionEndDate: { $gte: now }
+      })
+        .populate({
+          path: 'subscriptionPlanId',
+          select: 'type board classes'
+        })
+        .populate({
+          path: 'studentId',
+          select: '_id name fcmToken fcmTokens isActive class board'
+        });
+
+      // Filter payments for regular plans matching this class and board
+      const validPayments = activePayments.filter(payment => {
+        if (!payment.subscriptionPlanId || !payment.studentId) return false;
+        const plan = payment.subscriptionPlanId;
+        const student = payment.studentId;
+        
+        return plan.type === 'regular' &&
+               plan.board === classItem.board &&
+               plan.classes && plan.classes.includes(classItem.class) &&
+               student.isActive &&
+               student.class === classItem.class &&
+               student.board === classItem.board;
+      });
+
+      // Get unique student IDs from payments
+      const studentIdsFromPayments = [...new Set(validPayments.map(p => p.studentId._id.toString()))];
+      
+      // Also check activeSubscriptions array on Student model
+      const studentsWithActiveSubs = await Student.find({
+        isActive: true,
+        class: classItem.class,
+        board: classItem.board,
+        'activeSubscriptions.type': 'regular',
+        'activeSubscriptions.board': classItem.board,
+        'activeSubscriptions.class': classItem.class,
+        'activeSubscriptions.endDate': { $gte: now }
+      }).select('_id');
+      const activeSubStudentIds = studentsWithActiveSubs.map(s => s._id.toString());
+      
+      // Combine both sources
+      const allStudentIds = [...new Set([...studentIdsFromPayments, ...activeSubStudentIds])];
+      
+      if (allStudentIds.length > 0) {
+        students = await Student.find({
+          _id: { $in: allStudentIds },
+          isActive: true,
+          $or: [
+            { 'fcmTokens.app': { $exists: true, $ne: null } },
+            { 'fcmTokens.web': { $exists: true, $ne: null } },
+            { fcmToken: { $exists: true, $ne: null } }
+          ]
+        });
+      }
+    } else if (classItem.type === 'preparation') {
+      // For preparation classes: find students with active subscriptions to this class
+      const activePayments = await Payment.find({
+        status: 'completed',
+        subscriptionEndDate: { $gte: now }
+      })
+        .populate({
+          path: 'subscriptionPlanId',
+          select: 'type classId',
+          populate: {
+            path: 'classId',
+            select: '_id'
+          }
+        })
+        .populate({
+          path: 'studentId',
+          select: '_id name fcmToken fcmTokens isActive'
+        });
+
+      // Filter valid payments for this preparation class
+      const validPayments = activePayments.filter(payment => {
+        if (!payment.subscriptionPlanId || !payment.studentId) return false;
+        const plan = payment.subscriptionPlanId;
+        
+        return plan.type === 'preparation' &&
+               plan.classId &&
+               plan.classId._id.toString() === classItem._id.toString() &&
+               payment.studentId.isActive;
+      });
+      
+      const studentIds = [...new Set(validPayments.map(p => p.studentId._id.toString()))];
+      
+      // Also check activeSubscriptions array
+      const studentsWithActiveSubs = await Student.find({
+        isActive: true,
+        'activeSubscriptions.classId': classItem._id,
+        'activeSubscriptions.endDate': { $gte: now }
+      }).select('_id');
+      const activeSubStudentIds = studentsWithActiveSubs.map(s => s._id.toString());
+      
+      // Combine both sources
+      const allStudentIds = [...new Set([...studentIds, ...activeSubStudentIds])];
+      
+      if (allStudentIds.length > 0) {
+        students = await Student.find({
+          _id: { $in: allStudentIds },
+          isActive: true,
+          $or: [
+            { 'fcmTokens.app': { $exists: true, $ne: null } },
+            { 'fcmTokens.web': { $exists: true, $ne: null } },
+            { fcmToken: { $exists: true, $ne: null } }
+          ]
+        });
+      }
+    }
+
+    // Send notifications to students
+    if (students.length > 0) {
+      const notificationTitle = 'Live Class Started!';
+      const notificationBody = `${subjectName} class by ${teacherName} has started at ${startTimeFormatted}. Join now!`;
+      const notificationData = {
+        type: 'live_class_started',
+        liveClassId: liveClass._id.toString(),
+        subject: subjectName,
+        teacherName: teacherName,
+        actualStartTime: actualStartTime.toISOString(),
+        url: `/live-class/${liveClass._id.toString()}`
+      };
+
+      const studentIds = students.map(s => s._id.toString());
+      await notificationService.sendToMultipleUsers(
+        studentIds,
+        'student',
+        { title: notificationTitle, body: notificationBody },
+        notificationData
+      );
+    }
+  } catch (notificationError) {
+    // Log error but don't fail the request
+    console.error('Error sending notifications when class started:', notificationError);
+  }
 
   // Generate Agora token for teacher (use userId as UID)
   const { RtcRole } = require('agora-token');

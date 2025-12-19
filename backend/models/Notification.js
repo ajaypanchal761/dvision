@@ -9,7 +9,7 @@ const notificationSchema = new mongoose.Schema(
     },
     userType: {
       type: String,
-      enum: ['student', 'teacher', 'admin'],
+      enum: ['student', 'teacher', 'admin', 'agent'],
       required: [true, 'User type is required']
     },
     title: {
@@ -45,7 +45,14 @@ const notificationSchema = new mongoose.Schema(
         'test',
         'live_class',
         'live_class_created',
+        'live_class_started',
+        'timetable_class_reminder',
         'subscription_expiry',
+        'subscription_expired',
+        'subscription_purchased',
+        'new_subscription',
+        'student_registered',
+        'student_subscribed',
         'doubt',
         'doubt_answer',
         'general'

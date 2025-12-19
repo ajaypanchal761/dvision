@@ -313,8 +313,20 @@ exports.createOrder = asyncHandler(async (req, res, next) => {
   const orderId = `order_${studentIdShort}_${timestamp}`;
 
   // Get return URL (frontend URL)
+  // For localhost testing, use localhost URL; for production, use production domain
+  const isLocalhost = !process.env.FRONTEND_URL || process.env.FRONTEND_URL.includes('localhost');
   const returnUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
   const notifyUrl = `${process.env.BACKEND_URL || 'http://localhost:5000'}/api/payment/webhook`;
+
+  // Warn if using localhost with production Cashfree
+  if (isLocalhost && cashfreeConfig.environment === 'PROD') {
+    console.warn('⚠️  WARNING: Using localhost with Cashfree PROD mode.');
+    console.warn('   Localhost is not whitelisted in Cashfree production.');
+    console.warn('   Solutions:');
+    console.warn('   1. Use TEST mode for local testing: Set CF_ENV=TEST in .env');
+    console.warn('   2. Whitelist localhost in Cashfree dashboard (not recommended)');
+    console.warn('   3. Test from production domain: https://dvisionacademy.com');
+  }
 
   console.log('=== BUILDING ORDER DATA ===');
   console.log('Order ID:', orderId);
@@ -521,7 +533,7 @@ exports.verifyPayment = asyncHandler(async (req, res, next) => {
 
       if (!existingReferral) {
         // Create referral record
-        await ReferralRecord.create({
+        const referralRecord = await ReferralRecord.create({
           agentId: student.referralAgentId,
           studentId: student._id,
           paymentId: payment._id,
@@ -530,6 +542,40 @@ exports.verifyPayment = asyncHandler(async (req, res, next) => {
           subscriptionDate: startDate,
           status: 'completed'
         });
+
+        // Send notification to agent about student subscription
+        try {
+          const Agent = require('../models/Agent');
+          const agent = await Agent.findById(student.referralAgentId);
+
+          if (agent && agent.isActive) {
+            const notificationService = require('../services/notificationService');
+            const notificationTitle = 'Student Subscribed!';
+            const notificationBody = `${student.name || 'A student'} has subscribed to ${plan.name} (₹${payment.amount})`;
+            const notificationData = {
+              type: 'student_subscribed',
+              studentId: student._id.toString(),
+              studentName: student.name || 'Student',
+              paymentId: payment._id.toString(),
+              planId: plan._id.toString(),
+              planName: plan.name,
+              amount: payment.amount,
+              referralRecordId: referralRecord._id.toString(),
+              url: '/agent/referrals'
+            };
+
+            await notificationService.sendToUser(
+              agent._id.toString(),
+              'agent',
+              { title: notificationTitle, body: notificationBody },
+              notificationData
+            );
+            console.log(`✓ Notification sent to agent ${agent.name} for student subscription`);
+          }
+        } catch (notificationError) {
+          console.error('Error sending notification to agent:', notificationError);
+          // Don't fail the payment if notification fails
+        }
       }
 
       // Update payment with referralAgentId
@@ -569,6 +615,74 @@ exports.verifyPayment = asyncHandler(async (req, res, next) => {
     };
 
     await student.save();
+
+    // Send notification to student about successful subscription purchase
+    try {
+      const notificationService = require('../services/notificationService');
+      const planName = plan.name || 'Subscription Plan';
+      const notificationTitle = 'Subscription Activated!';
+      const notificationBody = `Your subscription for ${planName} has been activated successfully.`;
+      const notificationData = {
+        type: 'subscription_purchased',
+        paymentId: payment._id.toString(),
+        planId: plan._id.toString(),
+        planName: planName,
+        url: '/subscriptions'
+      };
+
+      await notificationService.sendToUser(
+        studentId.toString(),
+        'student',
+        { title: notificationTitle, body: notificationBody },
+        notificationData
+      );
+    } catch (notificationError) {
+      console.error('Error sending notification to student:', notificationError);
+      // Don't fail the request if notification fails
+    }
+
+    // Send notification to all admins about new subscription purchase
+    try {
+      const Admin = require('../models/Admin');
+      const notificationService = require('../services/notificationService');
+
+      const admins = await Admin.find({
+        isActive: true,
+        $or: [
+          { 'fcmTokens.app': { $exists: true, $ne: null } },
+          { 'fcmTokens.web': { $exists: true, $ne: null } },
+          { fcmToken: { $exists: true, $ne: null } }
+        ]
+      }).select('_id');
+
+      if (admins.length > 0) {
+        const studentName = student.name || 'A student';
+        const planName = plan.name || 'Subscription Plan';
+        const notificationTitle = 'New Subscription Purchase';
+        const notificationBody = `${studentName} has purchased ${planName} subscription.`;
+        const notificationData = {
+          type: 'new_subscription',
+          studentId: studentId.toString(),
+          studentName: studentName,
+          paymentId: payment._id.toString(),
+          planId: plan._id.toString(),
+          planName: planName,
+          amount: payment.amount,
+          url: '/admin/payments'
+        };
+
+        const adminIds = admins.map(a => a._id.toString());
+        await notificationService.sendToMultipleUsers(
+          adminIds,
+          'admin',
+          { title: notificationTitle, body: notificationBody },
+          notificationData
+        );
+      }
+    } catch (adminNotificationError) {
+      console.error('Error sending notification to admins:', adminNotificationError);
+      // Don't fail the request if notification fails
+    }
 
     res.status(200).json({
       success: true,

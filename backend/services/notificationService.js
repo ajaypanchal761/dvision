@@ -43,6 +43,14 @@ class NotificationService {
         throw new Error('Firebase Admin not initialized');
       }
       
+      // Convert all data values to strings (FCM requirement)
+      const stringifiedData = {};
+      for (const [key, value] of Object.entries(data)) {
+        if (value !== null && value !== undefined) {
+          stringifiedData[key] = typeof value === 'string' ? value : JSON.stringify(value);
+        }
+      }
+
       const message = {
         token: fcmToken,
         notification: {
@@ -50,7 +58,7 @@ class NotificationService {
           body: notification.body || '',
         },
         data: {
-          ...data,
+          ...stringifiedData,
           click_action: 'FLUTTER_NOTIFICATION_CLICK',
         },
         android: {
@@ -79,7 +87,20 @@ class NotificationService {
         },
       };
 
+      console.log('[FCM] Sending notification to token:', {
+        token: fcmToken.substring(0, 20) + '...',
+        title: notification.title,
+        body: notification.body,
+        dataKeys: Object.keys(stringifiedData)
+      });
+
       const response = await admin.messaging().send(message);
+      
+      console.log('[FCM] Notification sent successfully:', {
+        messageId: response,
+        token: fcmToken.substring(0, 20) + '...'
+      });
+
       return {
         success: true,
         messageId: response,
@@ -126,13 +147,21 @@ class NotificationService {
         };
       }
 
+      // Convert all data values to strings (FCM requirement)
+      const stringifiedData = {};
+      for (const [key, value] of Object.entries(data)) {
+        if (value !== null && value !== undefined) {
+          stringifiedData[key] = typeof value === 'string' ? value : JSON.stringify(value);
+        }
+      }
+
       const message = {
         notification: {
           title: notification.title || 'Dvision Academy',
           body: notification.body || '',
         },
         data: {
-          ...data,
+          ...stringifiedData,
           click_action: 'FLUTTER_NOTIFICATION_CLICK',
         },
         android: {
@@ -162,7 +191,32 @@ class NotificationService {
         tokens: validTokens,
       };
 
+      console.log('[FCM] Sending multicast notification:', {
+        tokenCount: validTokens.length,
+        title: notification.title,
+        body: notification.body,
+        dataKeys: Object.keys(stringifiedData)
+      });
+
       const response = await admin.messaging().sendEachForMulticast(message);
+      
+      console.log('[FCM] Multicast notification result:', {
+        successCount: response.successCount,
+        failureCount: response.failureCount,
+        totalTokens: validTokens.length
+      });
+
+      // Log failures if any
+      if (response.failureCount > 0) {
+        response.responses.forEach((resp, index) => {
+          if (!resp.success) {
+            console.error('[FCM] Failed to send to token:', {
+              token: validTokens[index].substring(0, 20) + '...',
+              error: resp.error?.code || resp.error?.message || 'Unknown error'
+            });
+          }
+        });
+      }
       
       return {
         success: true,
@@ -197,6 +251,9 @@ class NotificationService {
         user = await Teacher.findById(userId);
       } else if (userType === 'admin') {
         user = await Admin.findById(userId);
+      } else if (userType === 'agent') {
+        const Agent = require('../models/Agent');
+        user = await Agent.findById(userId);
       } else {
         console.error('[ERROR] Invalid user type:', userType);
         throw new Error('Invalid user type');
@@ -219,7 +276,8 @@ class NotificationService {
         hasAppToken: !!(user.fcmTokens?.app),
         hasWebToken: !!(user.fcmTokens?.web),
         tokenCount: fcmTokens.length,
-        isActive: user.isActive 
+        isActive: user.isActive,
+        tokens: fcmTokens.map(t => t.substring(0, 20) + '...')
       });
 
       if (fcmTokens.length === 0) {
@@ -246,16 +304,42 @@ class NotificationService {
 
       // Send to all tokens (app + web)
       let lastResult = null;
+      let successCount = 0;
+      let failureCount = 0;
+      
       for (const token of fcmTokens) {
         console.log('[DEBUG] Sending FCM notification to token:', token.substring(0, 20) + '...');
-        lastResult = await this.sendToToken(token, notification, data);
-        console.log('[DEBUG] FCM send result:', { success: lastResult.success, messageId: lastResult.messageId });
+        try {
+          lastResult = await this.sendToToken(token, notification, data);
+          if (lastResult.success) {
+            successCount++;
+            console.log('[DEBUG] FCM send result: SUCCESS', { messageId: lastResult.messageId });
+          } else {
+            failureCount++;
+            console.error('[DEBUG] FCM send result: FAILED', { error: lastResult.error, code: lastResult.code });
+          }
+        } catch (err) {
+          failureCount++;
+          console.error('[DEBUG] FCM send exception:', err.message || err);
+          lastResult = { success: false, error: err.message };
+        }
       }
       
-      const result = lastResult || { success: false };
+      console.log('[DEBUG] FCM send summary:', { 
+        totalTokens: fcmTokens.length, 
+        successCount, 
+        failureCount 
+      });
       
-      // Save notification to database if sent successfully
-      if (result.success) {
+      const result = { 
+        success: successCount > 0, 
+        successCount: successCount,
+        failureCount: failureCount,
+        messageId: lastResult?.messageId || null
+      };
+      
+      // Save notification to database if at least one token was sent successfully
+      if (successCount > 0) {
         try {
           const savedNotification = await Notification.create({
             userId: user._id,
@@ -264,14 +348,14 @@ class NotificationService {
             body: notification.body || '',
             data: data || {},
             type: data.type || 'general',
-            fcmMessageId: result.messageId
+            fcmMessageId: lastResult?.messageId || null
           });
           console.log('[DEBUG] Notification saved to database:', { notificationId: savedNotification._id, userId: savedNotification.userId.toString(), userType: savedNotification.userType });
         } catch (dbError) {
           console.error('[ERROR] Failed to save notification to database:', dbError);
         }
       } else {
-        console.warn('[WARN] FCM send failed, not saving to database');
+        console.warn('[WARN] FCM send failed for all tokens, not saving to database');
       }
 
       return result;
@@ -299,6 +383,9 @@ class NotificationService {
         UserModel = Teacher;
       } else if (userType === 'admin') {
         UserModel = Admin;
+      } else if (userType === 'agent') {
+        const Agent = require('../models/Agent');
+        UserModel = Agent;
       } else {
         throw new Error('Invalid user type');
       }

@@ -1,16 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiArrowLeft, FiBell, FiTrash2, FiRefreshCw, FiCheck, FiCheckSquare, FiSquare } from 'react-icons/fi';
+import { FiArrowLeft, FiBell, FiTrash2, FiRefreshCw, FiCheck, FiCheckSquare, FiSquare, FiUser, FiDollarSign } from 'react-icons/fi';
 import { ROUTES } from '../constants/routes';
 import { notificationAPI } from '../services/api';
 import BottomNav from '../components/common/BottomNav';
 
 /**
- * Notifications Page
- * Shows user notifications with select and delete functionality
- * Redesigned with new theme
+ * Agent Notifications Page
+ * Shows agent notifications with select and delete functionality
+ * Similar to teacher notifications but with agent-specific styling
  */
-const Notifications = () => {
+const AgentNotifications = () => {
   const navigate = useNavigate();
   const [notifications, setNotifications] = useState([]);
   const [selectedIds, setSelectedIds] = useState([]);
@@ -119,36 +119,6 @@ const Notifications = () => {
     setSelectedIds([]);
   };
 
-  const handleNotificationClick = (notification) => {
-    // Don't navigate if in selection mode
-    if (isSelectionMode) return;
-
-    // Handle timetable class reminder notifications
-    if (notification.type === 'timetable_class_reminder' && notification.data) {
-      const { classId, subjectId, startTime, endTime, topic, className, subjectName } = notification.data;
-      
-      // Navigate to create live class page with pre-filled data
-      navigate('/teacher/create-live-class', {
-        state: {
-          prefillData: {
-            classId: classId,
-            subjectId: subjectId,
-            startTime: startTime,
-            endTime: endTime,
-            title: topic || `${subjectName || 'Class'} - ${className || ''}`,
-            description: `Live class for ${subjectName || 'Subject'} - ${className || 'Class'}`
-          }
-        }
-      });
-      return;
-    }
-
-    // Handle other notification types with URL
-    if (notification.data?.url) {
-      navigate(notification.data.url);
-    }
-  };
-
   const confirmDeleteAll = async () => {
     try {
       setIsDeleting(true);
@@ -168,6 +138,28 @@ const Notifications = () => {
     }
   };
 
+  const handleNotificationClick = (notification) => {
+    // Don't navigate if in selection mode
+    if (isSelectionMode) return;
+
+    // Handle different notification types
+    if (notification.data?.url) {
+      navigate(notification.data.url);
+    } else if (notification.type === 'student_registered' || notification.type === 'student_subscribed') {
+      // Navigate to referrals page
+      navigate('/agent/referrals');
+    }
+  };
+
+  const getNotificationIcon = (type) => {
+    if (type === 'student_registered') {
+      return <FiUser className="text-green-600" />;
+    } else if (type === 'student_subscribed') {
+      return <FiDollarSign className="text-blue-600" />;
+    }
+    return <FiBell className="text-gray-600" />;
+  };
+
   return (
     <div className="min-h-screen w-full bg-white">
       {/* Dark Blue Header */}
@@ -176,7 +168,7 @@ const Notifications = () => {
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
               <button
-                onClick={() => navigate(ROUTES.DASHBOARD)}
+                onClick={() => navigate(ROUTES.AGENT_DASHBOARD)}
                 className="p-2 text-white hover:bg-white/10 rounded-full transition-colors flex-shrink-0"
               >
                 <FiArrowLeft className="text-xl sm:text-2xl" />
@@ -283,7 +275,7 @@ const Notifications = () => {
                 <div
                   key={notification._id}
                   className={`bg-white rounded-xl p-5 shadow-md border-2 transition-all ${
-                    isSelectionMode ? 'cursor-pointer' : notification.type === 'timetable_class_reminder' ? 'cursor-pointer hover:shadow-lg' : ''
+                    isSelectionMode ? 'cursor-pointer' : notification.type === 'student_registered' || notification.type === 'student_subscribed' ? 'cursor-pointer hover:shadow-lg' : ''
                   } ${
                     isSelected 
                       ? 'border-[var(--app-dark-blue)] ring-2 ring-[var(--app-dark-blue)]/20 bg-blue-50' 
@@ -309,7 +301,10 @@ const Notifications = () => {
                     )}
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-2">
-                        <h3 className={`font-bold text-base ${!notification.isRead ? 'text-[var(--app-dark-blue)]' : 'text-gray-800'}`}>
+                        <div className="p-2 bg-gray-100 rounded-lg">
+                          {getNotificationIcon(notification.type)}
+                        </div>
+                        <h3 className={`font-bold text-base flex-1 ${!notification.isRead ? 'text-[var(--app-dark-blue)]' : 'text-gray-800'}`}>
                           {notification.title}
                         </h3>
                         {!notification.isRead && (
@@ -319,16 +314,25 @@ const Notifications = () => {
                       <p className="text-gray-600 text-sm mb-2 leading-relaxed">
                         {notification.body}
                       </p>
-                      {notification.type === 'timetable_class_reminder' && notification.data && (
-                        <div className="bg-[var(--app-dark-blue)]/10 rounded-lg p-2 mb-2 text-xs">
-                          <p className="text-[var(--app-dark-blue)] font-semibold">
-                            📅 {notification.data.subjectName} • {notification.data.className}
+                      {notification.type === 'student_registered' && notification.data && (
+                        <div className="bg-green-50 rounded-lg p-2 mb-2 text-xs">
+                          <p className="text-green-700 font-semibold">
+                            👤 {notification.data.studentName || 'Student'}
+                          </p>
+                          {notification.data.studentClass && notification.data.studentBoard && (
+                            <p className="text-gray-600 mt-1">
+                              📚 Class {notification.data.studentClass} - {notification.data.studentBoard}
+                            </p>
+                          )}
+                        </div>
+                      )}
+                      {notification.type === 'student_subscribed' && notification.data && (
+                        <div className="bg-blue-50 rounded-lg p-2 mb-2 text-xs">
+                          <p className="text-blue-700 font-semibold">
+                            💰 {notification.data.studentName || 'Student'} subscribed to {notification.data.planName || 'Plan'}
                           </p>
                           <p className="text-gray-600 mt-1">
-                            ⏰ {notification.data.startTime} - {notification.data.endTime}
-                          </p>
-                          <p className="text-[var(--app-dark-blue)] font-medium mt-2">
-                            Tap to create live class →
+                            💵 Amount: ₹{notification.data.amount || '0'}
                           </p>
                         </div>
                       )}
@@ -351,7 +355,7 @@ const Notifications = () => {
               All Caught Up!
             </h2>
             <p className="text-gray-500 text-center max-w-md text-sm sm:text-base px-4 mb-6">
-              You don't have any notifications right now. We'll notify you when something important happens!
+              You don't have any notifications right now. We'll notify you when a student registers or subscribes using your referral!
             </p>
             <div className="bg-[var(--app-dark-blue)]/10 rounded-xl px-6 py-3 flex items-center gap-3 border border-[var(--app-dark-blue)]/20">
               <div className="bg-[var(--app-dark-blue)] rounded-full p-1.5">
@@ -400,4 +404,5 @@ const Notifications = () => {
   );
 };
 
-export default Notifications;
+export default AgentNotifications;
+

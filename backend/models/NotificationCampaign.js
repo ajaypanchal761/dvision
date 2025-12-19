@@ -21,6 +21,11 @@ const notificationCampaignSchema = new mongoose.Schema(
       type: Number,
       default: null
     },
+    classId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Class',
+      default: null
+    },
     sentAt: {
       type: Date
     },

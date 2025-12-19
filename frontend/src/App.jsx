@@ -123,6 +123,7 @@ const AgentDashboard = lazy(() => import('./modules/teacher/pages/AgentDashboard
 const AgentStatistics = lazy(() => import('./modules/teacher/pages/AgentStatistics'));
 const AgentProfile = lazy(() => import('./modules/teacher/pages/AgentProfile'));
 const AgentReferrals = lazy(() => import('./modules/teacher/pages/AgentReferrals'));
+const AgentNotifications = lazy(() => import('./modules/teacher/pages/AgentNotifications'));
 const AgentBankDetails = lazy(() => import('./modules/teacher/pages/BankDetails'));
 
 function App() {
@@ -948,6 +949,7 @@ function App() {
         <Route path={TeacherRoutes.AGENT_REFERRALS} element={<AgentReferrals />} />
         <Route path={TeacherRoutes.AGENT_PROFILE} element={<AgentProfile />} />
         <Route path={TeacherRoutes.AGENT_BANK_DETAILS} element={<AgentBankDetails />} />
+        <Route path={TeacherRoutes.AGENT_NOTIFICATIONS} element={<AgentNotifications />} />
 
         {/* Root redirect - default to login */}
         <Route path="/" element={<Navigate to="/login" replace />} />

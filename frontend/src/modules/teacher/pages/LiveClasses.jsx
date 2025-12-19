@@ -386,7 +386,15 @@ const LiveClasses = () => {
                     </h2>
                     {liveNow.map((liveClass) => {
                       const scheduledTime = new Date(liveClass.scheduledStartTime);
-                      const { date, time } = formatDateTime(scheduledTime.toISOString());
+                      const { date, time: startTime } = formatDateTime(scheduledTime.toISOString());
+                      
+                      // Format end time if available
+                      let endTimeDisplay = null;
+                      if (liveClass.scheduledEndTime) {
+                        const endTimeDate = new Date(liveClass.scheduledEndTime);
+                        const { time: endTime } = formatDateTime(endTimeDate.toISOString());
+                        endTimeDisplay = endTime;
+                      }
 
                       return (
                         <div
@@ -419,7 +427,7 @@ const LiveClasses = () => {
                                 </span>
                                 <span className="flex items-center gap-1">
                                   <FiClock className="text-[var(--app-dark-blue)]" />
-                                  {time}
+                                  {startTime}{endTimeDisplay ? ` - ${endTimeDisplay}` : ''}
                                 </span>
                               </div>
                             </div>
@@ -449,7 +457,15 @@ const LiveClasses = () => {
                     </h2>
                     {startsSoon.map((liveClass) => {
                       const scheduledTime = new Date(liveClass.scheduledStartTime);
-                      const { date, time } = formatDateTime(scheduledTime.toISOString());
+                      const { date, time: startTime } = formatDateTime(scheduledTime.toISOString());
+                      
+                      // Format end time if available
+                      let endTimeDisplay = null;
+                      if (liveClass.scheduledEndTime) {
+                        const endTimeDate = new Date(liveClass.scheduledEndTime);
+                        const { time: endTime } = formatDateTime(endTimeDate.toISOString());
+                        endTimeDisplay = endTime;
+                      }
 
                       return (
                         <div
@@ -482,7 +498,7 @@ const LiveClasses = () => {
                                 </span>
                                 <span className="flex items-center gap-1">
                                   <FiClock className="text-[var(--app-dark-blue)]" />
-                                  {time}
+                                  {startTime}{endTimeDisplay ? ` - ${endTimeDisplay}` : ''}
                                 </span>
                               </div>
                             </div>
@@ -582,7 +598,15 @@ const LiveClasses = () => {
                     </h2>
                     {cancelled.map((liveClass) => {
                       const scheduledTime = new Date(liveClass.scheduledStartTime);
-                      const { date, time } = formatDateTime(scheduledTime.toISOString());
+                      const { date, time: startTime } = formatDateTime(scheduledTime.toISOString());
+                      
+                      // Format end time if available
+                      let endTimeDisplay = null;
+                      if (liveClass.scheduledEndTime) {
+                        const endTimeDate = new Date(liveClass.scheduledEndTime);
+                        const { time: endTime } = formatDateTime(endTimeDate.toISOString());
+                        endTimeDisplay = endTime;
+                      }
 
                       return (
                         <div
@@ -615,7 +639,7 @@ const LiveClasses = () => {
                                 </span>
                                 <span className="flex items-center gap-1">
                                   <FiClock className="text-[var(--app-dark-blue)]" />
-                                  {time}
+                                  {startTime}{endTimeDisplay ? ` - ${endTimeDisplay}` : ''}
                                 </span>
                               </div>
                             </div>

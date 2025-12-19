@@ -50,10 +50,10 @@ const AddStudent = () => {
       try {
         setLoadingClasses(true)
 
-        // Fetch classes
-        const classesResponse = await classAPI.getAll()
+        // Fetch all classes without pagination
+        const classesResponse = await classAPI.getAllWithoutPagination({ isActive: true })
         if (classesResponse.success && classesResponse.data?.classes) {
-          const classesData = classesResponse.data.classes.filter(c => c.isActive)
+          const classesData = classesResponse.data.classes
 
           // Store all classes data for filtering
           setAllClassesData(classesData)
@@ -100,10 +100,20 @@ const AddStudent = () => {
     }
 
     // Filter classes by selected board (regular classes only)
-    const classesForBoard = allClassesData
-      .filter(c => c.board === formData.board && c.type === 'regular')
-      .map(c => c.class)
-      .sort((a, b) => a - b)
+    // Get unique class numbers and filter out null/undefined values
+    // Use case-insensitive comparison for board names
+    const selectedBoard = formData.board.trim()
+    const classesForBoard = [...new Set(
+      allClassesData
+        .filter(c => {
+          const classBoard = (c.board || '').trim()
+          return classBoard.toLowerCase() === selectedBoard.toLowerCase() && 
+                 c.type === 'regular' && 
+                 c.class != null
+        })
+        .map(c => parseInt(c.class))
+        .filter(c => !isNaN(c) && c >= 1 && c <= 12)
+    )].sort((a, b) => a - b)
 
     setAvailableClasses(classesForBoard)
 
