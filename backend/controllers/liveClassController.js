@@ -1523,7 +1523,7 @@ exports.createLiveClass = asyncHandler(async (req, res) => {
 
   // Get enrolled students for this class based on class type
   const Payment = require('../models/Payment');
-  const now = new Date();
+  // Reuse 'now' variable already declared above for IST calculation
   let students = [];
 
   if (classItem.type === 'regular') {
