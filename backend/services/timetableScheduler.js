@@ -33,6 +33,7 @@ const sendTimetableClassCreationNotifications = async () => {
     const now = new Date();
     const currentDay = getDayName(now);
     const currentHour = now.getHours();
+    const currentMinute = now.getMinutes();
     
     // Find all active timetables for today that haven't been notified yet
     const timetables = await Timetable.find({
