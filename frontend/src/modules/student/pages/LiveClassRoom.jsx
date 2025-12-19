@@ -1443,22 +1443,6 @@ const LiveClassRoom = () => {
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => {
-              setShowChat(!showChat);
-              // markMessagesAsRead will be called automatically by useEffect when showChat changes
-            }}
-            className="p-2 hover:bg-gray-700 rounded-lg relative"
-          >
-            <FiMessageSquare className="text-xl" />
-            {unreadMessageCount > 0 && (
-              <span className="absolute top-0 right-0 bg-red-500 text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                {unreadMessageCount > 99 ? '99+' : unreadMessageCount}
-              </span>
-            )}
-          </button>
-        </div>
       </header>
       )}
 
@@ -1573,10 +1557,25 @@ const LiveClassRoom = () => {
       <div className="bg-gray-800 px-4 py-3 flex items-center justify-center gap-4">
         <button
           onClick={toggleMute}
-          className={`p-3 rounded-full ${isMuted ? 'bg-red-600' : 'bg-gray-700'} hover:bg-opacity-80`}
+          className={`p-3 rounded-full ${isMuted ? 'bg-red-600' : 'bg-gray-700'} hover:bg-opacity-80 relative`}
           title={isMuted ? 'Unmute' : 'Mute'}
         >
           {isMuted ? <FiMicOff className="text-xl" /> : <FiMic className="text-xl" />}
+        </button>
+        <button
+          onClick={() => {
+            setShowChat(!showChat);
+            // markMessagesAsRead will be called automatically by useEffect when showChat changes
+          }}
+          className={`p-3 rounded-full ${showChat ? 'bg-blue-600' : 'bg-gray-700'} hover:bg-opacity-80 relative`}
+          title="Chat"
+        >
+          <FiMessageSquare className="text-xl" />
+          {unreadMessageCount > 0 && !showChat && (
+            <span className="absolute top-0 right-0 bg-red-500 text-xs rounded-full w-5 h-5 flex items-center justify-center">
+              {unreadMessageCount > 99 ? '99+' : unreadMessageCount}
+            </span>
+          )}
         </button>
         <button
           onClick={toggleHandRaise}

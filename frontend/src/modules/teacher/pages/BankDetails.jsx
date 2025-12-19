@@ -207,7 +207,7 @@ const BankDetails = () => {
     <div className="min-h-screen bg-white pb-20 sm:pb-24">
       {/* Header */}
       <header className="sticky top-0 z-50 bg-[var(--app-dark-blue)] text-white relative" style={{ borderRadius: '0 0 50% 50% / 0 0 30px 30px' }}>
-        <div className="px-3 sm:px-4 md:px-6 pt-3 sm:pt-4 md:pt-6 pb-4 sm:pb-6 md:pb-8">
+        <div className="px-3 sm:px-4 md:px-6 pt-3 sm:pt-4 md:pt-5 pb-4 sm:pb-5 md:pb-6">
           <div className="flex items-center gap-2 sm:gap-3">
             <button
               onClick={() => navigate(ROUTES.AGENT_PROFILE)}
@@ -215,7 +215,7 @@ const BankDetails = () => {
             >
               <FiArrowLeft className="text-lg sm:text-xl md:text-2xl" />
             </button>
-            <h1 className="text-base sm:text-lg md:text-xl lg:text-2xl font-bold">Bank Details</h1>
+            <h1 className="text-sm sm:text-base md:text-lg lg:text-xl font-bold">Bank Details</h1>
           </div>
         </div>
       </header>
@@ -236,13 +236,13 @@ const BankDetails = () => {
           </div>
         )}
 
-        {/* Bank Details Card */}
-        <div className="bg-white rounded-xl sm:rounded-2xl p-4 sm:p-5 md:p-6 shadow-lg border border-gray-200 mb-4 sm:mb-5">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-blue-100 flex items-center justify-center">
-              <FiCreditCard className="text-blue-600 text-xl sm:text-2xl" />
+        {/* Bank Details */}
+        <div className="mb-4 sm:mb-5">
+          <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-full bg-blue-100 flex items-center justify-center">
+              <FiCreditCard className="text-blue-600 text-base sm:text-xl md:text-2xl" />
             </div>
-            <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-[var(--app-black)]">
+            <h2 className="text-sm sm:text-base md:text-lg lg:text-xl font-bold text-[var(--app-black)]">
               {isEditing ? (agentData.bankDetails ? 'Edit' : 'Add') : 'View'} Bank Details
             </h2>
           </div>

@@ -164,33 +164,33 @@ const AgentNotifications = () => {
     <div className="min-h-screen w-full bg-white">
       {/* Dark Blue Header */}
       <header className="sticky top-0 z-50 bg-[var(--app-dark-blue)] text-white relative" style={{ borderRadius: '0 0 50% 50% / 0 0 30px 30px' }}>
-        <div className="px-4 sm:px-6 pt-4 sm:pt-6 pb-6 sm:pb-8">
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
+        <div className="px-3 sm:px-4 md:px-6 pt-3 sm:pt-4 md:pt-5 pb-4 sm:pb-5 md:pb-6">
+          <div className="flex items-start justify-between gap-2 sm:gap-3">
+            <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
               <button
                 onClick={() => navigate(ROUTES.AGENT_DASHBOARD)}
-                className="p-2 text-white hover:bg-white/10 rounded-full transition-colors flex-shrink-0"
+                className="p-1.5 sm:p-2 text-white hover:bg-white/10 rounded-full transition-colors flex-shrink-0"
               >
-                <FiArrowLeft className="text-xl sm:text-2xl" />
+                <FiArrowLeft className="text-lg sm:text-xl md:text-2xl" />
               </button>
               <div className="flex-1 min-w-0">
-                <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">Notifications</h1>
+                <h1 className="text-sm sm:text-base md:text-lg lg:text-xl font-bold">Notifications</h1>
                 {notifications.length > 0 && !isSelectionMode && (
-                  <p className="text-sm text-white/80 mt-1">{notifications.length} notification{notifications.length > 1 ? 's' : ''}</p>
+                  <p className="text-[10px] sm:text-xs md:text-sm text-white/80 mt-0.5">{notifications.length} notification{notifications.length > 1 ? 's' : ''}</p>
                 )}
                 {isSelectionMode && selectedIds.length > 0 && (
-                  <p className="text-sm text-white/80 mt-1">{selectedIds.length} selected</p>
+                  <p className="text-[10px] sm:text-xs md:text-sm text-white/80 mt-0.5">{selectedIds.length} selected</p>
                 )}
               </div>
             </div>
-            <div className="flex items-center gap-2 flex-shrink-0">
+            <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
               {notifications.length > 0 && (
                 <>
                   {isSelectionMode ? (
                     <>
                       <button
                         onClick={handleExitSelectionMode}
-                        className="px-3 py-1.5 sm:py-2 text-white hover:bg-white/10 rounded-lg text-xs sm:text-sm font-semibold transition-colors border border-white/20"
+                        className="px-2 sm:px-3 py-1 sm:py-1.5 md:py-2 text-white hover:bg-white/10 rounded-lg text-[10px] sm:text-xs md:text-sm font-semibold transition-colors border border-white/20"
                       >
                         Cancel
                       </button>
@@ -198,7 +198,7 @@ const AgentNotifications = () => {
                         <button
                           onClick={handleDeleteSelected}
                           disabled={isDeleting}
-                          className="px-3 py-1.5 sm:py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-xs sm:text-sm font-semibold transition-colors disabled:opacity-50 shadow-lg"
+                          className="px-2 sm:px-3 py-1 sm:py-1.5 md:py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-[10px] sm:text-xs md:text-sm font-semibold transition-colors disabled:opacity-50 shadow-lg"
                         >
                           {isDeleting ? 'Deleting...' : `Delete (${selectedIds.length})`}
                         </button>
@@ -208,18 +208,18 @@ const AgentNotifications = () => {
                     <>
                       <button 
                         onClick={handleEnterSelectionMode}
-                        className="p-2 text-white hover:bg-white/10 rounded-full transition-colors"
+                        className="p-1.5 sm:p-2 text-white hover:bg-white/10 rounded-full transition-colors"
                         title="Select to Delete"
                       >
-                        <FiTrash2 className="text-lg sm:text-xl" />
+                        <FiTrash2 className="text-base sm:text-lg md:text-xl" />
                       </button>
                       <button 
                         onClick={fetchNotifications}
                         disabled={isLoading}
-                        className="p-2 text-white hover:bg-white/10 rounded-full transition-colors disabled:opacity-50"
+                        className="p-1.5 sm:p-2 text-white hover:bg-white/10 rounded-full transition-colors disabled:opacity-50"
                         title="Refresh"
                       >
-                        <FiRefreshCw className={`text-lg sm:text-xl ${isLoading ? 'animate-spin' : ''}`} />
+                        <FiRefreshCw className={`text-base sm:text-lg md:text-xl ${isLoading ? 'animate-spin' : ''}`} />
                       </button>
                     </>
                   )}
@@ -231,38 +231,38 @@ const AgentNotifications = () => {
       </header>
 
       {/* Main Content */}
-      <main className="px-4 sm:px-6 py-6 pb-24">
+      <main className="px-3 sm:px-4 md:px-6 py-3 sm:py-4 md:py-6 pb-20 sm:pb-24">
         {error && (
-          <div className="mb-4 bg-red-50 border-2 border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm font-medium">
+          <div className="mb-3 sm:mb-4 bg-red-50 border-2 border-red-200 text-red-700 px-3 sm:px-4 py-2 sm:py-3 rounded-xl text-[10px] sm:text-xs md:text-sm font-medium">
             {error}
           </div>
         )}
 
         {isLoading ? (
-          <div className="space-y-3">
+          <div className="space-y-2 sm:space-y-3">
             {[1, 2, 3].map(i => (
-              <div key={i} className="bg-gray-50 rounded-xl p-5 animate-pulse">
-                <div className="h-4 bg-gray-200 rounded w-3/4 mb-3" />
-                <div className="h-3 bg-gray-200 rounded w-full mb-2" />
-                <div className="h-3 bg-gray-200 rounded w-1/2" />
+              <div key={i} className="bg-gray-50 rounded-xl p-3 sm:p-4 md:p-5 animate-pulse">
+                <div className="h-3 sm:h-4 bg-gray-200 rounded w-3/4 mb-2 sm:mb-3" />
+                <div className="h-2.5 sm:h-3 bg-gray-200 rounded w-full mb-1.5 sm:mb-2" />
+                <div className="h-2.5 sm:h-3 bg-gray-200 rounded w-1/2" />
               </div>
             ))}
           </div>
         ) : notifications.length > 0 ? (
-          <div className="space-y-3">
+          <div className="space-y-2 sm:space-y-3">
             {/* Select All Button - Only show in selection mode */}
             {isSelectionMode && (
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center justify-between mb-2 sm:mb-3 md:mb-4">
                 <button
                   onClick={handleSelectAll}
-                  className="flex items-center gap-2 text-gray-700 hover:text-[var(--app-dark-blue)] transition-colors font-bold"
+                  className="flex items-center gap-1.5 sm:gap-2 text-gray-700 hover:text-[var(--app-dark-blue)] transition-colors font-bold"
                 >
                   {selectedIds.length === notifications.length ? (
-                    <FiCheckSquare className="text-xl text-[var(--app-dark-blue)]" />
+                    <FiCheckSquare className="text-lg sm:text-xl text-[var(--app-dark-blue)]" />
                   ) : (
-                    <FiSquare className="text-xl" />
+                    <FiSquare className="text-lg sm:text-xl" />
                   )}
-                  <span className="text-sm">
+                  <span className="text-[11px] sm:text-xs md:text-sm">
                     {selectedIds.length === notifications.length ? 'Deselect All' : 'Select All'}
                   </span>
                 </button>
@@ -274,7 +274,7 @@ const AgentNotifications = () => {
               return (
                 <div
                   key={notification._id}
-                  className={`bg-white rounded-xl p-5 shadow-md border-2 transition-all ${
+                  className={`bg-white rounded-xl p-3 sm:p-4 md:p-5 shadow-md border-2 transition-all ${
                     isSelectionMode ? 'cursor-pointer' : notification.type === 'student_registered' || notification.type === 'student_subscribed' ? 'cursor-pointer hover:shadow-lg' : ''
                   } ${
                     isSelected 
@@ -289,54 +289,54 @@ const AgentNotifications = () => {
                     }
                   }}
                 >
-                  <div className="flex items-start gap-3">
+                  <div className="flex items-start gap-2 sm:gap-3">
                     {isSelectionMode && (
-                      <div className="mt-1">
+                      <div className="mt-0.5 sm:mt-1">
                         {isSelected ? (
-                          <FiCheckSquare className="text-[var(--app-dark-blue)] text-xl" />
+                          <FiCheckSquare className="text-[var(--app-dark-blue)] text-lg sm:text-xl" />
                         ) : (
-                          <FiSquare className="text-gray-300 text-xl" />
+                          <FiSquare className="text-gray-300 text-lg sm:text-xl" />
                         )}
                       </div>
                     )}
                     <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <div className="p-2 bg-gray-100 rounded-lg">
+                      <div className="flex items-center gap-1.5 sm:gap-2 mb-1.5 sm:mb-2">
+                        <div className="p-1.5 sm:p-2 bg-gray-100 rounded-lg">
                           {getNotificationIcon(notification.type)}
                         </div>
-                        <h3 className={`font-bold text-base flex-1 ${!notification.isRead ? 'text-[var(--app-dark-blue)]' : 'text-gray-800'}`}>
+                        <h3 className={`font-bold text-[13px] sm:text-sm md:text-base flex-1 ${!notification.isRead ? 'text-[var(--app-dark-blue)]' : 'text-gray-800'}`}>
                           {notification.title}
                         </h3>
                         {!notification.isRead && (
-                          <span className="w-2 h-2 bg-[var(--app-dark-blue)] rounded-full"></span>
+                          <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-[var(--app-dark-blue)] rounded-full"></span>
                         )}
                       </div>
-                      <p className="text-gray-600 text-sm mb-2 leading-relaxed">
+                      <p className="text-gray-600 text-[11px] sm:text-xs md:text-sm mb-1.5 sm:mb-2 leading-relaxed">
                         {notification.body}
                       </p>
                       {notification.type === 'student_registered' && notification.data && (
-                        <div className="bg-green-50 rounded-lg p-2 mb-2 text-xs">
+                        <div className="bg-green-50 rounded-lg p-1.5 sm:p-2 mb-1.5 sm:mb-2 text-[10px] sm:text-xs">
                           <p className="text-green-700 font-semibold">
                             👤 {notification.data.studentName || 'Student'}
                           </p>
                           {notification.data.studentClass && notification.data.studentBoard && (
-                            <p className="text-gray-600 mt-1">
+                            <p className="text-gray-600 mt-0.5 sm:mt-1">
                               📚 Class {notification.data.studentClass} - {notification.data.studentBoard}
                             </p>
                           )}
                         </div>
                       )}
                       {notification.type === 'student_subscribed' && notification.data && (
-                        <div className="bg-blue-50 rounded-lg p-2 mb-2 text-xs">
+                        <div className="bg-blue-50 rounded-lg p-1.5 sm:p-2 mb-1.5 sm:mb-2 text-[10px] sm:text-xs">
                           <p className="text-blue-700 font-semibold">
                             💰 {notification.data.studentName || 'Student'} subscribed to {notification.data.planName || 'Plan'}
                           </p>
-                          <p className="text-gray-600 mt-1">
+                          <p className="text-gray-600 mt-0.5 sm:mt-1">
                             💵 Amount: ₹{notification.data.amount || '0'}
                           </p>
                         </div>
                       )}
-                      <p className="text-gray-400 text-xs font-medium">
+                      <p className="text-gray-400 text-[10px] sm:text-xs font-medium">
                         {formatTime(notification.createdAt)}
                       </p>
                     </div>
@@ -347,21 +347,21 @@ const AgentNotifications = () => {
           </div>
         ) : (
           /* Empty State */
-          <div className="flex flex-col items-center justify-center min-h-[calc(100vh-200px)] py-12">
-            <div className="w-20 h-20 bg-[var(--app-dark-blue)]/10 rounded-full flex items-center justify-center mb-6">
-              <FiBell className="text-[var(--app-dark-blue)] text-4xl" />
+          <div className="flex flex-col items-center justify-center min-h-[calc(100vh-200px)] py-8 sm:py-12">
+            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-[var(--app-dark-blue)]/10 rounded-full flex items-center justify-center mb-4 sm:mb-6">
+              <FiBell className="text-[var(--app-dark-blue)] text-3xl sm:text-4xl" />
             </div>
-            <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-2 text-center">
+            <h2 className="text-base sm:text-lg md:text-xl lg:text-2xl font-bold text-gray-800 mb-1.5 sm:mb-2 text-center">
               All Caught Up!
             </h2>
-            <p className="text-gray-500 text-center max-w-md text-sm sm:text-base px-4 mb-6">
+            <p className="text-gray-500 text-center max-w-md text-[11px] sm:text-xs md:text-sm lg:text-base px-3 sm:px-4 mb-4 sm:mb-6">
               You don't have any notifications right now. We'll notify you when a student registers or subscribes using your referral!
             </p>
-            <div className="bg-[var(--app-dark-blue)]/10 rounded-xl px-6 py-3 flex items-center gap-3 border border-[var(--app-dark-blue)]/20">
-              <div className="bg-[var(--app-dark-blue)] rounded-full p-1.5">
-                <FiCheck className="text-white text-sm" />
+            <div className="bg-[var(--app-dark-blue)]/10 rounded-xl px-4 sm:px-6 py-2 sm:py-3 flex items-center gap-2 sm:gap-3 border border-[var(--app-dark-blue)]/20">
+              <div className="bg-[var(--app-dark-blue)] rounded-full p-1 sm:p-1.5">
+                <FiCheck className="text-white text-xs sm:text-sm" />
               </div>
-              <span className="text-[var(--app-dark-blue)] font-bold text-sm">
+              <span className="text-[var(--app-dark-blue)] font-bold text-[11px] sm:text-xs md:text-sm">
                 You're up to date
               </span>
             </div>
@@ -371,26 +371,26 @@ const AgentNotifications = () => {
 
       {/* Confirmation Dialog */}
       {showConfirmDialog && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 px-4">
-          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl">
-            <h3 className="text-xl font-bold text-gray-800 mb-2">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 px-3 sm:px-4">
+          <div className="bg-white rounded-2xl p-4 sm:p-5 md:p-6 max-w-md w-full shadow-2xl">
+            <h3 className="text-base sm:text-lg md:text-xl font-bold text-gray-800 mb-1.5 sm:mb-2">
               Delete All Notifications?
             </h3>
-            <p className="text-gray-600 mb-6 text-sm">
+            <p className="text-gray-600 mb-4 sm:mb-5 md:mb-6 text-[11px] sm:text-xs md:text-sm">
               Are you sure you want to delete all notifications? This action cannot be undone.
             </p>
-            <div className="flex gap-3">
+            <div className="flex gap-2 sm:gap-3">
               <button
                 onClick={() => setShowConfirmDialog(false)}
                 disabled={isDeleting}
-                className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-xl text-gray-700 font-bold hover:bg-gray-50 transition-colors disabled:opacity-50"
+                className="flex-1 px-3 sm:px-4 py-2 sm:py-2.5 md:py-3 border-2 border-gray-200 rounded-xl text-gray-700 font-bold hover:bg-gray-50 transition-colors disabled:opacity-50 text-[11px] sm:text-xs md:text-sm"
               >
                 Cancel
               </button>
               <button
                 onClick={confirmDeleteAll}
                 disabled={isDeleting}
-                className="flex-1 px-4 py-3 bg-red-500 text-white rounded-xl font-bold hover:bg-red-600 transition-colors disabled:opacity-50"
+                className="flex-1 px-3 sm:px-4 py-2 sm:py-2.5 md:py-3 bg-red-500 text-white rounded-xl font-bold hover:bg-red-600 transition-colors disabled:opacity-50 text-[11px] sm:text-xs md:text-sm"
               >
                 {isDeleting ? 'Deleting...' : 'Delete All'}
               </button>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiCopy, FiShare2, FiTrendingUp, FiUsers, FiCheckCircle, FiClock, FiArrowRight, FiBell } from 'react-icons/fi';
+import { FiCopy, FiShare2, FiTrendingUp, FiUsers, FiCheckCircle, FiClock, FiArrowRight, FiBell, FiUser } from 'react-icons/fi';
 import { ROUTES } from '../constants/routes';
 import BottomNav from '../components/common/BottomNav';
 import { agentAPI, notificationAPI } from '../services/api';
@@ -139,33 +139,44 @@ const AgentDashboard = () => {
       <header className="sticky top-0 z-50 bg-[var(--app-dark-blue)] text-white relative" style={{ borderRadius: '0 0 50% 50% / 0 0 30px 30px' }}>
         <div className="px-3 sm:px-4 md:px-6 pt-3 sm:pt-4 md:pt-5 pb-4 sm:pb-5 md:pb-6">
           <div className="flex items-center justify-between gap-2 sm:gap-3">
-            <div className="flex-1 min-w-0">
-              <p className="text-[10px] sm:text-xs md:text-sm text-white/90 mb-0.5 truncate">Welcome back!</p>
-              <h1 className="text-sm sm:text-base md:text-lg lg:text-xl font-bold truncate">
-                {loading ? 'Loading...' : agentData.name}
-              </h1>
-            </div>
-            <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+            <div className="flex items-center gap-2 sm:gap-3 md:gap-4">
               <button
-                onClick={() => navigate(ROUTES.AGENT_NOTIFICATIONS)}
-                className="relative p-1.5 sm:p-2 text-white hover:bg-white/10 rounded-full transition-colors"
-                title="Notifications"
+                onClick={() => navigate(ROUTES.AGENT_PROFILE)}
+                className="hover:opacity-80"
               >
-                <FiBell className="text-lg sm:text-xl md:text-2xl" />
-                {unreadCount > 0 && (
-                  <span className="absolute top-0 right-0 w-3 h-3 sm:w-4 sm:h-4 bg-red-500 rounded-full flex items-center justify-center text-[8px] sm:text-xs font-bold">
-                    {unreadCount > 9 ? '9+' : unreadCount}
-                  </span>
+                {agentData.profileImage ? (
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-full overflow-hidden border-2 border-white cursor-pointer hover:border-white/80 shadow-lg">
+                    <img
+                      src={agentData.profileImage}
+                      alt="Profile"
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                ) : (
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-full bg-white/20 flex items-center justify-center cursor-pointer hover:bg-white/30 shadow-lg">
+                    <FiUser className="text-white text-base sm:text-lg md:text-xl" />
+                  </div>
                 )}
               </button>
-              {agentData.profileImage && (
-                <img
-                  src={agentData.profileImage}
-                  alt="Profile"
-                  className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-full object-cover border-2 border-white/20"
-                />
-              )}
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] sm:text-xs md:text-sm text-white/90 mb-0.5 truncate">Welcome back!</p>
+                <h1 className="text-sm sm:text-base md:text-lg lg:text-xl font-bold truncate">
+                  {loading ? 'Loading...' : agentData.name}
+                </h1>
+              </div>
             </div>
+            <button
+              onClick={() => navigate(ROUTES.AGENT_NOTIFICATIONS)}
+              className="relative p-1.5 sm:p-2 text-white hover:bg-white/10 rounded-full transition-colors flex-shrink-0"
+              title="Notifications"
+            >
+              <FiBell className="text-lg sm:text-xl md:text-2xl" />
+              {unreadCount > 0 && (
+                <span className="absolute top-0 right-0 w-3 h-3 sm:w-4 sm:h-4 bg-red-500 rounded-full flex items-center justify-center text-[8px] sm:text-xs font-bold">
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              )}
+            </button>
           </div>
         </div>
       </header>

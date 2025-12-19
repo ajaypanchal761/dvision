@@ -5,6 +5,7 @@ const otpService = require('../services/otpService');
 const generateToken = require('../utils/generateToken');
 const ReferralRecord = require('../models/ReferralRecord');
 const Student = require('../models/Student');
+const { uploadToCloudinary } = require('../config/cloudinary');
 
 // @desc    Check if agent exists and is active
 // @route   POST /api/agent/check-exists
@@ -236,11 +237,11 @@ exports.getMe = asyncHandler(async (req, res) => {
   });
 });
 
-// @desc    Update agent profile (limited fields - email, profile image only)
+// @desc    Update agent profile (name, email, profile image, bank details, upiId)
 // @route   PUT /api/agent/me
 // @access  Private (Agent)
 exports.updateMe = asyncHandler(async (req, res) => {
-  const { email, profileImage, bankDetails, upiId } = req.body;
+  const { name, email, profileImageBase64, bankDetails, upiId } = req.body;
 
   const agent = await Agent.findById(req.user._id);
 
@@ -248,13 +249,29 @@ exports.updateMe = asyncHandler(async (req, res) => {
     throw new ErrorResponse('Agent not found', 404);
   }
 
-  // Only allow updating email, profileImage, bankDetails, and upiId
+  // Allow updating name, email, profileImage, bankDetails, and upiId
+  if (name !== undefined) {
+    agent.name = name;
+  }
+
   if (email !== undefined) {
     agent.email = email;
   }
 
-  if (profileImage !== undefined) {
-    agent.profileImage = profileImage;
+  // Handle profile image upload if provided
+  if (profileImageBase64) {
+    try {
+      const uploadResult = await uploadToCloudinary(profileImageBase64, {
+        folder: 'agents/profile',
+        resource_type: 'image',
+        public_id: `agent_${agent._id}_${Date.now()}`
+      });
+      agent.profileImage = uploadResult.url;
+      console.log('Profile image updated. URL:', agent.profileImage);
+    } catch (uploadError) {
+      console.error('Profile image upload error:', uploadError);
+      throw new ErrorResponse('Failed to upload profile image', 500);
+    }
   }
 
   // Update bank details
@@ -384,27 +401,64 @@ exports.getStatistics = asyncHandler(async (req, res) => {
     throw new ErrorResponse('Agent not found', 404);
   }
 
-  // Students referred by this agent
-  const referredStudents = await Student.find({
-    referralAgentId: agent._id
-  })
+  // Get month filter from query parameter (format: YYYY-MM)
+  const monthFilter = req.query.month;
+  let dateFilter = {};
+
+  if (monthFilter) {
+    // Validate month format (YYYY-MM)
+    const monthRegex = /^\d{4}-\d{2}$/;
+    if (!monthRegex.test(monthFilter)) {
+      throw new ErrorResponse('Invalid month format. Use YYYY-MM', 400);
+    }
+
+    // Parse month and create date range
+    const [year, month] = monthFilter.split('-').map(Number);
+    const startDate = new Date(year, month - 1, 1); // First day of month
+    const endDate = new Date(year, month, 0, 23, 59, 59, 999); // Last day of month
+
+    dateFilter = {
+      $or: [
+        { referredAt: { $gte: startDate, $lte: endDate } },
+        { createdAt: { $gte: startDate, $lte: endDate } }
+      ]
+    };
+  }
+
+  // Students referred by this agent (with optional month filter)
+  const referredStudentsQuery = {
+    referralAgentId: agent._id,
+    ...dateFilter
+  };
+
+  const referredStudents = await Student.find(referredStudentsQuery)
     .select('name phone email class board referredAt createdAt')
     .sort({ referredAt: -1, createdAt: -1 })
     .lean();
 
   const totalReferrals = referredStudents.length;
 
+  // Build date filter for ReferralRecords if month filter is applied
+  let referralRecordDateFilter = {};
+  if (monthFilter) {
+    const [year, month] = monthFilter.split('-').map(Number);
+    const startDate = new Date(year, month - 1, 1);
+    const endDate = new Date(year, month, 0, 23, 59, 59, 999);
+    referralRecordDateFilter = {
+      subscriptionDate: { $gte: startDate, $lte: endDate }
+    };
+  }
+
   // Successful subscriptions (ReferralRecords with status 'completed')
-  const successfulSubscriptions = await ReferralRecord.countDocuments({
+  const successfulSubscriptionsQuery = {
     agentId: agent._id,
-    status: 'completed'
-  });
+    status: 'completed',
+    ...referralRecordDateFilter
+  };
+  const successfulSubscriptions = await ReferralRecord.countDocuments(successfulSubscriptionsQuery);
 
   // Pending commissions (completed but unpaid) – keep as existing behavior
-  const pendingCommissions = await ReferralRecord.countDocuments({
-    agentId: agent._id,
-    status: 'completed'
-  });
+  const pendingCommissions = await ReferralRecord.countDocuments(successfulSubscriptionsQuery);
 
   // Recent completed referral records (legacy view, for detailed cards)
   const recentReferrals = await ReferralRecord.find({

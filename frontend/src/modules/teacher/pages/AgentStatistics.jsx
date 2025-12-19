@@ -88,7 +88,7 @@ const AgentStatistics = () => {
     <div className="min-h-screen bg-gray-50 pb-20 sm:pb-24">
       {/* Header */}
       <header className="sticky top-0 z-50 bg-[var(--app-dark-blue)] text-white relative" style={{ borderRadius: '0 0 50% 50% / 0 0 30px 30px' }}>
-        <div className="px-3 sm:px-4 md:px-6 pt-3 sm:pt-4 md:pt-6 pb-4 sm:pb-6 md:pb-8">
+        <div className="px-3 sm:px-4 md:px-6 pt-3 sm:pt-4 md:pt-5 pb-4 sm:pb-5 md:pb-6">
           <div className="flex items-center gap-2 sm:gap-3">
             <button
               onClick={() => navigate(ROUTES.AGENT_DASHBOARD)}
@@ -96,45 +96,45 @@ const AgentStatistics = () => {
             >
               <FiArrowLeft className="text-lg sm:text-xl md:text-2xl" />
             </button>
-            <h1 className="text-base sm:text-lg md:text-xl lg:text-2xl font-bold">Referral Statistics</h1>
+            <h1 className="text-sm sm:text-base md:text-lg lg:text-xl font-bold">Referral Statistics</h1>
           </div>
         </div>
       </header>
 
       {/* Main Content */}
-      <div className="px-3 sm:px-4 md:px-6 mt-3 sm:mt-4 md:mt-5 space-y-4 sm:space-y-5 md:space-y-6">
+      <div className="px-3 sm:px-4 md:px-6 mt-2 sm:mt-3 md:mt-4 space-y-3 sm:space-y-4 md:space-y-5">
         {/* Summary Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-          <div className="bg-white rounded-xl sm:rounded-2xl p-4 sm:p-5 shadow-lg">
-            <p className="text-xs sm:text-sm text-gray-600 font-medium mb-2">Total Referrals</p>
-            <p className="text-2xl sm:text-3xl font-bold text-[var(--app-dark-blue)]">
+        <div className="grid grid-cols-3 gap-2 sm:gap-4 mt-2 sm:mt-3">
+          <div className="bg-white rounded-xl sm:rounded-2xl p-2 sm:p-5 shadow-lg">
+            <p className="text-[10px] sm:text-sm text-gray-600 font-medium mb-1 sm:mb-2">Total Referrals</p>
+            <p className="text-lg sm:text-3xl font-bold text-[var(--app-dark-blue)]">
               {statistics.totalReferrals}
             </p>
           </div>
-          <div className="bg-white rounded-xl sm:rounded-2xl p-4 sm:p-5 shadow-lg">
-            <p className="text-xs sm:text-sm text-gray-600 font-medium mb-2">Successful Subscriptions</p>
-            <p className="text-2xl sm:text-3xl font-bold text-green-600">
+          <div className="bg-white rounded-xl sm:rounded-2xl p-2 sm:p-5 shadow-lg">
+            <p className="text-[10px] sm:text-sm text-gray-600 font-medium mb-1 sm:mb-2">Successful Subscriptions</p>
+            <p className="text-lg sm:text-3xl font-bold text-green-600">
               {statistics.successfulSubscriptions}
             </p>
           </div>
-          <div className="bg-white rounded-xl sm:rounded-2xl p-4 sm:p-5 shadow-lg">
-            <p className="text-xs sm:text-sm text-gray-600 font-medium mb-2">Pending Commissions</p>
-            <p className="text-2xl sm:text-3xl font-bold text-orange-600">
+          <div className="bg-white rounded-xl sm:rounded-2xl p-2 sm:p-5 shadow-lg">
+            <p className="text-[10px] sm:text-sm text-gray-600 font-medium mb-1 sm:mb-2">Pending Commissions</p>
+            <p className="text-lg sm:text-3xl font-bold text-orange-600">
               {statistics.pendingCommissions}
             </p>
           </div>
         </div>
 
         {/* Filters and Export */}
-        <div className="bg-white rounded-xl sm:rounded-2xl p-4 sm:p-5 shadow-lg">
-          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 items-start sm:items-center justify-between">
+        <div className="bg-white rounded-xl sm:rounded-2xl p-3 sm:p-4 md:p-5 shadow-lg">
+          <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 md:gap-4 items-start sm:items-center justify-between">
             <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 flex-1">
               <div className="flex items-center gap-2">
-                <FiCalendar className="text-gray-600" />
+                <FiCalendar className="text-gray-600 text-sm sm:text-base" />
                 <select
                   value={selectedMonth}
                   onChange={(e) => setSelectedMonth(e.target.value)}
-                  className="px-3 py-2 border border-gray-300 rounded-lg text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-[var(--app-dark-blue)]"
+                  className="px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-lg text-[10px] sm:text-xs md:text-sm focus:outline-none focus:ring-2 focus:ring-[var(--app-dark-blue)]"
                 >
                   <option value="">All Months</option>
                   {monthWiseBreakdown.map((item, index) => (
@@ -147,43 +147,43 @@ const AgentStatistics = () => {
             </div>
             <button
               onClick={handleExportCSV}
-              className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-[var(--app-dark-blue)] text-white rounded-lg sm:rounded-xl hover:opacity-90 transition-all text-xs sm:text-sm font-medium"
+              className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 md:px-4 py-1.5 sm:py-2 bg-[var(--app-dark-blue)] text-white rounded-lg sm:rounded-xl hover:opacity-90 transition-all text-[10px] sm:text-xs md:text-sm font-medium"
             >
-              <FiDownload className="text-sm" />
+              <FiDownload className="text-xs sm:text-sm" />
               Export CSV
             </button>
           </div>
         </div>
 
         {/* Month-wise Breakdown */}
-        <div className="bg-white rounded-xl sm:rounded-2xl p-4 sm:p-5 shadow-lg">
-          <h2 className="text-base sm:text-lg md:text-xl font-bold text-[var(--app-black)] mb-3 sm:mb-4">
+        <div className="bg-white rounded-xl sm:rounded-2xl p-3 sm:p-4 md:p-5 shadow-lg">
+          <h2 className="text-sm sm:text-base md:text-lg font-bold text-[var(--app-black)] mb-2 sm:mb-3">
             Month-wise Breakdown
           </h2>
           {loading ? (
-            <p className="text-xs sm:text-sm text-gray-500 text-center py-4">Loading...</p>
+            <p className="text-[10px] sm:text-xs md:text-sm text-gray-500 text-center py-3 sm:py-4">Loading...</p>
           ) : filteredBreakdown.length > 0 ? (
-            <div className="space-y-2 sm:space-y-3">
+            <div className="space-y-1.5 sm:space-y-2">
               {filteredBreakdown.map((item, index) => (
                 <div
                   key={index}
-                  className="flex items-center justify-between p-3 sm:p-4 bg-gray-50 rounded-lg sm:rounded-xl hover:bg-gray-100 transition-colors"
+                  className="flex items-center justify-between p-2 sm:p-2.5 md:p-3 bg-gray-50 rounded-lg sm:rounded-xl hover:bg-gray-100 transition-colors"
                 >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-[var(--app-dark-blue)]/10 rounded-full flex items-center justify-center">
-                      <FiTrendingUp className="text-[var(--app-dark-blue)] text-lg sm:text-xl" />
+                  <div className="flex items-center gap-2 sm:gap-3">
+                    <div className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 bg-[var(--app-dark-blue)]/10 rounded-full flex items-center justify-center">
+                      <FiTrendingUp className="text-[var(--app-dark-blue)] text-sm sm:text-lg md:text-xl" />
                     </div>
                     <div>
-                      <p className="text-xs sm:text-sm font-medium text-[var(--app-black)]">
+                      <p className="text-[11px] sm:text-xs md:text-sm font-medium text-[var(--app-black)]">
                         {new Date(item.month + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
                       </p>
-                      <p className="text-[10px] sm:text-xs text-gray-600">
+                      <p className="text-[9px] sm:text-[10px] md:text-xs text-gray-600">
                         {item.count} {item.count === 1 ? 'referral' : 'referrals'}
                       </p>
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm sm:text-base font-bold text-[var(--app-dark-blue)]">
+                    <p className="text-[11px] sm:text-xs md:text-sm font-bold text-[var(--app-dark-blue)]">
                       {formatCurrency(item.totalAmount)}
                     </p>
                   </div>
@@ -191,7 +191,7 @@ const AgentStatistics = () => {
               ))}
             </div>
           ) : (
-            <p className="text-xs sm:text-sm text-gray-500 text-center py-4">
+            <p className="text-[10px] sm:text-xs md:text-sm text-gray-500 text-center py-3 sm:py-4">
               No data available for the selected period.
             </p>
           )}
@@ -199,32 +199,32 @@ const AgentStatistics = () => {
       </div>
 
       {/* Referred students list */}
-      <div className="px-3 sm:px-4 md:px-6 mt-3 sm:mt-4 md:mt-5">
-        <div className="bg-white rounded-xl sm:rounded-2xl p-4 sm:p-5 shadow-lg">
-          <h2 className="text-base sm:text-lg md:text-xl font-bold text-[var(--app-black)] mb-3 sm:mb-4">
+      <div className="px-3 sm:px-4 md:px-6 mt-2 sm:mt-3 md:mt-4">
+        <div className="bg-white rounded-xl sm:rounded-2xl p-3 sm:p-4 md:p-5 shadow-lg">
+          <h2 className="text-sm sm:text-base md:text-lg font-bold text-[var(--app-black)] mb-2 sm:mb-3">
             Referred Students
           </h2>
           {loading ? (
-            <p className="text-xs sm:text-sm text-gray-500 text-center py-4">Loading...</p>
+            <p className="text-[10px] sm:text-xs md:text-sm text-gray-500 text-center py-3 sm:py-4">Loading...</p>
           ) : referredStudents.length === 0 ? (
-            <p className="text-xs sm:text-sm text-gray-500 text-center py-4">No referrals yet.</p>
+            <p className="text-[10px] sm:text-xs md:text-sm text-gray-500 text-center py-3 sm:py-4">No referrals yet.</p>
           ) : (
-            <div className="space-y-2 sm:space-y-3">
+            <div className="space-y-1.5 sm:space-y-2">
               {referredStudents.map((student) => (
                 <div
                   key={student._id}
-                  className="flex items-center justify-between p-3 sm:p-4 bg-gray-50 rounded-lg sm:rounded-xl"
+                  className="flex items-center justify-between p-2 sm:p-2.5 md:p-3 bg-gray-50 rounded-lg sm:rounded-xl"
                 >
                   <div>
-                    <p className="text-xs sm:text-sm font-semibold text-[var(--app-black)]">
+                    <p className="text-[11px] sm:text-xs md:text-sm font-semibold text-[var(--app-black)]">
                       {student.name || 'Student'}
                     </p>
-                    <p className="text-[10px] sm:text-xs text-gray-600">
+                    <p className="text-[9px] sm:text-[10px] md:text-xs text-gray-600">
                       {student.class ? `Class ${student.class}` : ''} {student.board || ''}
                     </p>
                   </div>
                   <div className="text-right">
-                    <p className="text-[10px] sm:text-xs text-gray-500">
+                    <p className="text-[9px] sm:text-[10px] md:text-xs text-gray-500">
                       {student.referredAt
                         ? new Date(student.referredAt).toLocaleDateString()
                         : ''}

@@ -667,9 +667,12 @@ export const agentAPI = {
       method: 'GET'
     });
   },
-  // Get referral statistics
-  getStatistics: async () => {
-    return apiRequest('/agent/statistics', {
+  // Get referral statistics (optional month filter in YYYY-MM format)
+  getStatistics: async (month = null) => {
+    const url = month 
+      ? `/agent/statistics?month=${encodeURIComponent(month)}`
+      : '/agent/statistics';
+    return apiRequest(url, {
       method: 'GET'
     });
   },

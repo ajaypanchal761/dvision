@@ -80,15 +80,15 @@ const ContentView = () => {
     <div className="min-h-screen bg-white pb-20">
       {/* Dark Blue Header */}
       <header className="sticky top-0 z-50 bg-[var(--app-dark-blue)] text-white relative" style={{ borderRadius: '0 0 50% 50% / 0 0 30px 30px' }}>
-        <div className="px-4 sm:px-6 pt-4 sm:pt-6 pb-6 sm:pb-8">
-          <div className="flex items-center gap-3 sm:gap-4">
+        <div className="px-3 sm:px-4 md:px-6 pt-3 sm:pt-4 md:pt-5 pb-4 sm:pb-5 md:pb-6">
+          <div className="flex items-center gap-2 sm:gap-3">
             <button
               onClick={() => navigate(getBackRoute())}
-              className="p-2 text-white hover:bg-white/10 rounded-full transition-colors"
+              className="p-1.5 sm:p-2 text-white hover:bg-white/10 rounded-full transition-colors"
             >
-              <FiArrowLeft className="text-xl sm:text-2xl" />
+              <FiArrowLeft className="text-lg sm:text-xl md:text-2xl" />
             </button>
-            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">
+            <h1 className="text-sm sm:text-base md:text-lg lg:text-xl font-bold">
               {config.title}
             </h1>
           </div>
@@ -96,7 +96,7 @@ const ContentView = () => {
       </header>
 
       {/* Main Content */}
-      <main className="px-4 sm:px-6 py-6">
+      <main className="px-3 sm:px-4 md:px-6 py-3 sm:py-4 md:py-6">
         {isLoading ? (
           <div className="flex items-center justify-center py-12">
             <div className="text-center">
@@ -115,17 +115,17 @@ const ContentView = () => {
             </button>
           </div>
         ) : content ? (
-          <div className="bg-white rounded-xl shadow-lg p-5 sm:p-6 md:p-8 border border-gray-200">
-            <div className="text-sm sm:text-base text-gray-700 whitespace-pre-wrap leading-relaxed">
+          <div>
+            <div className="text-[11px] sm:text-xs md:text-sm lg:text-base text-gray-700 whitespace-pre-wrap leading-relaxed">
               {content.content || 'No content available.'}
             </div>
             {content.version && (
-              <div className="mt-6 pt-6 border-t border-gray-200">
-                <p className="text-xs sm:text-sm text-gray-500 font-medium">
+              <div className="mt-4 sm:mt-5 md:mt-6 pt-4 sm:pt-5 md:pt-6 border-t border-gray-200">
+                <p className="text-[10px] sm:text-xs md:text-sm text-gray-500 font-medium">
                   Version: {content.version}
                 </p>
                 {content.createdAt && (
-                  <p className="text-xs sm:text-sm text-gray-500 mt-1 font-medium">
+                  <p className="text-[10px] sm:text-xs md:text-sm text-gray-500 mt-1 font-medium">
                     Last updated: {new Date(content.createdAt).toLocaleString()}
                   </p>
                 )}
