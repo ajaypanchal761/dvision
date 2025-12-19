@@ -8,6 +8,22 @@ const asyncHandler = require('../utils/asyncHandler');
 const ErrorResponse = require('../utils/errorResponse');
 const crypto = require('crypto');
 
+// ===== DOUBLE PAYMENT PREVENTION =====
+// Check if student is attempting duplicate payment within time window
+const checkDoublePayment = async (studentId, planId) => {
+  // Look for pending or recently completed payments within 5 minutes
+  const recentPaymentWindow = new Date(Date.now() - 5 * 60 * 1000); // 5 minutes ago
+
+  const recentPayment = await Payment.findOne({
+    studentId,
+    subscriptionPlanId: planId,
+    status: { $in: ['pending', 'completed'] },
+    createdAt: { $gte: recentPaymentWindow }
+  });
+
+  return recentPayment;
+};
+
 // @desc    Create Cashfree order for subscription
 // @route   POST /api/payment/create-order
 // @access  Private (Student)
@@ -22,6 +38,16 @@ exports.createOrder = asyncHandler(async (req, res, next) => {
 
   if (!planId) {
     return next(new ErrorResponse('Please provide a subscription plan ID', 400));
+  }
+
+  // ===== DOUBLE PAYMENT PREVENTION =====
+  const existingPayment = await checkDoublePayment(studentId, planId);
+  if (existingPayment) {
+    console.warn(`🔴 Double payment attempt detected for student ${studentId} and plan ${planId}`);
+    return next(new ErrorResponse(
+      'You already have a pending or recent payment for this plan. Please wait a moment and try again.',
+      429 // Too Many Requests
+    ));
   }
 
   // Get subscription plan (populate classId for preparation plans)
@@ -901,4 +927,430 @@ exports.getPaymentStats = asyncHandler(async (req, res, next) => {
     }
   });
 });
+
+// ====================================================================
+// WEBHOOK HANDLER - Cashfree Payment Status Notification (Production)
+// ====================================================================
+// This endpoint is called by Cashfree to notify about payment success/failure
+// IMPORTANT: This webhook is NOT protected by auth middleware
+// Security: Uses cryptographic signature verification from Cashfree
+
+// @desc    Webhook handler for Cashfree payment notifications
+// @route   POST /api/payment/webhook
+// @access  Public (Cashfree server calls this - signature verified)
+exports.handlePaymentWebhook = asyncHandler(async (req, res, next) => {
+  console.log('\n🔔 === WEBHOOK RECEIVED ===');
+  console.log('Webhook Timestamp:', new Date().toISOString());
+  console.log('Webhook Body:', JSON.stringify(req.body, null, 2));
+
+  const { data, type } = req.body;
+
+  // Verify webhook signature (mandatory for production security)
+  const isValidWebhook = verifyWebhookSignature(req);
+  if (!isValidWebhook) {
+    console.error('🔴 WEBHOOK SIGNATURE VERIFICATION FAILED');
+    console.error('Headers:', req.headers);
+    console.error('Body:', req.body);
+    // Still return 200 to acknowledge receipt (don't let attacker know signature is invalid)
+    return res.status(200).json({
+      success: false,
+      message: 'Invalid signature',
+      acknowledged: true
+    });
+  }
+
+  console.log('✅ Webhook signature verified successfully');
+
+  // Handle different webhook types
+  if (type === 'PAYMENT_SUCCESS_WEBHOOK') {
+    return await handlePaymentSuccess(data, res, next);
+  } else if (type === 'PAYMENT_FAILURE_WEBHOOK') {
+    return await handlePaymentFailure(data, res, next);
+  } else if (type === 'PAYMENT_USER_DROPPED') {
+    return await handlePaymentDropped(data, res, next);
+  } else {
+    console.log('⚠️ Unknown webhook type:', type);
+    return res.status(200).json({
+      success: true,
+      message: 'Webhook acknowledged',
+      type: type
+    });
+  }
+});
+
+// Verify Cashfree webhook signature
+const verifyWebhookSignature = (req) => {
+  try {
+    const signature = req.headers['x-webhook-signature'];
+    const timestamp = req.headers['x-webhook-timestamp'];
+
+    if (!signature || !timestamp) {
+      console.error('Missing webhook signature or timestamp headers');
+      return false;
+    }
+
+    const { secretKey } = cashfree.getCashfreeConfig();
+    const body = JSON.stringify(req.body);
+
+    // Cashfree signature format: HMAC-SHA256(timestamp + body, secretKey)
+    const payload = `${timestamp}${body}`;
+    const expectedSignature = crypto
+      .createHmac('sha256', secretKey)
+      .update(payload)
+      .digest('base64');
+
+    console.log('Signature Verification:');
+    console.log('  Received:', signature);
+    console.log('  Expected:', expectedSignature);
+    console.log('  Match:', signature === expectedSignature);
+
+    return signature === expectedSignature;
+  } catch (error) {
+    console.error('Error verifying webhook signature:', error.message);
+    return false;
+  }
+};
+
+// Handle payment success webhook
+const handlePaymentSuccess = async (data, res, next) => {
+  try {
+    console.log('\n✅ === PAYMENT SUCCESS WEBHOOK ===');
+    const orderId = data.order.order_id;
+    const paymentId = data.payment?.cf_payment_id;
+    const paymentStatus = data.payment?.payment_status;
+
+    console.log('Order ID:', orderId);
+    console.log('Payment ID:', paymentId);
+    console.log('Payment Status:', paymentStatus);
+
+    if (paymentStatus !== 'SUCCESS') {
+      console.warn('⚠️ Payment status is not SUCCESS:', paymentStatus);
+      return res.status(200).json({
+        success: true,
+        message: 'Payment status not success, ignoring',
+        acknowledged: true
+      });
+    }
+
+    // Find payment record by order ID
+    const payment = await Payment.findOne({ cashfreeOrderId: orderId });
+
+    if (!payment) {
+      console.error('Payment record not found for order:', orderId);
+      return res.status(200).json({
+        success: true,
+        message: 'Payment record not found',
+        acknowledged: true
+      });
+    }
+
+    // If already completed, don't process again (idempotency)
+    if (payment.status === 'completed') {
+      console.log('Payment already completed, skipping duplicate webhook');
+      return res.status(200).json({
+        success: true,
+        message: 'Payment already processed',
+        acknowledged: true
+      });
+    }
+
+    // Verify order status with Cashfree API
+    const orderDetails = await cashfree.getOrderDetails(orderId);
+
+    if (orderDetails.order_status !== 'PAID') {
+      console.warn('Order status from API is not PAID:', orderDetails.order_status);
+      payment.status = 'failed';
+      await payment.save();
+      return res.status(200).json({
+        success: true,
+        message: 'Order not in PAID status',
+        acknowledged: true
+      });
+    }
+
+    // Activate subscription for the student
+    await activateSubscription(payment, paymentId);
+
+    console.log('✅ Subscription activated via webhook for payment:', orderId);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Payment processed successfully',
+      acknowledged: true,
+      orderId: orderId
+    });
+  } catch (error) {
+    console.error('Error processing payment success webhook:', error);
+    return res.status(200).json({
+      success: true,
+      message: 'Webhook acknowledged',
+      acknowledged: true,
+      error: error.message
+    });
+  }
+};
+
+// Handle payment failure webhook
+const handlePaymentFailure = async (data, res, next) => {
+  try {
+    console.log('\n❌ === PAYMENT FAILURE WEBHOOK ===');
+    const orderId = data.order.order_id;
+    const failureReason = data.payment?.error_details?.error_description || 'Payment failed';
+
+    console.log('Order ID:', orderId);
+    console.log('Failure Reason:', failureReason);
+
+    // Find and update payment record
+    const payment = await Payment.findOne({ cashfreeOrderId: orderId });
+
+    if (payment) {
+      payment.status = 'failed';
+      payment.metadata = {
+        ...payment.metadata,
+        failureReason: failureReason,
+        failedAt: new Date().toISOString()
+      };
+      await payment.save();
+      console.log('Payment status updated to failed');
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Payment failure acknowledged',
+      acknowledged: true,
+      orderId: orderId
+    });
+  } catch (error) {
+    console.error('Error processing payment failure webhook:', error);
+    return res.status(200).json({
+      success: true,
+      message: 'Webhook acknowledged',
+      acknowledged: true,
+      error: error.message
+    });
+  }
+};
+
+// Handle payment user dropped webhook
+const handlePaymentDropped = async (data, res, next) => {
+  try {
+    console.log('\n⚠️ === PAYMENT USER DROPPED WEBHOOK ===');
+    const orderId = data.order.order_id;
+
+    console.log('Order ID:', orderId);
+    console.log('User dropped payment (abandoned)');
+
+    // Find and update payment record
+    const payment = await Payment.findOne({ cashfreeOrderId: orderId });
+
+    if (payment) {
+      payment.status = 'cancelled';
+      payment.metadata = {
+        ...payment.metadata,
+        cancelReason: 'User abandoned payment',
+        cancelledAt: new Date().toISOString()
+      };
+      await payment.save();
+      console.log('Payment status updated to cancelled');
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Payment abandonment acknowledged',
+      acknowledged: true,
+      orderId: orderId
+    });
+  } catch (error) {
+    console.error('Error processing payment dropped webhook:', error);
+    return res.status(200).json({
+      success: true,
+      message: 'Webhook acknowledged',
+      acknowledged: true,
+      error: error.message
+    });
+  }
+};
+
+// Helper function to activate subscription (reusable logic)
+const activateSubscription = async (payment, cashfreePaymentId = null) => {
+  const studentId = payment.studentId;
+  const plan = await SubscriptionPlan.findById(payment.subscriptionPlanId);
+
+  if (!plan) {
+    throw new Error('Subscription plan not found');
+  }
+
+  // Calculate subscription dates
+  const startDate = new Date();
+  let endDate = new Date();
+
+  switch (plan.duration) {
+    case 'monthly':
+      endDate.setMonth(endDate.getMonth() + 1);
+      break;
+    case 'quarterly':
+      endDate.setMonth(endDate.getMonth() + 3);
+      break;
+    case 'half_yearly':
+      endDate.setMonth(endDate.getMonth() + 6);
+      break;
+    case 'yearly':
+      endDate.setFullYear(endDate.getFullYear() + 1);
+      break;
+    case 'demo':
+      if (plan.validityDays && Number.isInteger(plan.validityDays) && plan.validityDays > 0) {
+        endDate.setDate(endDate.getDate() + plan.validityDays);
+      } else {
+        endDate.setDate(endDate.getDate() + 7);
+      }
+      break;
+    default:
+      endDate.setMonth(endDate.getMonth() + 1);
+  }
+
+  // Update payment record
+  if (cashfreePaymentId) {
+    payment.cashfreePaymentId = cashfreePaymentId;
+  }
+  payment.status = 'completed';
+  payment.subscriptionStartDate = startDate;
+  payment.subscriptionEndDate = endDate;
+
+  // Get student
+  const student = await Student.findById(studentId);
+
+  // Handle referrals
+  if (student.referralAgentId) {
+    const ReferralRecord = require('../models/ReferralRecord');
+    const existingReferral = await ReferralRecord.findOne({ paymentId: payment._id });
+
+    if (!existingReferral) {
+      await ReferralRecord.create({
+        agentId: student.referralAgentId,
+        studentId: student._id,
+        paymentId: payment._id,
+        subscriptionPlanId: plan._id,
+        amount: payment.amount,
+        subscriptionDate: startDate,
+        status: 'completed'
+      });
+
+      // Notify agent
+      try {
+        const Agent = require('../models/Agent');
+        const agent = await Agent.findById(student.referralAgentId);
+
+        if (agent && agent.isActive) {
+          const notificationService = require('../services/notificationService');
+          await notificationService.sendToUser(
+            agent._id.toString(),
+            'agent',
+            {
+              title: 'Student Subscribed!',
+              body: `${student.name || 'A student'} has subscribed to ${plan.name}`
+            },
+            {
+              type: 'student_subscribed',
+              studentId: student._id.toString(),
+              studentName: student.name,
+              paymentId: payment._id.toString(),
+              planId: plan._id.toString(),
+              amount: payment.amount,
+              url: '/agent/referrals'
+            }
+          );
+        }
+      } catch (err) {
+        console.error('Error notifying agent:', err.message);
+      }
+    }
+
+    payment.referralAgentId = student.referralAgentId;
+  }
+
+  // Update student subscription
+  const subscriptionData = {
+    planId: plan._id,
+    paymentId: payment._id,
+    startDate: startDate,
+    endDate: endDate,
+    type: plan.type || 'regular'
+  };
+
+  if (plan.type === 'regular') {
+    subscriptionData.board = plan.board;
+    subscriptionData.class = plan.classes?.[0];
+  } else if (plan.type === 'preparation') {
+    subscriptionData.classId = plan.classId?._id || plan.classId;
+  }
+
+  if (!student.activeSubscriptions) {
+    student.activeSubscriptions = [];
+  }
+  student.activeSubscriptions.push(subscriptionData);
+
+  student.subscription = {
+    status: 'active',
+    planId: plan._id,
+    startDate: startDate,
+    endDate: endDate
+  };
+
+  await Promise.all([payment.save(), student.save()]);
+
+  // Send notifications to student and admins
+  try {
+    const notificationService = require('../services/notificationService');
+
+    // Notify student
+    await notificationService.sendToUser(
+      studentId.toString(),
+      'student',
+      {
+        title: 'Subscription Activated!',
+        body: `Your subscription for ${plan.name} has been activated.`
+      },
+      {
+        type: 'subscription_purchased',
+        paymentId: payment._id.toString(),
+        planId: plan._id.toString(),
+        planName: plan.name,
+        url: '/subscriptions'
+      }
+    );
+
+    // Notify admins
+    const Admin = require('../models/Admin');
+    const admins = await Admin.find({
+      isActive: true,
+      $or: [
+        { 'fcmTokens.app': { $exists: true, $ne: null } },
+        { 'fcmTokens.web': { $exists: true, $ne: null } },
+        { fcmToken: { $exists: true, $ne: null } }
+      ]
+    }).select('_id');
+
+    if (admins.length > 0) {
+      const adminIds = admins.map(a => a._id.toString());
+      await notificationService.sendToMultipleUsers(
+        adminIds,
+        'admin',
+        {
+          title: 'New Subscription Purchase',
+          body: `${student.name || 'A student'} has purchased ${plan.name}`
+        },
+        {
+          type: 'new_subscription',
+          studentId: student._id.toString(),
+          paymentId: payment._id.toString(),
+          planName: plan.name,
+          amount: payment.amount,
+          url: '/admin/payments'
+        }
+      );
+    }
+  } catch (err) {
+    console.error('Error sending notifications:', err.message);
+  }
+};
 

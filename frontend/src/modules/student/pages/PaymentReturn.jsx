@@ -8,6 +8,9 @@ import { ROUTES } from '../constants/routes';
 /**
  * Payment Return Page
  * Handles Cashfree payment redirect and verifies payment
+ * 
+ * IMPORTANT: This page handles return URL verification (user redirect from payment gateway)
+ * The server webhook is the PRIMARY verification method for production
  */
 const PaymentReturn = () => {
   const navigate = useNavigate();
@@ -16,6 +19,8 @@ const PaymentReturn = () => {
   const [status, setStatus] = useState('verifying'); // 'verifying', 'success', 'failed'
   const [message, setMessage] = useState('Verifying your payment...');
   const [error, setError] = useState('');
+  const [retryCount, setRetryCount] = useState(0);
+  const MAX_RETRIES = 3;
 
   useEffect(() => {
     const verifyPayment = async () => {
@@ -25,12 +30,12 @@ const PaymentReturn = () => {
         localStorage.removeItem('payment_in_progress');
         localStorage.removeItem('payment_order_id');
         localStorage.removeItem('payment_timestamp');
-        
+
         console.log('Cleared payment flags from localStorage');
-        
+
         // Get order_id from URL query params (Cashfree returns this)
         const orderId = searchParams.get('order_id') || storedOrderId;
-        
+
         if (!orderId) {
           setStatus('failed');
           setMessage('Payment verification failed');
@@ -39,7 +44,6 @@ const PaymentReturn = () => {
         }
 
         // Get other payment details from URL (Cashfree may return these)
-        // These are optional - backend will verify with Cashfree API
         const referenceId = searchParams.get('reference_id') || searchParams.get('payment_id') || searchParams.get('referenceId');
         const paymentSignature = searchParams.get('payment_signature') || searchParams.get('signature');
         const txStatus = searchParams.get('tx_status') || searchParams.get('txStatus');
@@ -50,10 +54,11 @@ const PaymentReturn = () => {
           referenceId,
           paymentSignature,
           txStatus,
-          orderAmount
+          orderAmount,
+          timestamp: new Date().toISOString()
         });
 
-        // Verify payment with backend (orderId is required, others are optional)
+        // Verify payment with backend
         setStatus('verifying');
         setMessage('Verifying your payment...');
 
@@ -91,6 +96,19 @@ const PaymentReturn = () => {
         }
       } catch (error) {
         console.error('Payment verification error:', error);
+
+        // Retry logic for transient errors
+        if (retryCount < MAX_RETRIES && error.message.includes('Network error')) {
+          setMessage(`Retrying payment verification (${retryCount + 1}/${MAX_RETRIES})...`);
+          setRetryCount(retryCount + 1);
+
+          // Wait 2 seconds before retry
+          setTimeout(() => {
+            window.location.reload();
+          }, 2000);
+          return;
+        }
+
         setStatus('failed');
         setMessage('Payment verification failed');
         setError(error.message || 'An error occurred while verifying your payment. Please contact support.');
@@ -98,7 +116,15 @@ const PaymentReturn = () => {
     };
 
     verifyPayment();
-  }, [searchParams, navigate, getCurrentUser]);
+  }, [searchParams, navigate, getCurrentUser, retryCount]);
+
+  const handleRetry = () => {
+    setStatus('verifying');
+    setMessage('Verifying your payment...');
+    setError('');
+    setRetryCount(0);
+    window.location.reload();
+  };
 
   return (
     <div className="min-h-screen w-full bg-gradient-to-br from-blue-50 via-white to-blue-50 flex items-center justify-center p-4">
@@ -112,6 +138,9 @@ const PaymentReturn = () => {
             </div>
             <h2 className="text-2xl font-bold text-gray-900 mb-2">Verifying Payment</h2>
             <p className="text-gray-600">{message}</p>
+            <p className="text-xs text-gray-500 mt-4">
+              Please do not close this page or refresh. It may take a few seconds...
+            </p>
           </>
         )}
 
@@ -149,6 +178,30 @@ const PaymentReturn = () => {
             )}
             <div className="mt-6 space-y-3">
               <button
+                onClick={handleRetry}
+                className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white font-bold py-3 rounded-lg hover:shadow-lg transition-all duration-200"
+              >
+                Retry Payment
+              </button>
+              <button
+                onClick={() => navigate(ROUTES.SUBSCRIPTION_PLANS)}
+                className="w-full border-2 border-gray-300 text-gray-700 font-bold py-3 rounded-lg hover:bg-gray-50 transition-all duration-200"
+              >
+                Back to Plans
+              </button>
+            </div>
+            <p className="text-xs text-gray-500 mt-4">
+              Note: The payment gateway server has been notified. Your subscription will be activated automatically if payment was successful.
+            </p>
+          </>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default PaymentReturn;
+              <button
                 onClick={() => navigate(ROUTES.SUBSCRIPTION_PLANS)}
                 className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white font-bold py-3 rounded-lg hover:shadow-lg transition-all duration-200"
               >
@@ -160,11 +213,11 @@ const PaymentReturn = () => {
               >
                 Go to Dashboard
               </button>
-            </div>
+            </div >
           </>
         )}
-      </div>
-    </div>
+      </div >
+    </div >
   );
 };
 

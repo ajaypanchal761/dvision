@@ -52,8 +52,24 @@ const paymentSchema = new mongoose.Schema(
     subscriptionEndDate: {
       type: Date
     },
+    // Webhook verification tracking
+    webhookProcessed: {
+      type: Boolean,
+      default: false,
+      description: 'Whether payment webhook has been processed'
+    },
+    webhookProcessedAt: {
+      type: Date,
+      description: 'Timestamp when webhook was processed'
+    },
+    verificationMethod: {
+      type: String,
+      enum: ['webhook', 'return_url', 'api_check'],
+      description: 'How payment was verified (webhook is primary)'
+    },
     metadata: {
-      type: mongoose.Schema.Types.Mixed
+      type: mongoose.Schema.Types.Mixed,
+      description: 'Additional payment info (failure reason, etc.)'
     },
     referralAgentId: {
       type: mongoose.Schema.Types.ObjectId,

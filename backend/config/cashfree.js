@@ -103,5 +103,6 @@ const verifyPaymentSignature = (
 module.exports = {
   createOrder,
   getOrderDetails,
-  verifyPaymentSignature
+  verifyPaymentSignature,
+  getCashfreeConfig
 };

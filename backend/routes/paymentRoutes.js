@@ -5,7 +5,8 @@ const {
   verifyPayment,
   getPaymentHistory,
   getAllPayments,
-  getPaymentStats
+  getPaymentStats,
+  handlePaymentWebhook
 } = require('../controllers/paymentController');
 const { protect, authorize } = require('../middlewares/auth');
 
@@ -17,6 +18,11 @@ router.get('/history', protect, getPaymentHistory);
 // Admin routes
 router.get('/admin', protect, authorize('admin', 'super_admin'), getAllPayments);
 router.get('/admin/stats', protect, authorize('admin', 'super_admin'), getPaymentStats);
+
+// ===== WEBHOOK ENDPOINT (PUBLIC - NOT PROTECTED) =====
+// Cashfree calls this endpoint to notify about payment status
+// Security: Uses cryptographic signature verification (x-webhook-signature header)
+router.post('/webhook', handlePaymentWebhook);
 
 module.exports = router;
 

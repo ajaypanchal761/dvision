@@ -37,24 +37,24 @@ const SubscriptionPlans = () => {
     try {
       setLoading(true);
       setError('');
-      
+
       // Validate user has class and board
       if (!userClass || !userBoard) {
         setError('Please complete your profile with class and board information');
         setLoading(false);
         return;
       }
-      
+
       console.log('Fetching subscription plans for:', { board: userBoard, class: userClass });
-      
+
       const response = await subscriptionPlanAPI.getPlans(userBoard, userClass);
-      
+
       console.log('Subscription plans response:', response);
-      
+
       if (response.success && response.data?.subscriptionPlans) {
         const plansData = response.data.subscriptionPlans;
         console.log('Plans fetched successfully:', plansData.length, 'plans');
-        
+
         // Additional client-side filtering to ensure only matching plans are shown
         // Also exclude demo plans from student view
         const filteredPlans = plansData.filter(plan => {
@@ -62,20 +62,20 @@ const SubscriptionPlans = () => {
           if (plan.duration === 'demo') {
             return false;
           }
-          
+
           if (plan.type === 'regular') {
             // For regular plans, must match board AND class must be in classes array
-            return plan.board === userBoard && 
-                   plan.classes && 
-                   Array.isArray(plan.classes) && 
-                   plan.classes.includes(parseInt(userClass));
+            return plan.board === userBoard &&
+              plan.classes &&
+              Array.isArray(plan.classes) &&
+              plan.classes.includes(parseInt(userClass));
           } else if (plan.type === 'preparation') {
             // Preparation plans are shown to all students (except demo)
             return true;
           }
           return false;
         });
-        
+
         console.log('Filtered plans:', filteredPlans.length, 'plans match student criteria');
         setPlans(filteredPlans);
       } else {
@@ -113,7 +113,7 @@ const SubscriptionPlans = () => {
     console.log('=== SUBSCRIBE BUTTON CLICKED ===');
     console.log('Plan:', plan);
     console.log('User:', user);
-    
+
     try {
       setProcessingPlanId(plan._id);
       setError('');
@@ -133,17 +133,17 @@ const SubscriptionPlans = () => {
         // For regular plans: Check if student has active subscription for their class
         const userBoard = user?.board;
         const userClass = user?.class;
-        
+
         hasConflictingSubscription = user?.activeSubscriptions?.some(sub => {
-          return sub.plan?.type === 'regular' && 
-                 sub.plan?.board === userBoard && 
-                 sub.plan?.classes?.includes(parseInt(userClass)) &&
-                 new Date(sub.endDate) > new Date();
-        }) || (user?.subscription?.status === 'active' && 
-               user?.subscription?.plan?.type === 'regular' &&
-               user?.subscription?.plan?.board === userBoard &&
-               user?.subscription?.plan?.classes?.includes(parseInt(userClass)) &&
-               new Date(user.subscription.endDate) > new Date());
+          return sub.plan?.type === 'regular' &&
+            sub.plan?.board === userBoard &&
+            sub.plan?.classes?.includes(parseInt(userClass)) &&
+            new Date(sub.endDate) > new Date();
+        }) || (user?.subscription?.status === 'active' &&
+          user?.subscription?.plan?.type === 'regular' &&
+          user?.subscription?.plan?.board === userBoard &&
+          user?.subscription?.plan?.classes?.includes(parseInt(userClass)) &&
+          new Date(user.subscription.endDate) > new Date());
 
         if (hasConflictingSubscription) {
           conflictMessage = `You already have an active subscription for ${userBoard} Class ${userClass}. Please wait until your current subscription expires before subscribing to another plan for the same class.`;
@@ -151,15 +151,15 @@ const SubscriptionPlans = () => {
       } else if (planType === 'preparation') {
         // For prep plans: Only check if it's the SAME prep class
         const planPrepClassId = plan.classId?._id || plan.classId;
-        
+
         if (planPrepClassId) {
           hasConflictingSubscription = user?.activeSubscriptions?.some(sub => {
             if (sub.plan?.type !== 'preparation' || !sub.plan?.classId) return false;
-            
+
             const subPrepClassId = sub.plan.classId._id || sub.plan.classId;
-            return subPrepClassId && 
-                   subPrepClassId.toString() === planPrepClassId.toString() &&
-                   new Date(sub.endDate) > new Date();
+            return subPrepClassId &&
+              subPrepClassId.toString() === planPrepClassId.toString() &&
+              new Date(sub.endDate) > new Date();
           });
 
           if (hasConflictingSubscription) {
@@ -176,6 +176,24 @@ const SubscriptionPlans = () => {
         return;
       }
 
+      // ===== DOUBLE PAYMENT PREVENTION (Frontend) =====
+      // Check if payment is already in progress
+      const paymentInProgress = localStorage.getItem('payment_in_progress');
+      if (paymentInProgress === 'true') {
+        const timeSincePayment = Date.now() - parseInt(localStorage.getItem('payment_timestamp') || 0);
+        if (timeSincePayment < 5 * 60 * 1000) { // 5 minutes
+          setError('A payment is already in progress. Please complete it or wait a few minutes before trying again.');
+          setProcessingPlanId(null);
+          alert('A payment is already in progress. Please wait a moment and try again.');
+          return;
+        } else {
+          // Clear old payment flags if older than 5 minutes
+          localStorage.removeItem('payment_in_progress');
+          localStorage.removeItem('payment_order_id');
+          localStorage.removeItem('payment_timestamp');
+        }
+      }
+
       console.log('Step 1: Creating Cashfree order for plan:', plan._id);
       // Create Cashfree order
       let orderResponse;
@@ -188,7 +206,16 @@ const SubscriptionPlans = () => {
         console.error('Error Status:', apiError.status);
         console.error('Error Message:', apiError.message);
         console.error('Error Data:', apiError.data);
-        
+
+        // Handle double payment prevention error (429 Too Many Requests)
+        if (apiError.status === 429) {
+          const errorMessage = 'You already have a pending payment for this plan. Please wait a moment before trying again.';
+          setError(errorMessage);
+          setProcessingPlanId(null);
+          alert(errorMessage);
+          return;
+        }
+
         // Don't clear token or redirect on payment errors - just show error
         // Only throw error to show to user, don't let it propagate to cause auth issues
         const errorMessage = apiError.message || 'Failed to create payment order. Please try again.';
@@ -197,12 +224,12 @@ const SubscriptionPlans = () => {
         alert(errorMessage);
         return; // Exit early, don't continue with payment flow
       }
-      
+
       if (!orderResponse) {
         console.error('No response received from API');
         throw new Error('No response from server. Please try again.');
       }
-      
+
       if (!orderResponse.success) {
         console.error('Order creation failed:', orderResponse);
         throw new Error(orderResponse.message || 'Failed to create payment order');
@@ -214,14 +241,14 @@ const SubscriptionPlans = () => {
       }
 
       const { orderId, paymentSessionId, amount, currency, clientId, environment } = orderResponse.data;
-      
+
       if (!orderId || !paymentSessionId || !amount || !clientId) {
         console.error('Missing required payment data:', { orderId, paymentSessionId, amount, clientId });
         throw new Error('Invalid payment data received');
       }
 
       console.log('Step 2: Checking Cashfree SDK availability...');
-      
+
       // Check if Cashfree SDK is loaded (check both lowercase and uppercase like vintagebeauty)
       if (!window.Cashfree && !window.cashfree) {
         const errorMsg = 'Cashfree payment gateway is not available. Please refresh the page and try again.';
@@ -241,60 +268,37 @@ const SubscriptionPlans = () => {
       console.log('Payment flags set in localStorage');
 
       try {
-        // Initialize Cashfree checkout - use new keyword like vintagebeauty
         const CashfreeSDK = window.Cashfree || window.cashfree;
 
-        // Derive mode safely: if clientId looks like TEST, force sandbox to match session env
-        const cashfreeMode = (() => {
-          if (clientId && clientId.startsWith('TEST')) return 'sandbox';
-          if (environment === 'PROD') return 'production';
-          if (environment === 'TEST') return 'sandbox';
-          if (import.meta.env.VITE_CASHFREE_MODE) return import.meta.env.VITE_CASHFREE_MODE;
-          return import.meta.env.PROD ? 'production' : 'sandbox';
-        })();
         const cashfree = new CashfreeSDK({
-          mode: cashfreeMode
+          mode: "production"
         });
 
         const checkoutOptions = {
           paymentSessionId: paymentSessionId,
-          redirectTarget: '_self'
+          redirectTarget: "_self"
         };
 
-        console.log('Step 4: Opening Cashfree checkout...');
-      
-        // Open Cashfree checkout - following vintagebeauty's approach
-        // Cashfree automatically handles redirect, we don't need to manually redirect
-        cashfree.checkout(checkoutOptions).then((result) => {
-          console.log('Cashfree checkout result:', result);
-          
-          if (result.error) {
-            console.error('Cashfree checkout error:', result.error);
-            // Clear payment flag on error
-            localStorage.removeItem('payment_in_progress');
-            localStorage.removeItem('payment_order_id');
-            localStorage.removeItem('payment_timestamp');
-            setError(result.error.message || 'Payment failed');
-            setProcessingPlanId(null);
-            alert(result.error.message || 'Payment failed. Please try again.');
-            return;
-          }
+        cashfree.checkout(checkoutOptions)
+          .then((result) => {
+            if (result.error) {
+              localStorage.removeItem("payment_in_progress");
+              localStorage.removeItem("payment_order_id");
+              localStorage.removeItem("payment_timestamp");
+              alert(result.error.message || "Payment failed");
+              setProcessingPlanId(null);
+              return;
+            }
 
-          // Cashfree will automatically redirect to payment page
-          // Payment verification will happen after redirect back to return URL
-          console.log('Cashfree payment initiated, redirecting...');
-          // Clear processing state - Cashfree handles the redirect automatically
-          setProcessingPlanId(null);
-        }).catch((error) => {
-          console.error('Cashfree checkout error:', error);
-          // Clear payment flag on error
-          localStorage.removeItem('payment_in_progress');
-          localStorage.removeItem('payment_order_id');
-          localStorage.removeItem('payment_timestamp');
-          setError(error.message || 'Payment failed');
-          setProcessingPlanId(null);
-          alert(error.message || 'Payment failed. Please try again.');
-        });
+            setProcessingPlanId(null);
+          })
+          .catch((err) => {
+            localStorage.removeItem("payment_in_progress");
+            localStorage.removeItem("payment_order_id");
+            localStorage.removeItem("payment_timestamp");
+            alert(err.message || "Payment failed");
+            setProcessingPlanId(null);
+          });
       } catch (error) {
         console.error('Error initializing Cashfree checkout:', error);
         // Clear payment flag on error
@@ -322,7 +326,7 @@ const SubscriptionPlans = () => {
   const groupedPlans = plans.reduce((acc, plan) => {
     const planType = plan.type || 'regular';
     let key;
-    
+
     if (planType === 'regular') {
       key = `${planType}_${plan.duration}`;
     } else {
@@ -330,7 +334,7 @@ const SubscriptionPlans = () => {
       const prepClassId = plan.classId?._id || plan.classId || 'unknown';
       key = `${planType}_${prepClassId}_${plan.duration}`;
     }
-    
+
     if (!acc[key]) {
       acc[key] = {
         type: planType,
@@ -412,7 +416,7 @@ const SubscriptionPlans = () => {
               if (group.plans.length === 0) return null;
 
               const isPreparation = group.type === 'preparation';
-              const groupTitle = isPreparation 
+              const groupTitle = isPreparation
                 ? `${group.prepClassName || 'Preparation Class'} - ${getDurationLabel(group.duration)}`
                 : `${getDurationLabel(group.duration)} Plans`;
 
@@ -429,64 +433,63 @@ const SubscriptionPlans = () => {
 
                       // Check if plan is disabled (from backend or client-side check)
                       const isPlanDisabled = plan.isDisabled || false;
-                      
+
                       // For regular plans: Check if student has active subscription for their class
                       let hasActiveSubscriptionForPlan = false;
                       let existingSubscription = null;
-                      
+
                       if (planType === 'regular') {
                         // Check if student has active regular subscription for their class
                         hasActiveSubscriptionForPlan = user?.activeSubscriptions?.some(sub => {
-                          return sub.plan?.type === 'regular' && 
-                                 sub.plan?.board === userBoard && 
-                                 sub.plan?.classes?.includes(parseInt(userClass)) &&
-                                 new Date(sub.endDate) > new Date();
-                        }) || (user?.subscription?.status === 'active' && 
-                               user?.subscription?.plan?.type === 'regular' &&
-                               user?.subscription?.plan?.board === userBoard &&
-                               user?.subscription?.plan?.classes?.includes(parseInt(userClass)) &&
-                               new Date(user.subscription.endDate) > new Date());
-                        
+                          return sub.plan?.type === 'regular' &&
+                            sub.plan?.board === userBoard &&
+                            sub.plan?.classes?.includes(parseInt(userClass)) &&
+                            new Date(sub.endDate) > new Date();
+                        }) || (user?.subscription?.status === 'active' &&
+                          user?.subscription?.plan?.type === 'regular' &&
+                          user?.subscription?.plan?.board === userBoard &&
+                          user?.subscription?.plan?.classes?.includes(parseInt(userClass)) &&
+                          new Date(user.subscription.endDate) > new Date());
+
                         existingSubscription = user?.activeSubscriptions?.find(sub => {
-                          return sub.plan?.type === 'regular' && 
-                                 sub.plan?.board === userBoard && 
-                                 sub.plan?.classes?.includes(parseInt(userClass)) &&
-                                 new Date(sub.endDate) > new Date();
-                        }) || (user?.subscription?.status === 'active' && 
-                               user?.subscription?.plan?.type === 'regular' &&
-                               user?.subscription?.plan?.board === userBoard &&
-                               user?.subscription?.plan?.classes?.includes(parseInt(userClass)) &&
-                               new Date(user.subscription.endDate) > new Date() ? user.subscription : null);
+                          return sub.plan?.type === 'regular' &&
+                            sub.plan?.board === userBoard &&
+                            sub.plan?.classes?.includes(parseInt(userClass)) &&
+                            new Date(sub.endDate) > new Date();
+                        }) || (user?.subscription?.status === 'active' &&
+                          user?.subscription?.plan?.type === 'regular' &&
+                          user?.subscription?.plan?.board === userBoard &&
+                          user?.subscription?.plan?.classes?.includes(parseInt(userClass)) &&
+                          new Date(user.subscription.endDate) > new Date() ? user.subscription : null);
                       } else if (planType === 'preparation') {
                         // For prep plans: Check if student has active subscription for this specific prep class
                         const prepClassId = plan.classId?._id || plan.classId;
                         hasActiveSubscriptionForPlan = user?.activeSubscriptions?.some(sub => {
-                          return sub.plan?.type === 'preparation' && 
-                                 sub.plan?.classId && 
-                                 (sub.plan.classId._id?.toString() === prepClassId?.toString() ||
-                                  sub.plan.classId.toString() === prepClassId?.toString()) &&
-                                 new Date(sub.endDate) > new Date();
+                          return sub.plan?.type === 'preparation' &&
+                            sub.plan?.classId &&
+                            (sub.plan.classId._id?.toString() === prepClassId?.toString() ||
+                              sub.plan.classId.toString() === prepClassId?.toString()) &&
+                            new Date(sub.endDate) > new Date();
                         });
-                        
+
                         existingSubscription = user?.activeSubscriptions?.find(sub => {
-                          return sub.plan?.type === 'preparation' && 
-                                 sub.plan?.classId && 
-                                 (sub.plan.classId._id?.toString() === prepClassId?.toString() ||
-                                  sub.plan.classId.toString() === prepClassId?.toString()) &&
-                                 new Date(sub.endDate) > new Date();
+                          return sub.plan?.type === 'preparation' &&
+                            sub.plan?.classId &&
+                            (sub.plan.classId._id?.toString() === prepClassId?.toString() ||
+                              sub.plan.classId.toString() === prepClassId?.toString()) &&
+                            new Date(sub.endDate) > new Date();
                         });
                       }
-                      
+
                       const isDisabled = isPlanDisabled || hasActiveSubscriptionForPlan;
 
                       return (
                         <div
                           key={plan._id}
-                          className={`bg-white rounded-xl sm:rounded-2xl p-4 sm:p-5 shadow-md transition-all duration-300 border relative ${
-                            isDisabled 
-                              ? 'opacity-60 border-gray-300 cursor-not-allowed' 
-                              : 'hover:shadow-lg hover:border-[var(--app-dark-blue)]/30 border-gray-200'
-                          }`}
+                          className={`bg-white rounded-xl sm:rounded-2xl p-4 sm:p-5 shadow-md transition-all duration-300 border relative ${isDisabled
+                            ? 'opacity-60 border-gray-300 cursor-not-allowed'
+                            : 'hover:shadow-lg hover:border-[var(--app-dark-blue)]/30 border-gray-200'
+                            }`}
                         >
                           {/* Discount Badge - Top Right */}
                           {hasDiscount && !isDisabled && (
@@ -494,7 +497,7 @@ const SubscriptionPlans = () => {
                               {discountPercent}% OFF
                             </div>
                           )}
-                          
+
                           {/* Subscribed/Disabled Badge - Top Right */}
                           {isDisabled && (
                             <div className="absolute top-2 right-2 bg-gray-500 text-white text-xs font-bold px-2 py-0.5 rounded-md shadow-md z-10 flex items-center gap-1">
@@ -509,7 +512,7 @@ const SubscriptionPlans = () => {
                               {plan.name}
                             </h3>
                             <p className="text-xs sm:text-sm text-[var(--app-black)]/60">
-                              {isPrep 
+                              {isPrep
                                 ? (plan.classId?.name || 'Preparation Class')
                                 : `${userBoard || plan.board} • Class ${userClass || plan.classes?.join(', ')}`
                               }
@@ -530,11 +533,11 @@ const SubscriptionPlans = () => {
                             </div>
                             <p className="text-xs text-[var(--app-black)]/60">
                               per {
-                                group.duration === 'monthly' ? 'month' : 
-                                group.duration === 'quarterly' ? '3 months' : 
-                                group.duration === 'half_yearly' ? '6 months' :
-                                group.duration === 'demo' ? `${plan.validityDays || 7} days` :
-                                'year'
+                                group.duration === 'monthly' ? 'month' :
+                                  group.duration === 'quarterly' ? '3 months' :
+                                    group.duration === 'half_yearly' ? '6 months' :
+                                      group.duration === 'demo' ? `${plan.validityDays || 7} days` :
+                                        'year'
                               }
                             </p>
                           </div>
