@@ -44,29 +44,29 @@ const AddCourse = () => {
     const fetchAllData = async () => {
       try {
         setIsLoadingData(true)
-        
-        // Fetch all classes and subjects in parallel
+
+        // Fetch all classes and subjects in parallel (use non-paginated active classes)
         const [classesResponse, subjectsResponse] = await Promise.all([
-          classAPI.getAll(),
-          subjectAPI.getAll()
+          classAPI.getAllWithoutPagination({ isActive: true }),
+          subjectAPI.getAllWithoutPagination({ isActive: true })
         ])
-        
+
         if (classesResponse.success && classesResponse.data?.classes) {
           const activeClasses = classesResponse.data.classes.filter(c => c.isActive)
           setAllClassesData(activeClasses)
-          
+
           // Separate regular and preparation classes
           const regularClasses = activeClasses.filter(c => c.type === 'regular')
           const prepClasses = activeClasses.filter(c => c.type === 'preparation')
-          
+
           // Extract unique boards from regular classes
           const uniqueBoards = [...new Set(regularClasses.map(c => c.board).filter(Boolean))].sort()
           setBoards(uniqueBoards)
-          
+
           // Set preparation classes
           setPreparationClasses(prepClasses)
         }
-        
+
         if (subjectsResponse.success && subjectsResponse.data?.subjects) {
           const activeSubjects = subjectsResponse.data.subjects.filter(s => s.isActive)
           setAllSubjectsData(activeSubjects)
@@ -88,7 +88,7 @@ const AddCourse = () => {
       setAvailableClasses([])
       return
     }
-    
+
     if (!formData.board) {
       setAvailableClasses([])
       setFormData(prev => ({ ...prev, class: '', subject: '' }))
@@ -100,10 +100,10 @@ const AddCourse = () => {
     const classesForBoard = allClassesData
       .filter(c => c.type === 'regular' && c.board === formData.board)
       .map(c => c.class)
-    
+
     const uniqueClasses = [...new Set(classesForBoard)].sort((a, b) => a - b)
     setAvailableClasses(uniqueClasses)
-    
+
     // Reset class and subject if current class is not available for selected board
     if (formData.class && !uniqueClasses.includes(parseInt(formData.class))) {
       setFormData(prev => ({ ...prev, class: '', subject: '' }))
@@ -117,7 +117,7 @@ const AddCourse = () => {
       setAvailableSubjects([])
       return
     }
-    
+
     if (!formData.board || !formData.class) {
       setAvailableSubjects([])
       setFormData(prev => ({ ...prev, subject: '' }))
@@ -126,13 +126,13 @@ const AddCourse = () => {
 
     // Filter subjects by board and class from already loaded data
     const subjectsForClass = allSubjectsData
-      .filter(s => s.board === formData.board && 
-                   s.class === parseInt(formData.class))
+      .filter(s => s.board === formData.board &&
+        s.class === parseInt(formData.class))
       .map(s => s.name)
-    
+
     const uniqueSubjects = [...new Set(subjectsForClass)].sort()
     setAvailableSubjects(uniqueSubjects)
-    
+
     // Reset subject if current subject is not available
     if (formData.subject && !uniqueSubjects.includes(formData.subject)) {
       setFormData(prev => ({ ...prev, subject: '' }))
@@ -156,7 +156,7 @@ const AddCourse = () => {
             .map(s => s.name)
           const uniqueSubjects = [...new Set(activeSubjects)].sort()
           setPreparationSubjects(uniqueSubjects)
-          
+
           // Reset subject if current subject is not available
           if (formData.subject && !uniqueSubjects.includes(formData.subject)) {
             setFormData(prev => ({ ...prev, subject: '' }))
@@ -294,7 +294,7 @@ const AddCourse = () => {
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
-    
+
     if (!isFormValid()) {
       setError('Please fill all mandatory fields. If adding chapters, ensure each chapter has a name and PDF.')
       return
@@ -304,14 +304,14 @@ const AddCourse = () => {
 
     // Create FormData for file uploads
     const formDataToSend = new FormData()
-    
+
     // Add basic course data
     formDataToSend.append('title', formData.title.trim())
     formDataToSend.append('type', formData.type)
     formDataToSend.append('subject', formData.subject.trim())
     formDataToSend.append('description', formData.description.trim())
     formDataToSend.append('status', formData.status)
-    
+
     // Add type-specific fields
     if (formData.type === 'regular') {
       formDataToSend.append('board', formData.board.trim())
@@ -319,12 +319,12 @@ const AddCourse = () => {
     } else if (formData.type === 'preparation') {
       formDataToSend.append('classId', formData.classId)
     }
-    
+
     // Add thumbnail file
     if (formData.thumbnailFile) {
       formDataToSend.append('thumbnail', formData.thumbnailFile)
     }
-    
+
     // Add chapters data as JSON string (can be empty array)
     const chaptersData = chapters.map((chapter, index) => ({
       chapterName: chapter.chapterName.trim(),
@@ -332,7 +332,7 @@ const AddCourse = () => {
       pdfFileName: chapter.pdfFileName || `chapter_${index + 1}.pdf`
     }))
     formDataToSend.append('chapters', JSON.stringify(chaptersData))
-    
+
     // Add PDF files
     chapters.forEach((chapter) => {
       if (chapter.pdfFile) {
@@ -401,7 +401,7 @@ const AddCourse = () => {
             {/* Basic Course Info */}
             <div className="space-y-3 sm:space-y-4">
               <h3 className="text-sm sm:text-base font-bold text-gray-800 border-b-2 border-gray-200 pb-2">Course Information</h3>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
                 {/* Course Type */}
                 <div className="md:col-span-2">
@@ -627,72 +627,72 @@ const AddCourse = () => {
               {showChaptersSection && (
                 <>
                   {chapters.map((chapter, index) => (
-                <div key={index} className="border-2 border-gray-200 rounded-lg p-4 sm:p-5 lg:p-6 space-y-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <h4 className="text-sm sm:text-base md:text-lg font-semibold text-gray-700">Chapter {index + 1}</h4>
-                    {chapters.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveChapter(index)}
-                        className="px-2 sm:px-3 py-1 text-xs sm:text-sm bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium transition-all duration-200"
-                        disabled={isLoading}
-                      >
-                        Remove
-                      </button>
-                    )}
-                  </div>
+                    <div key={index} className="border-2 border-gray-200 rounded-lg p-4 sm:p-5 lg:p-6 space-y-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className="text-sm sm:text-base md:text-lg font-semibold text-gray-700">Chapter {index + 1}</h4>
+                        {chapters.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveChapter(index)}
+                            className="px-2 sm:px-3 py-1 text-xs sm:text-sm bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium transition-all duration-200"
+                            disabled={isLoading}
+                          >
+                            Remove
+                          </button>
+                        )}
+                      </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
-                    {/* Chapter Name */}
-                    <div className="md:col-span-2">
-                      <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1">
-                        Chapter Name <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        value={chapter.chapterName}
-                        onChange={(e) => handleChapterChange(index, 'chapterName', e.target.value)}
-                        className="w-full px-3 py-2 text-xs sm:text-sm border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-[#1e3a5f] focus:border-[#1e3a5f] outline-none transition-all duration-200"
-                        placeholder="Enter chapter name"
-                        disabled={isLoading}
-                      />
-                    </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
+                        {/* Chapter Name */}
+                        <div className="md:col-span-2">
+                          <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1">
+                            Chapter Name <span className="text-red-500">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            value={chapter.chapterName}
+                            onChange={(e) => handleChapterChange(index, 'chapterName', e.target.value)}
+                            className="w-full px-3 py-2 text-xs sm:text-sm border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-[#1e3a5f] focus:border-[#1e3a5f] outline-none transition-all duration-200"
+                            placeholder="Enter chapter name"
+                            disabled={isLoading}
+                          />
+                        </div>
 
-                    {/* Chapter Details */}
-                    <div className="md:col-span-2">
-                      <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1">
-                        Chapter Details
-                      </label>
-                      <textarea
-                        value={chapter.chapterDetails}
-                        onChange={(e) => handleChapterChange(index, 'chapterDetails', e.target.value)}
-                        rows="2"
-                        className="w-full px-3 py-2 text-xs sm:text-sm border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-[#1e3a5f] focus:border-[#1e3a5f] outline-none transition-all duration-200 resize-none"
-                        placeholder="Enter chapter details (optional)"
-                        disabled={isLoading}
-                      />
-                    </div>
+                        {/* Chapter Details */}
+                        <div className="md:col-span-2">
+                          <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1">
+                            Chapter Details
+                          </label>
+                          <textarea
+                            value={chapter.chapterDetails}
+                            onChange={(e) => handleChapterChange(index, 'chapterDetails', e.target.value)}
+                            rows="2"
+                            className="w-full px-3 py-2 text-xs sm:text-sm border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-[#1e3a5f] focus:border-[#1e3a5f] outline-none transition-all duration-200 resize-none"
+                            placeholder="Enter chapter details (optional)"
+                            disabled={isLoading}
+                          />
+                        </div>
 
-                    {/* PDF Upload */}
-                    <div className="md:col-span-2">
-                      <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1">
-                        PDF File <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="file"
-                        accept="application/pdf"
-                        onChange={(e) => handleChapterPdfChange(index, e)}
-                        className="w-full px-3 py-2 text-xs sm:text-sm border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-[#1e3a5f] focus:border-[#1e3a5f] outline-none transition-all duration-200"
-                        disabled={isLoading}
-                      />
-                      {chapter.pdfFileName && (
-                        <p className="text-xs text-green-600 mt-1">✓ {chapter.pdfFileName}</p>
-                      )}
-                      <p className="text-xs text-gray-500 mt-1">Max size: 10MB (PDF only)</p>
+                        {/* PDF Upload */}
+                        <div className="md:col-span-2">
+                          <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1">
+                            PDF File <span className="text-red-500">*</span>
+                          </label>
+                          <input
+                            type="file"
+                            accept="application/pdf"
+                            onChange={(e) => handleChapterPdfChange(index, e)}
+                            className="w-full px-3 py-2 text-xs sm:text-sm border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-[#1e3a5f] focus:border-[#1e3a5f] outline-none transition-all duration-200"
+                            disabled={isLoading}
+                          />
+                          {chapter.pdfFileName && (
+                            <p className="text-xs text-green-600 mt-1">✓ {chapter.pdfFileName}</p>
+                          )}
+                          <p className="text-xs text-gray-500 mt-1">Max size: 10MB (PDF only)</p>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </div>
                   ))}
 
                   {/* Add Chapter Button at Bottom */}
@@ -726,11 +726,10 @@ const AddCourse = () => {
               <button
                 type="submit"
                 disabled={isLoading || !isFormValid()}
-                className={`w-full sm:w-auto px-4 sm:px-6 md:px-8 py-2.5 sm:py-3 text-xs sm:text-sm md:text-base rounded-lg font-semibold transition-all duration-200 shadow-md ${
-                  isFormValid() && !isLoading
+                className={`w-full sm:w-auto px-4 sm:px-6 md:px-8 py-2.5 sm:py-3 text-xs sm:text-sm md:text-base rounded-lg font-semibold transition-all duration-200 shadow-md ${isFormValid() && !isLoading
                     ? 'bg-gradient-to-r from-[#1e3a5f] to-[#2a4a6f] hover:from-[#2a4a6f] hover:to-[#1e3a5f] text-white hover:shadow-lg'
                     : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                }`}
+                  }`}
               >
                 {isLoading ? 'Creating...' : 'Add Course'}
               </button>

@@ -8,9 +8,9 @@ const ErrorResponse = require('../utils/errorResponse');
 // @access  Public
 exports.getPublicSubjects = asyncHandler(async (req, res) => {
   const { class: classNumber, board } = req.query;
-  
+
   let query = { isActive: true };
-  
+
   // Filter by class and board if provided
   if (classNumber) {
     query.class = parseInt(classNumber);
@@ -18,7 +18,7 @@ exports.getPublicSubjects = asyncHandler(async (req, res) => {
   if (board) {
     query.board = board;
   }
-  
+
   const subjects = await Subject.find(query)
     .sort({ createdAt: -1 });
 
@@ -39,7 +39,7 @@ exports.getSubjectStatistics = asyncHandler(async (req, res) => {
   const totalSubjects = await Subject.countDocuments({});
   const activeSubjects = await Subject.countDocuments({ isActive: true });
   const inactiveSubjects = await Subject.countDocuments({ isActive: false });
-  
+
   res.status(200).json({
     success: true,
     data: {
@@ -57,9 +57,9 @@ exports.getSubjectStatistics = asyncHandler(async (req, res) => {
 // @access  Private/Admin
 exports.getAllSubjects = asyncHandler(async (req, res) => {
   const { classId, class: classNumber, board, page = 1, limit = 10, search } = req.query;
-  
+
   let query = {};
-  
+
   // Filter by classId if provided (for preparation classes)
   if (classId) {
     query.classId = classId;
@@ -69,7 +69,7 @@ exports.getAllSubjects = asyncHandler(async (req, res) => {
     query.class = parseInt(classNumber);
     query.board = board.trim();
   }
-  
+
   // Add search functionality
   if (search) {
     query.$or = [
@@ -79,7 +79,7 @@ exports.getAllSubjects = asyncHandler(async (req, res) => {
 
   const skip = (parseInt(page) - 1) * parseInt(limit);
   const total = await Subject.countDocuments(query);
-  
+
   const subjects = await Subject.find(query)
     .populate('classId', 'name class board type classCode')
     .sort({ createdAt: -1 })
@@ -92,6 +92,40 @@ exports.getAllSubjects = asyncHandler(async (req, res) => {
     total,
     page: parseInt(page),
     pages: Math.ceil(total / parseInt(limit)),
+    data: {
+      subjects
+    }
+  });
+});
+
+// @desc    Get all subjects without pagination (Admin) - for dropdowns/filters
+// @route   GET /api/admin/subjects/all
+// @access  Private/Admin
+exports.getAllSubjectsWithoutPagination = asyncHandler(async (req, res) => {
+  const { classId, class: classNumber, board, isActive } = req.query;
+
+  let query = {};
+
+  if (classId) {
+    query.classId = classId;
+  } else if (classNumber && board) {
+    query.class = parseInt(classNumber);
+    query.board = board.trim();
+  }
+
+  // Allow caller to request active/inactive/all
+  if (typeof isActive !== 'undefined') {
+    if (String(isActive) === 'true') query.isActive = true;
+    else if (String(isActive) === 'false') query.isActive = false;
+  }
+
+  const subjects = await Subject.find(query)
+    .populate('classId', 'name class board type classCode')
+    .sort({ createdAt: -1 });
+
+  res.status(200).json({
+    success: true,
+    count: subjects.length,
     data: {
       subjects
     }
@@ -150,26 +184,26 @@ exports.createSubject = asyncHandler(async (req, res) => {
       throw new ErrorResponse('Class not found or inactive', 400);
     }
     subjectData.classId = classId;
-    
+
     // For backward compatibility, also set class and board if regular class
     if (classItem.type === 'regular') {
       subjectData.class = classItem.class;
       subjectData.board = classItem.board;
     }
-  } 
+  }
   // Old approach: using class and board (backward compatibility)
   else if (classNumber && board) {
-    classItem = await Class.findOne({ 
-      class: parseInt(classNumber), 
+    classItem = await Class.findOne({
+      class: parseInt(classNumber),
       board: board.trim(),
       type: 'regular',
       isActive: true
     });
-    
+
     if (!classItem) {
       throw new ErrorResponse(`Class ${classNumber} with board ${board} does not exist. Please create the class first.`, 400);
     }
-    
+
     subjectData.classId = classItem._id;
     subjectData.class = parseInt(classNumber);
     subjectData.board = board.trim();
@@ -178,14 +212,14 @@ exports.createSubject = asyncHandler(async (req, res) => {
   }
 
   // Check if subject with same name and classId already exists
-  const existingSubject = await Subject.findOne({ 
-    name: name.trim(), 
+  const existingSubject = await Subject.findOne({
+    name: name.trim(),
     classId: subjectData.classId
   });
-  
+
   if (existingSubject) {
-    const classDisplay = classItem.type === 'preparation' 
-      ? classItem.name 
+    const classDisplay = classItem.type === 'preparation'
+      ? classItem.name
       : `Class ${classItem.class} ${classItem.board}`;
     throw new ErrorResponse(`Subject "${name}" for ${classDisplay} already exists`, 400);
   }
@@ -231,18 +265,18 @@ exports.updateSubject = asyncHandler(async (req, res) => {
     newClassId = classId;
   }
   // If class and board are being updated (backward compatibility)
-  else if ((classNumber || board) && 
-      (classNumber !== subject.class || board !== subject.board)) {
+  else if ((classNumber || board) &&
+    (classNumber !== subject.class || board !== subject.board)) {
     const finalClass = classNumber || subject.class;
     const finalBoard = board || subject.board;
-    
-    classItem = await Class.findOne({ 
-      class: parseInt(finalClass), 
+
+    classItem = await Class.findOne({
+      class: parseInt(finalClass),
       board: finalBoard.trim(),
       type: 'regular',
       isActive: true
     });
-    
+
     if (!classItem) {
       throw new ErrorResponse(`Class ${finalClass} with board ${finalBoard} does not exist. Please create the class first.`, 400);
     }
@@ -252,20 +286,20 @@ exports.updateSubject = asyncHandler(async (req, res) => {
   }
 
   // If name or classId is being updated, check for duplicates
-  if ((name || newClassId) && 
-      (name !== subject.name || newClassId?.toString() !== subject.classId?.toString())) {
+  if ((name || newClassId) &&
+    (name !== subject.name || newClassId?.toString() !== subject.classId?.toString())) {
     const finalName = name || subject.name;
     const finalClassId = newClassId || subject.classId?._id || subject.classId;
-    
-    const existingSubject = await Subject.findOne({ 
-      name: finalName.trim(), 
+
+    const existingSubject = await Subject.findOne({
+      name: finalName.trim(),
       classId: finalClassId,
       _id: { $ne: req.params.id }
     });
-    
+
     if (existingSubject) {
-      const classDisplay = classItem?.type === 'preparation' 
-        ? classItem.name 
+      const classDisplay = classItem?.type === 'preparation'
+        ? classItem.name
         : `Class ${classItem?.class || finalClass} ${classItem?.board || finalBoard}`;
       throw new ErrorResponse(`Subject "${finalName}" for ${classDisplay} already exists`, 400);
     }

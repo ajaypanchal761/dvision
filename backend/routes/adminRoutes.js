@@ -39,6 +39,7 @@ const {
 } = require('../controllers/adminClassController');
 const {
   getAllSubjects,
+  getAllSubjectsWithoutPagination,
   getSubject,
   getSubjectStatistics,
   createSubject,
@@ -118,6 +119,7 @@ router.delete('/classes/:id', protect, authorize('admin', 'super_admin'), delete
 
 // Admin Subject Management Routes
 router.get('/subjects/statistics', protect, authorize('admin', 'super_admin'), getSubjectStatistics);
+router.get('/subjects/all', protect, authorize('admin', 'super_admin'), getAllSubjectsWithoutPagination);
 router.get('/subjects', protect, authorize('admin', 'super_admin'), getAllSubjects);
 router.get('/subjects/:id', protect, authorize('admin', 'super_admin'), getSubject);
 router.post('/subjects', protect, authorize('admin', 'super_admin'), createSubject);

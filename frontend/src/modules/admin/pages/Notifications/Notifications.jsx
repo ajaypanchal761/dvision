@@ -25,13 +25,12 @@ const Notifications = () => {
   useEffect(() => {
     const fetchClasses = async () => {
       try {
-        const response = await classAPI.getAll()
+        const response = await classAPI.getAllWithoutPagination({ isActive: true })
         if (response.success && response.data?.classes) {
-          const activeClasses = response.data.classes.filter(c => c.isActive)
-          setAllClasses(activeClasses)
-          
+          setAllClasses(response.data.classes)
+
           // Extract unique boards
-          const uniqueBoards = [...new Set(activeClasses.map(c => c.board))].filter(Boolean).sort()
+          const uniqueBoards = [...new Set(response.data.classes.map(c => c.board))].filter(Boolean).sort()
           setBoards(uniqueBoards)
         }
       } catch (err) {
@@ -243,11 +242,10 @@ const Notifications = () => {
                   setSelectedClass('')
                   setSelectedBoard('')
                 }}
-                className={`flex-1 px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all duration-200 ${
-                  recipientType === 'student'
+                className={`flex-1 px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all duration-200 ${recipientType === 'student'
                     ? 'bg-gradient-to-r from-[#1e3a5f] to-[#2a4a6f] text-white shadow-lg'
                     : 'bg-white text-gray-700 border-2 border-gray-200 hover:border-[#1e3a5f]/30'
-                }`}
+                  }`}
               >
                 Students
               </button>
@@ -257,11 +255,10 @@ const Notifications = () => {
                   setSelectedClass('')
                   setSelectedBoard('')
                 }}
-                className={`flex-1 px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all duration-200 ${
-                  recipientType === 'teacher'
+                className={`flex-1 px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all duration-200 ${recipientType === 'teacher'
                     ? 'bg-gradient-to-r from-[#1e3a5f] to-[#2a4a6f] text-white shadow-lg'
                     : 'bg-white text-gray-700 border-2 border-gray-200 hover:border-[#1e3a5f]/30'
-                }`}
+                  }`}
               >
                 Teachers
               </button>
@@ -363,11 +360,10 @@ const Notifications = () => {
                     <div
                       key={recipient._id}
                       onClick={() => handleRecipientToggle(recipient._id)}
-                      className={`flex items-center gap-2 sm:gap-3 p-2 sm:p-2.5 rounded-lg border cursor-pointer transition-all ${
-                        isSelected
+                      className={`flex items-center gap-2 sm:gap-3 p-2 sm:p-2.5 rounded-lg border cursor-pointer transition-all ${isSelected
                           ? 'bg-blue-50 border-[#1e3a5f]'
                           : 'bg-gray-50 border-gray-200 hover:border-[#1e3a5f]/30'
-                      }`}
+                        }`}
                     >
                       <input
                         type="checkbox"
@@ -377,9 +373,8 @@ const Notifications = () => {
                         className="w-4 h-4 sm:w-5 sm:h-5 text-[#1e3a5f] border-gray-300 rounded focus:ring-[#1e3a5f] cursor-pointer"
                       />
                       <div className="flex-1 min-w-0">
-                        <p className={`text-xs sm:text-sm font-semibold truncate ${
-                          isSelected ? 'text-[#1e3a5f]' : 'text-gray-900'
-                        }`}>
+                        <p className={`text-xs sm:text-sm font-semibold truncate ${isSelected ? 'text-[#1e3a5f]' : 'text-gray-900'
+                          }`}>
                           {recipient.name}
                         </p>
                       </div>
@@ -487,11 +482,10 @@ const Notifications = () => {
                           {group.body}
                         </p>
                         <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
-                          <span className={`px-2 py-1 rounded-lg text-[10px] sm:text-xs font-semibold ${
-                            group.recipientType === 'student'
+                          <span className={`px-2 py-1 rounded-lg text-[10px] sm:text-xs font-semibold ${group.recipientType === 'student'
                               ? 'bg-blue-100 text-blue-700'
                               : 'bg-purple-100 text-purple-700'
-                          }`}>
+                            }`}>
                             {group.recipientType === 'student' ? 'Students' : 'Teachers'}
                           </span>
                         </div>

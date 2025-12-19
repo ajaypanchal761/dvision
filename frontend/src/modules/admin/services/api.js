@@ -540,6 +540,13 @@ export const subjectAPI = {
       method: 'GET',
     });
   },
+  // Get all subjects without pagination (for dropdowns)
+  getAllWithoutPagination: async (params = {}) => {
+    const queryString = new URLSearchParams(params).toString();
+    return apiRequest(`/admin/subjects/all${queryString ? `?${queryString}` : ''}`, {
+      method: 'GET',
+    });
+  },
   // Get all subjects (optionally filtered by classId, class, board)
   getAll: async (params = {}) => {
     const queryParams = new URLSearchParams();
@@ -741,7 +748,7 @@ export const doubtAPI = {
     if (params.page) queryParams.append('page', params.page);
     if (params.limit) queryParams.append('limit', params.limit);
     if (params.search) queryParams.append('search', params.search);
-    
+
     const queryString = queryParams.toString();
     return apiRequest(`/doubts${queryString ? `?${queryString}` : ''}`, {
       method: 'GET',
@@ -968,7 +975,7 @@ export const notificationAPI = {
 
     const queryString = queryParams.toString();
     const url = `/notifications/admin/campaigns${queryString ? `?${queryString}` : ''}`;
-    
+
     return apiRequest(url, {
       method: 'GET',
     });

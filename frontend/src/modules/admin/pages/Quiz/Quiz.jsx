@@ -49,7 +49,7 @@ const Quiz = () => {
 
   const fetchClasses = async () => {
     try {
-      const response = await classAPI.getAll()
+      const response = await classAPI.getAllWithoutPagination({ isActive: true })
       if (response.success && response.data.classes) {
         setClasses(response.data.classes)
       }

@@ -35,11 +35,11 @@ const AddTimeTable = () => {
     if (!hour || !minute) return ''
     let hour24 = parseInt(hour)
     const minute24 = parseInt(minute)
-    
+
     if (isNaN(hour24) || isNaN(minute24)) return ''
     if (hour24 < 1 || hour24 > 12) return ''
     if (minute24 < 0 || minute24 > 59) return ''
-    
+
     if (ampm === 'PM' && hour24 !== 12) {
       hour24 += 12
     } else if (ampm === 'AM' && hour24 === 12) {
@@ -66,13 +66,13 @@ const AddTimeTable = () => {
         // In edit mode, don't filter classes as we're editing existing timetable
         return
       }
-      
+
       try {
         setIsLoadingData(true)
-        const classesResponse = await classAPI.getAll()
+        const classesResponse = await classAPI.getAllWithoutPagination({ isActive: true })
         if (classesResponse.success && classesResponse.data?.classes) {
-          const activeClasses = classesResponse.data.classes.filter(c => c.isActive)
-          
+          const activeClasses = classesResponse.data.classes
+
           // Fetch all existing timetables to get classes that already have timetables
           const timetablesResponse = await timetableAPI.getAll()
           if (timetablesResponse.success && timetablesResponse.data?.timetables) {
@@ -82,12 +82,12 @@ const AddTimeTable = () => {
                 .map(tt => tt.classId?._id || tt.classId)
                 .filter(id => id)
             )
-            
+
             // Filter out classes that already have timetables
             const classesWithoutTimetables = activeClasses.filter(
               classItem => !existingClassIds.has(classItem._id.toString())
             )
-            
+
             setAllClasses(classesWithoutTimetables)
           } else {
             // If timetables fetch fails, show all active classes
@@ -109,13 +109,13 @@ const AddTimeTable = () => {
   useEffect(() => {
     const fetchExistingTimetables = async () => {
       if (!isEditMode || !routeClassId) return
-      
+
       try {
         setIsLoadingData(true)
         const response = await timetableAPI.getAll({ classId: routeClassId })
         if (response.success && response.data?.timetables) {
           const timetables = response.data.timetables
-          
+
           // Group timetables by day
           const scheduleByDay = {
             Monday: [],
@@ -126,7 +126,7 @@ const AddTimeTable = () => {
             Saturday: [],
             Sunday: [],
           }
-          
+
           timetables.forEach(tt => {
             const day = tt.dayOfWeek
             if (day && scheduleByDay[day]) {
@@ -146,9 +146,9 @@ const AddTimeTable = () => {
               })
             }
           })
-          
+
           setWeeklySchedule(scheduleByDay)
-          
+
           // Fetch subjects and teachers for the class
           if (timetables.length > 0) {
             const firstTimetable = timetables[0]
@@ -158,7 +158,7 @@ const AddTimeTable = () => {
                 const subjectsResponse = await timetableAPI.getSubjectsByClass(classIdFromTimetable)
                 if (subjectsResponse.success && subjectsResponse.data?.subjects) {
                   setSubjects(subjectsResponse.data.subjects)
-                  
+
                   // Fetch teachers for each subject
                   const subjectIds = subjectsResponse.data.subjects.map(s => s._id)
                   const teacherPromises = subjectIds.map(async (subjectId) => {
@@ -172,25 +172,25 @@ const AddTimeTable = () => {
                     }
                     return { subjectId, teachers: [] }
                   })
-                  
+
                   const teachersResults = await Promise.all(teacherPromises)
                   const teachersMap = {}
                   teachersResults.forEach(result => {
                     teachersMap[result.subjectId] = result.teachers
                   })
                   setTeachersBySubject(teachersMap)
-                  
+
                   // Fetch full teacher data with subjects
                   const allTeacherIds = new Set()
                   Object.values(teachersMap).forEach(teacherList => {
                     teacherList.forEach(teacher => allTeacherIds.add(teacher._id))
                   })
-                  
+
                   const teacherDataPromises = Array.from(allTeacherIds).map(async (teacherId) => {
                     try {
                       const response = await teacherAPI.getById(teacherId)
                       if (response.success && response.data?.teacher) {
-                        const teacherSubjects = (response.data.teacher.subjects || []).map(sub => 
+                        const teacherSubjects = (response.data.teacher.subjects || []).map(sub =>
                           typeof sub === 'object' ? sub._id : sub
                         )
                         return { teacherId, subjects: teacherSubjects }
@@ -200,7 +200,7 @@ const AddTimeTable = () => {
                     }
                     return { teacherId, subjects: [] }
                   })
-                  
+
                   const teachersDataResults = await Promise.all(teacherDataPromises)
                   const teachersDataMap = {}
                   teachersDataResults.forEach(result => {
@@ -252,7 +252,7 @@ const AddTimeTable = () => {
         const subjectsResponse = await timetableAPI.getSubjectsByClass(classId)
         if (subjectsResponse.success && subjectsResponse.data?.subjects) {
           setSubjects(subjectsResponse.data.subjects)
-          
+
           // Fetch teachers for each subject to populate teachers dropdown
           const subjectIds = subjectsResponse.data.subjects.map(s => s._id)
           const teacherPromises = subjectIds.map(async (subjectId) => {
@@ -266,25 +266,25 @@ const AddTimeTable = () => {
             }
             return { subjectId, teachers: [] }
           })
-          
+
           const teachersResults = await Promise.all(teacherPromises)
           const teachersMap = {}
           teachersResults.forEach(result => {
             teachersMap[result.subjectId] = result.teachers
           })
           setTeachersBySubject(teachersMap)
-          
+
           // Fetch full teacher data with subjects
           const allTeacherIds = new Set()
           Object.values(teachersMap).forEach(teacherList => {
             teacherList.forEach(teacher => allTeacherIds.add(teacher._id))
           })
-          
+
           const teacherDataPromises = Array.from(allTeacherIds).map(async (teacherId) => {
             try {
               const response = await teacherAPI.getById(teacherId)
               if (response.success && response.data?.teacher) {
-                const teacherSubjects = (response.data.teacher.subjects || []).map(sub => 
+                const teacherSubjects = (response.data.teacher.subjects || []).map(sub =>
                   typeof sub === 'object' ? sub._id : sub
                 )
                 return { teacherId, subjects: teacherSubjects }
@@ -294,7 +294,7 @@ const AddTimeTable = () => {
             }
             return { teacherId, subjects: [] }
           })
-          
+
           const teachersDataResults = await Promise.all(teacherDataPromises)
           const teachersDataMap = {}
           teachersDataResults.forEach(result => {
@@ -326,7 +326,7 @@ const AddTimeTable = () => {
           ...prev,
           [subjectId]: response.data.teachers
         }))
-        
+
         // Fetch full teacher data with subjects for each teacher
         const teacherPromises = response.data.teachers.map(async (teacher) => {
           try {
@@ -342,15 +342,15 @@ const AddTimeTable = () => {
           }
           return { _id: teacher._id, subjects: [] }
         })
-        
+
         const teachersWithSubjects = await Promise.all(teacherPromises)
         const teachersDataMap = {}
         teachersWithSubjects.forEach(teacher => {
-          teachersDataMap[teacher._id] = teacher.subjects.map(sub => 
+          teachersDataMap[teacher._id] = teacher.subjects.map(sub =>
             typeof sub === 'object' ? sub._id : sub
           )
         })
-        
+
         setTeachersData(prev => ({
           ...prev,
           ...teachersDataMap
@@ -360,7 +360,7 @@ const AddTimeTable = () => {
       console.error('Error fetching teachers:', err)
     }
   }
-  
+
   // Fetch teacher data when teacher is selected
   const fetchTeacherData = async (teacherId) => {
     if (!teacherId || teachersData[teacherId]) {
@@ -370,7 +370,7 @@ const AddTimeTable = () => {
     try {
       const response = await teacherAPI.getById(teacherId)
       if (response.success && response.data?.teacher) {
-        const teacherSubjects = (response.data.teacher.subjects || []).map(sub => 
+        const teacherSubjects = (response.data.teacher.subjects || []).map(sub =>
           typeof sub === 'object' ? sub._id : sub
         )
         setTeachersData(prev => ({
@@ -387,11 +387,11 @@ const AddTimeTable = () => {
   const addClassToDay = (day) => {
     setWeeklySchedule(prev => ({
       ...prev,
-      [day]: [...prev[day], { 
-        subjectId: '', 
-        teacherId: '', 
-    startTime: '',
-    endTime: '',
+      [day]: [...prev[day], {
+        subjectId: '',
+        teacherId: '',
+        startTime: '',
+        endTime: '',
         startHour: '',
         startMinute: '',
         startAmpm: 'AM',
@@ -415,7 +415,7 @@ const AddTimeTable = () => {
     setWeeklySchedule(prev => {
       const newSchedule = { ...prev }
       const dayClasses = [...newSchedule[day]]
-      
+
       dayClasses[classIndex] = {
         ...dayClasses[classIndex],
         [field]: value
@@ -435,7 +435,7 @@ const AddTimeTable = () => {
           }
         }
       }
-      
+
       // If teacher changed, fetch teacher data
       if (field === 'teacherId') {
         if (value) {
@@ -471,7 +471,7 @@ const AddTimeTable = () => {
       return newSchedule
     })
   }
-  
+
   // Get teachers for a selected subject
   const getFilteredTeachers = (subjectId) => {
     if (!subjectId || !teachersBySubject[subjectId]) {
@@ -489,7 +489,7 @@ const AddTimeTable = () => {
     // Validate at least one day has at least one complete class
     const hasSchedule = daysOfWeek.some(day => {
       const dayClasses = weeklySchedule[day]
-      return dayClasses.some(cls => 
+      return dayClasses.some(cls =>
         cls.subjectId && cls.teacherId && cls.startTime && cls.endTime
       )
     })
@@ -530,10 +530,10 @@ const AddTimeTable = () => {
     // Include all days with complete classes
     daysOfWeek.forEach(day => {
       const dayClasses = weeklySchedule[day]
-      const completeClasses = dayClasses.filter(cls => 
+      const completeClasses = dayClasses.filter(cls =>
         cls.subjectId && cls.teacherId && cls.startTime && cls.endTime
       )
-      
+
       if (completeClasses.length > 0) {
         bulkData.weeklySchedule[day] = completeClasses.map(cls => ({
           subjectId: cls.subjectId,
@@ -550,12 +550,12 @@ const AddTimeTable = () => {
         // First, delete all existing timetables for this class
         const existingResponse = await timetableAPI.getAll({ classId })
         if (existingResponse.success && existingResponse.data?.timetables) {
-          const deletePromises = existingResponse.data.timetables.map(tt => 
+          const deletePromises = existingResponse.data.timetables.map(tt =>
             timetableAPI.delete(tt._id)
           )
           await Promise.all(deletePromises)
         }
-        
+
         // Then create new timetables
         const response = await timetableAPI.createBulk(bulkData)
         if (response.success) {
@@ -563,7 +563,7 @@ const AddTimeTable = () => {
             // Format error messages clearly
             const formattedErrors = response.data.errors.map(e => {
               let errorMsg = e.error
-              
+
               // Check if it's a same course conflict
               if (errorMsg.includes('Only one class can be scheduled')) {
                 errorMsg = `⚠️ ${errorMsg}`
@@ -575,7 +575,7 @@ const AddTimeTable = () => {
               else {
                 errorMsg = `❌ ${errorMsg}`
               }
-              
+
               return errorMsg
             })
             setError(formattedErrors.join('\n\n'))
@@ -593,7 +593,7 @@ const AddTimeTable = () => {
             // Format error messages clearly
             const formattedErrors = response.data.errors.map(e => {
               let errorMsg = e.error
-              
+
               // Check if it's a same course conflict
               if (errorMsg.includes('Only one class can be scheduled')) {
                 errorMsg = `⚠️ ${errorMsg}`
@@ -605,7 +605,7 @@ const AddTimeTable = () => {
               else {
                 errorMsg = `❌ ${errorMsg}`
               }
-              
+
               return errorMsg
             })
             setError(formattedErrors.join('\n\n'))
@@ -621,7 +621,7 @@ const AddTimeTable = () => {
             // Format error messages clearly
             const formattedErrors = response.data.errors.map(e => {
               let errorMsg = e.error
-              
+
               // Check if it's a same course conflict
               if (errorMsg.includes('Only one class can be scheduled')) {
                 errorMsg = `⚠️ ${errorMsg}`
@@ -633,7 +633,7 @@ const AddTimeTable = () => {
               else {
                 errorMsg = `❌ ${errorMsg}`
               }
-              
+
               return errorMsg
             })
             setError(formattedErrors.join('\n\n'))
@@ -643,7 +643,7 @@ const AddTimeTable = () => {
           setSuccessMessage(`Successfully created ${response.data.created} timetable(s)`)
           // Navigate after 2 seconds
           setTimeout(() => {
-    navigate('/admin/timetable')
+            navigate('/admin/timetable')
           }, 2000)
         } else {
           // Handle case when success is false (all timetables failed)
@@ -651,7 +651,7 @@ const AddTimeTable = () => {
             // Format error messages clearly
             const formattedErrors = response.data.errors.map(e => {
               let errorMsg = e.error || e.message || 'Unknown error'
-              
+
               // Check if it's a same course conflict
               if (errorMsg.includes('Only one class can be scheduled')) {
                 errorMsg = `⚠️ ${errorMsg}`
@@ -663,7 +663,7 @@ const AddTimeTable = () => {
               else {
                 errorMsg = `❌ ${errorMsg}`
               }
-              
+
               return errorMsg
             })
             setError(formattedErrors.join('\n\n'))
@@ -676,12 +676,12 @@ const AddTimeTable = () => {
       }
     } catch (err) {
       console.error(`Error ${isEditMode ? 'updating' : 'creating'} timetable:`, err)
-      
+
       // Check if error has response data with errors array
       if (err.response?.data?.errors && Array.isArray(err.response.data.errors)) {
         const formattedErrors = err.response.data.errors.map(e => {
           let errorMsg = e.error || e.message || 'Unknown error'
-          
+
           // Check if it's a same course conflict
           if (errorMsg.includes('Only one class can be scheduled')) {
             errorMsg = `⚠️ ${errorMsg}`
@@ -693,7 +693,7 @@ const AddTimeTable = () => {
           else {
             errorMsg = `❌ ${errorMsg}`
           }
-          
+
           return errorMsg
         })
         setError(formattedErrors.join('\n\n'))
@@ -702,7 +702,7 @@ const AddTimeTable = () => {
       else if (err.data?.errors && Array.isArray(err.data.errors)) {
         const formattedErrors = err.data.errors.map(e => {
           let errorMsg = e.error || e.message || 'Unknown error'
-          
+
           if (errorMsg.includes('Only one class can be scheduled')) {
             errorMsg = `⚠️ ${errorMsg}`
           }
@@ -712,7 +712,7 @@ const AddTimeTable = () => {
           else {
             errorMsg = `❌ ${errorMsg}`
           }
-          
+
           return errorMsg
         })
         setError(formattedErrors.join('\n\n'))
@@ -795,19 +795,19 @@ const AddTimeTable = () => {
                     </option>
                   ))}
                 </select>
-                </div>
               </div>
+            </div>
 
             {/* Step 2: Weekly Schedule */}
             {classId && (
               <div className="bg-white rounded-lg shadow-md border border-gray-200 p-3 sm:p-4 md:p-5">
                 <h2 className="text-sm sm:text-base font-bold text-gray-800 mb-3 sm:mb-4">Step 2: Weekly Schedule (Monday - Sunday)</h2>
                 <p className="text-xs sm:text-sm text-gray-600 mb-4">Fill the schedule for each day. Leave empty if no class on that day.</p>
-                
+
                 <div className="space-y-4 sm:space-y-5">
                   {daysOfWeek.map((day) => {
                     const dayClasses = weeklySchedule[day] || []
-                    
+
                     return (
                       <div key={day} className="border border-gray-200 rounded-lg p-3 sm:p-4 bg-gray-50">
                         <div className="flex items-center justify-between mb-3">
@@ -822,7 +822,7 @@ const AddTimeTable = () => {
                             </svg>
                             Add Class
                           </button>
-              </div>
+                        </div>
 
                         {dayClasses.length === 0 ? (
                           <p className="text-xs text-gray-500 italic">No classes added. Click "Add Class" to add one.</p>
@@ -843,14 +843,14 @@ const AddTimeTable = () => {
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                                       </svg>
                                     </button>
-              </div>
+                                  </div>
 
                                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                                     {/* Subject - Show first */}
-              <div>
+                                    <div>
                                       <label className="block text-xs font-semibold text-gray-700 mb-1.5">
                                         Subject
-                </label>
+                                      </label>
                                       <select
                                         value={classItem.subjectId}
                                         onChange={(e) => handleDayChange(day, classIndex, 'subjectId', e.target.value)}
@@ -864,13 +864,13 @@ const AddTimeTable = () => {
                                           </option>
                                         ))}
                                       </select>
-              </div>
+                                    </div>
 
                                     {/* Teacher - Filtered by selected subject */}
-              <div>
+                                    <div>
                                       <label className="block text-xs font-semibold text-gray-700 mb-1.5">
                                         Teacher
-                </label>
+                                      </label>
                                       <select
                                         value={classItem.teacherId}
                                         onChange={(e) => handleDayChange(day, classIndex, 'teacherId', e.target.value)}
@@ -886,13 +886,13 @@ const AddTimeTable = () => {
                                           </option>
                                         ))}
                                       </select>
-              </div>
+                                    </div>
 
                                     {/* Start Time */}
-              <div>
+                                    <div>
                                       <label className="block text-xs font-semibold text-gray-700 mb-1.5">
                                         Start Time
-                </label>
+                                      </label>
                                       <div className="flex items-center gap-1">
                                         <input
                                           type="number"
@@ -911,7 +911,7 @@ const AddTimeTable = () => {
                                           className="w-12 px-1.5 py-1.5 text-center text-xs font-medium text-gray-800 bg-transparent focus:outline-none border-b-2 border-gray-300 focus:border-[#1e3a5f]"
                                         />
                                         <span className="text-gray-800 text-xs font-bold">:</span>
-                <input
+                                        <input
                                           type="number"
                                           min="0"
                                           max="59"
@@ -981,15 +981,15 @@ const AddTimeTable = () => {
                                           )}
                                         </div>
                                       </div>
-              </div>
+                                    </div>
 
                                     {/* End Time */}
-              <div>
+                                    <div>
                                       <label className="block text-xs font-semibold text-gray-700 mb-1.5">
                                         End Time
-                </label>
+                                      </label>
                                       <div className="flex items-center gap-1">
-                <input
+                                        <input
                                           type="number"
                                           min="1"
                                           max="12"
@@ -1006,9 +1006,9 @@ const AddTimeTable = () => {
                                           className="w-12 px-1.5 py-1.5 text-center text-xs font-medium text-gray-800 bg-transparent focus:outline-none border-b-2 border-gray-300 focus:border-[#1e3a5f]"
                                         />
                                         <span className="text-gray-800 text-xs font-bold">:</span>
-                <input
-                  type="number"
-                  min="0"
+                                        <input
+                                          type="number"
+                                          min="0"
                                           max="59"
                                           placeholder="00"
                                           value={classItem.endMinute || ''}
@@ -1083,11 +1083,11 @@ const AddTimeTable = () => {
                             })}
                           </div>
                         )}
-              </div>
+                      </div>
                     )
                   })}
+                </div>
               </div>
-            </div>
             )}
 
             {/* Error Message - Show above buttons */}

@@ -31,7 +31,7 @@ const AddQuiz = () => {
 
   const fetchClasses = async () => {
     try {
-      const response = await classAPI.getAll()
+      const response = await classAPI.getAllWithoutPagination({ isActive: true })
       if (response.success && response.data.classes) {
         setClasses(response.data.classes)
       }
@@ -42,9 +42,9 @@ const AddQuiz = () => {
 
   const fetchSubjects = async () => {
     try {
-      const response = await subjectAPI.getAll({ 
-        class: formData.classNumber, 
-        board: formData.board 
+      const response = await subjectAPI.getAll({
+        class: formData.classNumber,
+        board: formData.board
       })
       if (response.success && response.data.subjects) {
         setSubjects(response.data.subjects)
@@ -69,9 +69,9 @@ const AddQuiz = () => {
       setQuestions([])
       return
     }
-    
+
     setFormData({ ...formData, numberOfQuestions: value })
-    
+
     // Generate questions array based on number
     const newQuestions = []
     for (let i = 0; i < num; i++) {
@@ -150,7 +150,7 @@ const AddQuiz = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    
+
     if (!isFormValid()) {
       return
     }
@@ -231,8 +231,8 @@ const AddQuiz = () => {
                   required
                   value={formData.classNumber}
                   onChange={(e) => {
-                    setFormData({ 
-                      ...formData, 
+                    setFormData({
+                      ...formData,
                       classNumber: e.target.value,
                       board: '',
                       subjectId: ''
@@ -257,8 +257,8 @@ const AddQuiz = () => {
                   required
                   value={formData.board}
                   onChange={(e) => {
-                    setFormData({ 
-                      ...formData, 
+                    setFormData({
+                      ...formData,
                       board: e.target.value,
                       subjectId: ''
                     })
@@ -336,46 +336,46 @@ const AddQuiz = () => {
                         </h3>
                       </div>
 
-                    {/* Question Text */}
-                    <div className="mb-3 sm:mb-4">
-                      <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1.5 sm:mb-2">
-                        Question Text <span className="text-red-500">*</span>
-                      </label>
-                      <textarea
-                        required
-                        value={question.question}
-                        onChange={(e) => handleQuestionChange(qIndex, 'question', e.target.value)}
-                        rows="3"
-                        className="w-full px-3 sm:px-4 py-2 sm:py-2.5 md:py-3 border-2 border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-dvision-blue focus:border-dvision-blue outline-none transition-all duration-200 resize-none text-sm sm:text-base"
-                        placeholder="Enter your question here..."
-                      ></textarea>
-                    </div>
+                      {/* Question Text */}
+                      <div className="mb-3 sm:mb-4">
+                        <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1.5 sm:mb-2">
+                          Question Text <span className="text-red-500">*</span>
+                        </label>
+                        <textarea
+                          required
+                          value={question.question}
+                          onChange={(e) => handleQuestionChange(qIndex, 'question', e.target.value)}
+                          rows="3"
+                          className="w-full px-3 sm:px-4 py-2 sm:py-2.5 md:py-3 border-2 border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-dvision-blue focus:border-dvision-blue outline-none transition-all duration-200 resize-none text-sm sm:text-base"
+                          placeholder="Enter your question here..."
+                        ></textarea>
+                      </div>
 
-                    {/* Options */}
-                    <div className="space-y-2 sm:space-y-3 mb-3 sm:mb-4">
-                      <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1.5 sm:mb-2">
-                        Options <span className="text-red-500">*</span>
-                      </label>
-                      {question.options.map((option, oIndex) => (
-                        <div key={oIndex} className="flex items-center gap-2 sm:gap-3">
-                          <input
-                            type="radio"
-                            name={`correctAnswer-${qIndex}`}
-                            checked={question.correctAnswer === oIndex}
-                            onChange={() => handleCorrectAnswerChange(qIndex, oIndex)}
-                            className="w-4 h-4 sm:w-5 sm:h-5 text-dvision-blue focus:ring-dvision-blue cursor-pointer"
-                          />
-                          <input
-                            type="text"
-                            required
-                            value={option}
-                            onChange={(e) => handleOptionChange(qIndex, oIndex, e.target.value)}
-                            className="flex-1 px-3 sm:px-4 py-2 sm:py-2.5 border-2 border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-dvision-blue focus:border-dvision-blue outline-none transition-all duration-200 text-sm sm:text-base"
-                            placeholder={`Option ${oIndex + 1}`}
-                          />
-                        </div>
-                      ))}
-                    </div>
+                      {/* Options */}
+                      <div className="space-y-2 sm:space-y-3 mb-3 sm:mb-4">
+                        <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1.5 sm:mb-2">
+                          Options <span className="text-red-500">*</span>
+                        </label>
+                        {question.options.map((option, oIndex) => (
+                          <div key={oIndex} className="flex items-center gap-2 sm:gap-3">
+                            <input
+                              type="radio"
+                              name={`correctAnswer-${qIndex}`}
+                              checked={question.correctAnswer === oIndex}
+                              onChange={() => handleCorrectAnswerChange(qIndex, oIndex)}
+                              className="w-4 h-4 sm:w-5 sm:h-5 text-dvision-blue focus:ring-dvision-blue cursor-pointer"
+                            />
+                            <input
+                              type="text"
+                              required
+                              value={option}
+                              onChange={(e) => handleOptionChange(qIndex, oIndex, e.target.value)}
+                              className="flex-1 px-3 sm:px-4 py-2 sm:py-2.5 border-2 border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-dvision-blue focus:border-dvision-blue outline-none transition-all duration-200 text-sm sm:text-base"
+                              placeholder={`Option ${oIndex + 1}`}
+                            />
+                          </div>
+                        ))}
+                      </div>
                       <p className="text-xs text-gray-500">
                         Select the radio button next to the correct answer
                       </p>

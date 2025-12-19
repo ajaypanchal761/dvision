@@ -36,14 +36,14 @@ const EditCourse = () => {
     const fetchAllData = async () => {
       try {
         setIsLoadingData(true)
-        
-        // Fetch course data, classes, and subjects in parallel
+
+        // Fetch course data, classes, and subjects in parallel (use non-paginated active classes)
         const [courseResponse, classesResponse, subjectsResponse] = await Promise.all([
           courseAPI.getById(id),
-          classAPI.getAll(),
-          subjectAPI.getAll()
+          classAPI.getAllWithoutPagination({ isActive: true }),
+          subjectAPI.getAllWithoutPagination({ isActive: true })
         ])
-        
+
         if (!courseResponse.success || !courseResponse.data?.course) {
           setError('Course not found')
           setTimeout(() => navigate('/admin/courses'), 2000)
@@ -51,7 +51,7 @@ const EditCourse = () => {
         }
 
         const course = courseResponse.data.course
-        
+
         // Set form data
         const courseClassId = course.classId?._id || course.classId
         setFormData({
@@ -90,9 +90,9 @@ const EditCourse = () => {
             _id: ch._id,
             chapterName: ch.chapterName || '',
             chapterDetails: ch.chapterDetails || '',
-          pdfFile: null,
-          pdfUrl: ch.pdfUrl || null,
-          pdfFileName: ch.pdfFileName || ch.pdfUrl ? (ch.pdfUrl.split('/').pop() || 'chapter.pdf') : '',
+            pdfFile: null,
+            pdfUrl: ch.pdfUrl || null,
+            pdfFileName: ch.pdfFileName || ch.pdfUrl ? (ch.pdfUrl.split('/').pop() || 'chapter.pdf') : '',
           })))
           // Show chapters section if there are existing chapters
           setShowChaptersSection(true)
@@ -102,24 +102,24 @@ const EditCourse = () => {
           // Don't show chapters section if no chapters exist
           setShowChaptersSection(false)
         }
-        
+
         // Store all classes and subjects data
         if (classesResponse.success && classesResponse.data?.classes) {
           const activeClasses = classesResponse.data.classes.filter(c => c.isActive)
           setAllClassesData(activeClasses)
-          
+
           // Separate regular and preparation classes
           const regularClasses = activeClasses.filter(c => c.type === 'regular')
           const prepClasses = activeClasses.filter(c => c.type === 'preparation')
-          
+
           // Extract unique boards from regular classes
           const uniqueBoards = [...new Set(regularClasses.map(c => c.board).filter(Boolean))].sort()
           setBoards(uniqueBoards)
-          
+
           // Set preparation classes
           setPreparationClasses(prepClasses)
         }
-        
+
         if (subjectsResponse.success && subjectsResponse.data?.subjects) {
           const activeSubjects = subjectsResponse.data.subjects.filter(s => s.isActive)
           setAllSubjectsData(activeSubjects)
@@ -141,7 +141,7 @@ const EditCourse = () => {
       setAvailableClasses([])
       return
     }
-    
+
     if (!formData.board) {
       setAvailableClasses([])
       setFormData(prev => ({ ...prev, class: '', subject: '' }))
@@ -153,10 +153,10 @@ const EditCourse = () => {
     const classesForBoard = allClassesData
       .filter(c => c.type === 'regular' && c.board === formData.board)
       .map(c => c.class)
-    
+
     const uniqueClasses = [...new Set(classesForBoard)].sort((a, b) => a - b)
     setAvailableClasses(uniqueClasses)
-    
+
     // Reset class and subject if current class is not available for selected board
     if (formData.class && !uniqueClasses.includes(parseInt(formData.class))) {
       setFormData(prev => ({ ...prev, class: '', subject: '' }))
@@ -170,7 +170,7 @@ const EditCourse = () => {
       setAvailableSubjects([])
       return
     }
-    
+
     if (!formData.board || !formData.class) {
       setAvailableSubjects([])
       setFormData(prev => ({ ...prev, subject: '' }))
@@ -179,13 +179,13 @@ const EditCourse = () => {
 
     // Filter subjects by board and class from already loaded data
     const subjectsForClass = allSubjectsData
-      .filter(s => s.board === formData.board && 
-                   s.class === parseInt(formData.class))
+      .filter(s => s.board === formData.board &&
+        s.class === parseInt(formData.class))
       .map(s => s.name)
-    
+
     const uniqueSubjects = [...new Set(subjectsForClass)].sort()
     setAvailableSubjects(uniqueSubjects)
-    
+
     // Reset subject if current subject is not available
     if (formData.subject && !uniqueSubjects.includes(formData.subject)) {
       setFormData(prev => ({ ...prev, subject: '' }))
@@ -212,7 +212,7 @@ const EditCourse = () => {
             .map(s => s.name)
           const uniqueSubjects = [...new Set(activeSubjects)].sort()
           setPreparationSubjects(uniqueSubjects)
-          
+
           // Reset subject if current subject is not available (but only if classId changed)
           if (formData.subject && !uniqueSubjects.includes(formData.subject)) {
             setFormData(prev => ({ ...prev, subject: '' }))
@@ -356,7 +356,7 @@ const EditCourse = () => {
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
-    
+
     if (!isFormValid()) {
       setError('Please fill all mandatory fields and ensure all chapters have PDFs')
       return
@@ -366,14 +366,14 @@ const EditCourse = () => {
 
     // Create FormData for file uploads
     const formDataToSend = new FormData()
-    
+
     // Add basic course data
     formDataToSend.append('title', formData.title.trim())
     formDataToSend.append('type', formData.type)
     formDataToSend.append('subject', formData.subject.trim())
     formDataToSend.append('description', formData.description.trim())
     formDataToSend.append('status', formData.status)
-    
+
     // Add type-specific fields
     if (formData.type === 'regular') {
       formDataToSend.append('board', formData.board.trim())
@@ -381,12 +381,12 @@ const EditCourse = () => {
     } else if (formData.type === 'preparation') {
       formDataToSend.append('classId', formData.classId)
     }
-    
+
     // Add thumbnail file if new one is uploaded
     if (formData.thumbnailFile) {
       formDataToSend.append('thumbnail', formData.thumbnailFile)
     }
-    
+
     // Add chapters data as JSON string
     // Map chapters with proper indexing for PDF files
     const chaptersData = chapters.map((chapter, index) => ({
@@ -399,7 +399,7 @@ const EditCourse = () => {
       chapterIndex: index // Index to match with PDF files array
     }))
     formDataToSend.append('chapters', JSON.stringify(chaptersData))
-    
+
     // Add PDF files (only new ones) - maintain order
     // Only append PDFs that have new files
     chapters.forEach((chapter) => {
@@ -482,7 +482,7 @@ const EditCourse = () => {
             {/* Basic Course Info */}
             <div className="space-y-4 sm:space-y-5 lg:space-y-6">
               <h3 className="text-base sm:text-lg md:text-xl font-bold text-gray-800 border-b-2 border-gray-200 pb-2">Course Information</h3>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5 lg:gap-6">
                 {/* Course Type */}
                 <div className="md:col-span-2">
@@ -706,126 +706,126 @@ const EditCourse = () => {
                 </div>
 
                 {chapters.map((chapter, index) => (
-                <div key={index} className="border-2 border-gray-200 rounded-lg sm:rounded-xl p-4 sm:p-5 lg:p-6 space-y-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <h4 className="text-sm sm:text-base md:text-lg font-semibold text-gray-700">
-                      Chapter {index + 1}
-                      {chapter._id && (
-                        <span className="ml-2 text-xs text-gray-500 font-normal">(Existing)</span>
-                      )}
-                    </h4>
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveChapter(index)}
-                      className="px-2 sm:px-3 py-1 text-xs sm:text-sm bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium transition-all duration-200"
-                      disabled={isLoading}
-                    >
-                      Remove Chapter
-                    </button>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
-                    {/* Chapter Name */}
-                    <div className="md:col-span-2">
-                      <label className="block text-xs sm:text-sm md:text-base font-semibold text-gray-700 mb-1.5 sm:mb-2">
-                        Chapter Name <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        value={chapter.chapterName}
-                        onChange={(e) => handleChapterChange(index, 'chapterName', e.target.value)}
-                        className="w-full px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm md:text-base border-2 border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-dvision-blue focus:border-dvision-blue outline-none transition-all duration-200"
-                        placeholder="Enter chapter name"
+                  <div key={index} className="border-2 border-gray-200 rounded-lg sm:rounded-xl p-4 sm:p-5 lg:p-6 space-y-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <h4 className="text-sm sm:text-base md:text-lg font-semibold text-gray-700">
+                        Chapter {index + 1}
+                        {chapter._id && (
+                          <span className="ml-2 text-xs text-gray-500 font-normal">(Existing)</span>
+                        )}
+                      </h4>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveChapter(index)}
+                        className="px-2 sm:px-3 py-1 text-xs sm:text-sm bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium transition-all duration-200"
                         disabled={isLoading}
-                      />
+                      >
+                        Remove Chapter
+                      </button>
                     </div>
 
-                    {/* Chapter Details */}
-                    <div className="md:col-span-2">
-                      <label className="block text-xs sm:text-sm md:text-base font-semibold text-gray-700 mb-1.5 sm:mb-2">
-                        Chapter Details
-                      </label>
-                      <textarea
-                        value={chapter.chapterDetails}
-                        onChange={(e) => handleChapterChange(index, 'chapterDetails', e.target.value)}
-                        rows="2"
-                        className="w-full px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm md:text-base border-2 border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-dvision-blue focus:border-dvision-blue outline-none transition-all duration-200 resize-none"
-                        placeholder="Enter chapter details (optional)"
-                        disabled={isLoading}
-                      />
-                    </div>
-
-                    {/* PDF Upload */}
-                    <div className="md:col-span-2">
-                      <label className="block text-xs sm:text-sm md:text-base font-semibold text-gray-700 mb-1.5 sm:mb-2">
-                        PDF File <span className="text-red-500">*</span>
-                      </label>
-                      {chapter.pdfUrl && !chapter.pdfFile && (
-                        <div className="mb-3 p-3 bg-green-50 border-2 border-green-200 rounded-lg">
-                          <div className="flex items-center justify-between gap-2">
-                            <div className="flex items-center gap-2 flex-1 min-w-0">
-                              <svg className="w-5 h-5 text-green-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                              </svg>
-                              <div className="flex-1 min-w-0">
-                                <p className="text-xs sm:text-sm font-semibold text-green-800">Existing PDF:</p>
-                                <p className="text-xs text-green-700 truncate">{chapter.pdfFileName || 'chapter.pdf'}</p>
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-2 flex-shrink-0">
-                              <a 
-                                href={chapter.pdfUrl} 
-                                target="_blank" 
-                                rel="noopener noreferrer" 
-                                className="px-2 sm:px-3 py-1 text-xs sm:text-sm bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-all duration-200 flex items-center gap-1"
-                                title="View PDF"
-                              >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                                </svg>
-                                <span className="hidden sm:inline">View</span>
-                              </a>
-                              <button
-                                type="button"
-                                onClick={() => handleRemoveExistingPdf(index)}
-                                className="px-2 sm:px-3 py-1 text-xs sm:text-sm bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium transition-all duration-200 flex items-center justify-center"
-                                title="Remove PDF"
-                                disabled={isLoading}
-                              >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                </svg>
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                      {(!chapter.pdfUrl || chapter.pdfFile) && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
+                      {/* Chapter Name */}
+                      <div className="md:col-span-2">
+                        <label className="block text-xs sm:text-sm md:text-base font-semibold text-gray-700 mb-1.5 sm:mb-2">
+                          Chapter Name <span className="text-red-500">*</span>
+                        </label>
                         <input
-                          type="file"
-                          accept="application/pdf"
-                          onChange={(e) => handleChapterPdfChange(index, e)}
+                          type="text"
+                          required
+                          value={chapter.chapterName}
+                          onChange={(e) => handleChapterChange(index, 'chapterName', e.target.value)}
                           className="w-full px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm md:text-base border-2 border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-dvision-blue focus:border-dvision-blue outline-none transition-all duration-200"
+                          placeholder="Enter chapter name"
                           disabled={isLoading}
                         />
-                      )}
-                      {chapter.pdfFile && (
-                        <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-lg">
-                          <p className="text-xs text-blue-700 font-medium">✓ New PDF selected: {chapter.pdfFileName}</p>
-                          {chapter.pdfUrl && (
-                            <p className="text-xs text-blue-600 mt-1">This will replace the existing PDF</p>
-                          )}
-                        </div>
-                      )}
-                      <p className="text-xs text-gray-500 mt-1">
-                        Max size: 10MB (PDF only). {chapter.pdfUrl ? 'Select new PDF to replace existing one.' : 'Upload PDF file.'}
-                      </p>
+                      </div>
+
+                      {/* Chapter Details */}
+                      <div className="md:col-span-2">
+                        <label className="block text-xs sm:text-sm md:text-base font-semibold text-gray-700 mb-1.5 sm:mb-2">
+                          Chapter Details
+                        </label>
+                        <textarea
+                          value={chapter.chapterDetails}
+                          onChange={(e) => handleChapterChange(index, 'chapterDetails', e.target.value)}
+                          rows="2"
+                          className="w-full px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm md:text-base border-2 border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-dvision-blue focus:border-dvision-blue outline-none transition-all duration-200 resize-none"
+                          placeholder="Enter chapter details (optional)"
+                          disabled={isLoading}
+                        />
+                      </div>
+
+                      {/* PDF Upload */}
+                      <div className="md:col-span-2">
+                        <label className="block text-xs sm:text-sm md:text-base font-semibold text-gray-700 mb-1.5 sm:mb-2">
+                          PDF File <span className="text-red-500">*</span>
+                        </label>
+                        {chapter.pdfUrl && !chapter.pdfFile && (
+                          <div className="mb-3 p-3 bg-green-50 border-2 border-green-200 rounded-lg">
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-2 flex-1 min-w-0">
+                                <svg className="w-5 h-5 text-green-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-xs sm:text-sm font-semibold text-green-800">Existing PDF:</p>
+                                  <p className="text-xs text-green-700 truncate">{chapter.pdfFileName || 'chapter.pdf'}</p>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2 flex-shrink-0">
+                                <a
+                                  href={chapter.pdfUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="px-2 sm:px-3 py-1 text-xs sm:text-sm bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-all duration-200 flex items-center gap-1"
+                                  title="View PDF"
+                                >
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                  </svg>
+                                  <span className="hidden sm:inline">View</span>
+                                </a>
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveExistingPdf(index)}
+                                  className="px-2 sm:px-3 py-1 text-xs sm:text-sm bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium transition-all duration-200 flex items-center justify-center"
+                                  title="Remove PDF"
+                                  disabled={isLoading}
+                                >
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                  </svg>
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                        {(!chapter.pdfUrl || chapter.pdfFile) && (
+                          <input
+                            type="file"
+                            accept="application/pdf"
+                            onChange={(e) => handleChapterPdfChange(index, e)}
+                            className="w-full px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm md:text-base border-2 border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-dvision-blue focus:border-dvision-blue outline-none transition-all duration-200"
+                            disabled={isLoading}
+                          />
+                        )}
+                        {chapter.pdfFile && (
+                          <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-lg">
+                            <p className="text-xs text-blue-700 font-medium">✓ New PDF selected: {chapter.pdfFileName}</p>
+                            {chapter.pdfUrl && (
+                              <p className="text-xs text-blue-600 mt-1">This will replace the existing PDF</p>
+                            )}
+                          </div>
+                        )}
+                        <p className="text-xs text-gray-500 mt-1">
+                          Max size: 10MB (PDF only). {chapter.pdfUrl ? 'Select new PDF to replace existing one.' : 'Upload PDF file.'}
+                        </p>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))}
 
                 {/* Add Chapter Button at Bottom */}
                 <div className="flex justify-end pt-2">
@@ -854,11 +854,10 @@ const EditCourse = () => {
               <button
                 type="submit"
                 disabled={isLoading || !isFormValid()}
-                className={`w-full sm:w-auto px-4 sm:px-6 md:px-8 py-2.5 sm:py-3 text-xs sm:text-sm md:text-base rounded-lg sm:rounded-xl font-semibold transition-all duration-200 shadow-lg ${
-                  isFormValid() && !isLoading
+                className={`w-full sm:w-auto px-4 sm:px-6 md:px-8 py-2.5 sm:py-3 text-xs sm:text-sm md:text-base rounded-lg sm:rounded-xl font-semibold transition-all duration-200 shadow-lg ${isFormValid() && !isLoading
                     ? 'bg-gradient-to-r from-dvision-blue to-dvision-blue-dark hover:from-dvision-blue-dark hover:to-dvision-blue text-white hover:shadow-xl transform hover:-translate-y-0.5'
                     : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                }`}
+                  }`}
               >
                 {isLoading ? 'Updating...' : 'Update Course'}
               </button>

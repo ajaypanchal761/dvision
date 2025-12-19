@@ -20,10 +20,9 @@ const AddNotification = () => {
   useEffect(() => {
     const fetchClasses = async () => {
       try {
-        const response = await classAPI.getAll({ limit: 1000 }) // Get all classes
+        const response = await classAPI.getAllWithoutPagination({ isActive: true, limit: 1000 }) // Get all active classes
         if (response.success && response.data?.classes) {
-          const activeClasses = response.data.classes.filter(c => c.isActive)
-          setAllClasses(activeClasses)
+          setAllClasses(response.data.classes)
         }
       } catch (err) {
         console.error('Error fetching classes:', err)
@@ -62,7 +61,7 @@ const AddNotification = () => {
               setSelectedClass(campaign.classId.toString())
             } else if (campaign.classNumber) {
               // Backward compatibility: if classNumber exists, try to find matching class
-              const matchingClass = allClasses.find(c => 
+              const matchingClass = allClasses.find(c =>
                 c.type === 'regular' && c.class === campaign.classNumber
               )
               if (matchingClass) {
@@ -173,11 +172,10 @@ const AddNotification = () => {
           <div className="bg-white rounded-lg shadow-md border border-gray-200 p-3 sm:p-4 md:p-5">
             <h2 className="text-sm sm:text-base font-bold text-gray-800 mb-3 sm:mb-4">Select Notification Type</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <label className={`flex items-center gap-2 sm:gap-3 p-3 sm:p-4 border-2 rounded-lg cursor-pointer transition-all ${
-                notificationType === 'students'
+              <label className={`flex items-center gap-2 sm:gap-3 p-3 sm:p-4 border-2 rounded-lg cursor-pointer transition-all ${notificationType === 'students'
                   ? 'border-[#1e3a5f] bg-blue-50'
                   : 'border-gray-200 hover:border-[#1e3a5f]/30'
-              }`}>
+                }`}>
                 <input
                   type="radio"
                   name="notificationType"
@@ -191,11 +189,10 @@ const AddNotification = () => {
                 />
                 <span className="text-xs sm:text-sm font-semibold text-gray-700">All Students</span>
               </label>
-              <label className={`flex items-center gap-2 sm:gap-3 p-3 sm:p-4 border-2 rounded-lg cursor-pointer transition-all ${
-                notificationType === 'teachers'
+              <label className={`flex items-center gap-2 sm:gap-3 p-3 sm:p-4 border-2 rounded-lg cursor-pointer transition-all ${notificationType === 'teachers'
                   ? 'border-[#1e3a5f] bg-blue-50'
                   : 'border-gray-200 hover:border-[#1e3a5f]/30'
-              }`}>
+                }`}>
                 <input
                   type="radio"
                   name="notificationType"
@@ -209,11 +206,10 @@ const AddNotification = () => {
                 />
                 <span className="text-xs sm:text-sm font-semibold text-gray-700">All Teachers</span>
               </label>
-              <label className={`flex items-center gap-2 sm:gap-3 p-3 sm:p-4 border-2 rounded-lg cursor-pointer transition-all ${
-                notificationType === 'both'
+              <label className={`flex items-center gap-2 sm:gap-3 p-3 sm:p-4 border-2 rounded-lg cursor-pointer transition-all ${notificationType === 'both'
                   ? 'border-[#1e3a5f] bg-blue-50'
                   : 'border-gray-200 hover:border-[#1e3a5f]/30'
-              }`}>
+                }`}>
                 <input
                   type="radio"
                   name="notificationType"
@@ -227,11 +223,10 @@ const AddNotification = () => {
                 />
                 <span className="text-xs sm:text-sm font-semibold text-gray-700">Both (Students + Teachers)</span>
               </label>
-              <label className={`flex items-center gap-2 sm:gap-3 p-3 sm:p-4 border-2 rounded-lg cursor-pointer transition-all ${
-                notificationType === 'class'
+              <label className={`flex items-center gap-2 sm:gap-3 p-3 sm:p-4 border-2 rounded-lg cursor-pointer transition-all ${notificationType === 'class'
                   ? 'border-[#1e3a5f] bg-blue-50'
                   : 'border-gray-200 hover:border-[#1e3a5f]/30'
-              }`}>
+                }`}>
                 <input
                   type="radio"
                   name="notificationType"
@@ -262,7 +257,7 @@ const AddNotification = () => {
                   {allClasses.map((classItem) => {
                     // Display name for regular classes: "Class 10 - RBSE" or "Class 10" if no board
                     // Display name for preparation classes: "JEE Preparation" or the name field
-                    const displayName = classItem.type === 'regular' 
+                    const displayName = classItem.type === 'regular'
                       ? (classItem.board ? `Class ${classItem.class} - ${classItem.board}` : `Class ${classItem.class}`)
                       : (classItem.name || classItem.classCode || 'Preparation Class')
                     return (

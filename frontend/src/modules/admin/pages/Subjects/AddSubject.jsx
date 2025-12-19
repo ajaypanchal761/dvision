@@ -19,13 +19,11 @@ const AddSubject = () => {
     const fetchData = async () => {
       try {
         setIsLoadingData(true)
-        
-        // Fetch all classes (both regular and preparation)
-        const classesResponse = await classAPI.getAll()
+
+        // Fetch all active classes (both regular and preparation)
+        const classesResponse = await classAPI.getAllWithoutPagination({ isActive: true })
         if (classesResponse.success && classesResponse.data?.classes) {
-          // Filter only active classes
-          const activeClasses = classesResponse.data.classes.filter(c => c.isActive)
-          setAllClasses(activeClasses)
+          setAllClasses(classesResponse.data.classes)
         }
       } catch (err) {
         console.error('Error fetching data:', err)
@@ -124,8 +122,8 @@ const AddSubject = () => {
                 >
                   <option value="">Select Class or Preparation Class</option>
                   {allClasses.map(cls => {
-                    const displayName = cls.type === 'preparation' 
-                      ? `${cls.name} (${cls.classCode})` 
+                    const displayName = cls.type === 'preparation'
+                      ? `${cls.name} (${cls.classCode})`
                       : `Class ${cls.class} - ${cls.board} (${cls.classCode})`
                     return (
                       <option key={cls._id} value={cls._id}>{displayName}</option>
