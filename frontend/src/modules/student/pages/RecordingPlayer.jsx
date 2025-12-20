@@ -152,150 +152,121 @@ const RecordingPlayer = () => {
       document.removeEventListener('fullscreenchange', handleFullscreenChange);
     };
   }, []);
+}, []);
 
-  if (isLoading) {
-    <video
-      ref={videoRef}
-      crossOrigin="anonymous"
-      playsInline
-      onPlay={() => setIsPlaying(true)}
-      onPause={() => setIsPlaying(false)}
-      onTimeUpdate={handleTimeUpdate}
-      onDurationChange={handleDurationChange}
-      onLoadedMetadata={() => {
-        // prefer HTML5 duration if finite, otherwise try backend-provided duration
-        const vid = videoRef.current;
-        const d = vid?.duration;
-        if (Number.isFinite(d) && !isNaN(d)) {
-          setDuration(d);
-        } else if (liveClass?.recording?.duration) {
-          setDuration(liveClass.recording.duration);
-        } else {
-          setDuration(0);
-        }
-        // ensure start at 0
-        try { if (vid) vid.currentTime = 0; } catch (e) { }
-
-        // check for video track presence
-        try {
-          const vw = vid.videoWidth || 0;
-          const vh = vid.videoHeight || 0;
-          console.log('[Video] dimensions', vw, vh);
-          if (!vw || !vh) {
-            console.warn('[Video] No video track detected (videoWidth/videoHeight are zero)');
-            setVideoError('No video track or unsupported codec — video may not display in this browser');
-          }
-        } catch (err) {
-          console.warn('[Video] error checking dimensions', err);
-        }
-      }}
-      onError={(e) => {
-        const vid = videoRef.current;
-        console.error('[Video] element error', vid?.error, e);
-        setVideoError('Video playback error — check console for details');
-      }}
-      onClick={togglePlay}
-      style={{ objectFit: 'contain' }}
-      className="w-full h-full"
-    >
-      {liveClass?.recording?.playbackUrl && (
-        <source src={liveClass.recording.playbackUrl} type="video/mp4" />
-      )}
-    </video>
-
-    {
-      videoError && (
-        <div className="absolute inset-0 flex items-center justify-center text-white p-4 pointer-events-none">
-          <div className="bg-black/60 rounded-md px-4 py-2 text-sm">{videoError}</div>
-        </div>
-      )
-    }
-      </header >
-
-  <main className="flex-1 flex items-center justify-center">
-    <div id="video-container" className="w-full h-full relative group">
-      <video
-        ref={videoRef}
-        src={liveClass?.recording?.playbackUrl}
-        crossOrigin="anonymous"
-        playsInline
-        onPlay={() => setIsPlaying(true)}
-        onPause={() => setIsPlaying(false)}
-        onTimeUpdate={handleTimeUpdate}
-        onDurationChange={handleDurationChange}
-        onLoadedMetadata={() => {
-          // prefer HTML5 duration if finite, otherwise try backend-provided duration
-          const d = videoRef.current?.duration;
-          if (Number.isFinite(d) && !isNaN(d)) {
-            setDuration(d);
-          } else if (liveClass?.recording?.duration) {
-            setDuration(liveClass.recording.duration);
-          } else {
-            setDuration(0);
-          }
-          // ensure start at 0
-          try { if (videoRef.current) videoRef.current.currentTime = 0; } catch (e) { }
-        }}
-        onClick={togglePlay}
-        style={{ objectFit: 'contain' }}
-        className="w-full h-full"
-      />
-
-      <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 transition-opacity duration-300 flex items-center justify-center">
-        <div className="flex items-center space-x-8">
-          <button onClick={() => handleSeek(-10)} className="text-white p-2 rounded-full hover:bg-white/20">
-            <FiRotateCcw size={32} />
-          </button>
-          <button onClick={togglePlay} className="text-white p-4 rounded-full bg-white/20 hover:bg-white/30">
-            {isPlaying ? <FiPause size={48} /> : <FiPlay size={48} />}
-          </button>
-          <button onClick={() => handleSeek(10)} className="text-white p-2 rounded-full hover:bg-white/20">
-            <FiRotateCw size={32} />
-          </button>
-        </div>
-      </div>
-
-      <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/70 to-transparent">
-        <div className="flex items-center space-x-4">
-          <button onClick={togglePlay} className="text-white">
-            {isPlaying ? <FiPause size={20} /> : <FiPlay size={20} />}
-          </button>
-          <div className="text-sm">{formatTime(progress)}</div>
-          <input
-            type="range"
-            min="0"
-            max={duration || 0}
-            value={progress}
-            onChange={handleProgressChange}
-            className="w-full h-1 bg-white/30 rounded-full appearance-none cursor-pointer"
-            style={{
-              background: `linear-gradient(to right, #3B82F6 ${duration > 0 ? (progress / duration) * 100 : 0}%, #AFAFAF50 ${duration > 0 ? (progress / duration) * 100 : 0}%)`
-            }}
-          />
-          <div className="text-sm">{formatTime(duration)}</div>
-          <div className="relative group/speed">
-            <button className="text-white">{playbackSpeed}x</button>
-            <div className="absolute bottom-full mb-2 right-0 bg-gray-800 rounded-md p-1 hidden group-hover/speed:block">
-              {[0.5, 1, 1.5, 2].map((speed) => (
-                <button
-                  key={speed}
-                  onClick={() => handlePlaybackSpeedChange(speed)}
-                  className={`block w-full text-left px-2 py-1 text-sm ${playbackSpeed === speed ? 'bg-blue-600' : ''}`}
-                >
-                  {speed}x
-                </button>
-              ))}
-            </div>
-          </div>
-          <button onClick={toggleFullscreen} className="text-white">
-            {isFullscreen ? <FiMinimize size={20} /> : <FiMaximize size={20} />}
-          </button>
-        </div>
-      </div>
+if (isLoading) {
+  return (
+    <div className="flex items-center justify-center h-screen">
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[var(--app-dark-blue)]"></div>
     </div>
-  </main>
-    </div >
   );
+}
+
+if (error) {
+  return (
+    <div className="flex flex-col items-center justify-center h-screen">
+      <p className="text-red-500">{error}</p>
+      <button onClick={() => navigate(-1)} className="mt-4 px-4 py-2 bg-gray-200 rounded-lg">
+        Go Back
+      </button>
+    </div>
+  );
+}
+
+return (
+  <div className="bg-black text-white min-h-screen flex flex-col">
+    <header className="px-4 py-3 flex items-center justify-between z-10 bg-gray-900">
+      <button onClick={() => navigate(-1)} className="p-2 rounded-full hover:bg-gray-800">
+        <FiArrowLeft size={20} />
+      </button>
+      <h1 className="text-lg font-bold">{liveClass?.title}</h1>
+      <div className="w-8"></div>
+    </header>
+
+    <main className="flex-1 flex items-center justify-center">
+      <div id="video-container" className="w-full h-full relative group">
+        <video
+          ref={videoRef}
+          src={liveClass?.recording?.playbackUrl}
+          crossOrigin="anonymous"
+          playsInline
+          onPlay={() => setIsPlaying(true)}
+          onPause={() => setIsPlaying(false)}
+          onTimeUpdate={handleTimeUpdate}
+          onDurationChange={handleDurationChange}
+          onLoadedMetadata={() => {
+            // prefer HTML5 duration if finite, otherwise try backend-provided duration
+            const d = videoRef.current?.duration;
+            if (Number.isFinite(d) && !isNaN(d)) {
+              setDuration(d);
+            } else if (liveClass?.recording?.duration) {
+              setDuration(liveClass.recording.duration);
+            } else {
+              setDuration(0);
+            }
+            // ensure start at 0
+            try { if (videoRef.current) videoRef.current.currentTime = 0; } catch (e) { }
+          }}
+          onClick={togglePlay}
+          style={{ objectFit: 'contain' }}
+          className="w-full h-full"
+        />
+
+        <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 transition-opacity duration-300 flex items-center justify-center">
+          <div className="flex items-center space-x-8">
+            <button onClick={() => handleSeek(-10)} className="text-white p-2 rounded-full hover:bg-white/20">
+              <FiRotateCcw size={32} />
+            </button>
+            <button onClick={togglePlay} className="text-white p-4 rounded-full bg-white/20 hover:bg-white/30">
+              {isPlaying ? <FiPause size={48} /> : <FiPlay size={48} />}
+            </button>
+            <button onClick={() => handleSeek(10)} className="text-white p-2 rounded-full hover:bg-white/20">
+              <FiRotateCw size={32} />
+            </button>
+          </div>
+        </div>
+
+        <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/70 to-transparent">
+          <div className="flex items-center space-x-4">
+            <button onClick={togglePlay} className="text-white">
+              {isPlaying ? <FiPause size={20} /> : <FiPlay size={20} />}
+            </button>
+            <div className="text-sm">{formatTime(progress)}</div>
+            <input
+              type="range"
+              min="0"
+              max={duration || 0}
+              value={progress}
+              onChange={handleProgressChange}
+              className="w-full h-1 bg-white/30 rounded-full appearance-none cursor-pointer"
+              style={{
+                background: `linear-gradient(to right, #3B82F6 ${duration > 0 ? (progress / duration) * 100 : 0}%, #AFAFAF50 ${duration > 0 ? (progress / duration) * 100 : 0}%)`
+              }}
+            />
+            <div className="text-sm">{formatTime(duration)}</div>
+            <div className="relative group/speed">
+              <button className="text-white">{playbackSpeed}x</button>
+              <div className="absolute bottom-full mb-2 right-0 bg-gray-800 rounded-md p-1 hidden group-hover/speed:block">
+                {[0.5, 1, 1.5, 2].map((speed) => (
+                  <button
+                    key={speed}
+                    onClick={() => handlePlaybackSpeedChange(speed)}
+                    className={`block w-full text-left px-2 py-1 text-sm ${playbackSpeed === speed ? 'bg-blue-600' : ''}`}
+                  >
+                    {speed}x
+                  </button>
+                ))}
+              </div>
+            </div>
+            <button onClick={toggleFullscreen} className="text-white">
+              {isFullscreen ? <FiMinimize size={20} /> : <FiMaximize size={20} />}
+            </button>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div >
+);
 };
 
 export default RecordingPlayer;
