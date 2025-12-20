@@ -155,7 +155,8 @@ class S3Service {
       const command = new GetObjectCommand({
         Bucket: this.bucket,
         Key: s3Key,
-        ResponseContentDisposition: 'inline'
+        ResponseContentDisposition: 'inline',
+        ResponseContentType: 'video/mp4'
       });
 
       const url = await getSignedUrl(this.client, command, { expiresIn });
