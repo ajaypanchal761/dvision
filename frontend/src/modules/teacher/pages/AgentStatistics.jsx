@@ -54,30 +54,32 @@ const AgentStatistics = () => {
     }).format(amount);
   };
 
-  const handleExportCSV = () => {
-    // Create CSV content
-    const headers = ['Month', 'Referrals', 'Total Amount'];
-    const rows = monthWiseBreakdown.map(item => [
-      item.month,
-      item.count,
-      item.totalAmount
-    ]);
+  const handleExportCSV = async () => {
+    try {
+      const response = await agentAPI.exportStatistics(selectedMonth);
+      if (response && (response.success || response.data)) {
+        // The apiRequest returns {success: true, data: text} for non-JSON response
+        // or just the text if we handle it differently. 
+        // Based on api.js logic: returns { success: true, data: text } for non-json.
+        const csvContent = response.data;
 
-    const csvContent = [
-      headers.join(','),
-      ...rows.map(row => row.join(','))
-    ].join('\n');
-
-    // Download CSV
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `referral-statistics-${new Date().toISOString().split('T')[0]}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    window.URL.revokeObjectURL(url);
+        // Download CSV
+        const blob = new Blob([csvContent], { type: 'text/csv' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `referrals-${selectedMonth || 'all'}-${new Date().toISOString().split('T')[0]}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+      }
+    } catch (err) {
+      console.error('Error exporting CSV:', err);
+      // Fallback to client-side export if backend fails? 
+      // User requested backend update, so unlikely to want fallback, but good for stability if API fails.
+      // For now, I will stick to backend export as requested.
+    }
   };
 
   const filteredBreakdown = selectedMonth
@@ -127,8 +129,8 @@ const AgentStatistics = () => {
 
         {/* Filters and Export */}
         <div className="bg-white rounded-xl sm:rounded-2xl p-3 sm:p-4 md:p-5 shadow-lg">
-          <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 md:gap-4 items-start sm:items-center justify-between">
-            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 flex-1">
+          <div className="flex flex-row gap-2 sm:gap-3 md:gap-4 items-center justify-between">
+            <div className="flex flex-row gap-2 sm:gap-3 flex-1">
               <div className="flex items-center gap-2">
                 <FiCalendar className="text-gray-600 text-sm sm:text-base" />
                 <select

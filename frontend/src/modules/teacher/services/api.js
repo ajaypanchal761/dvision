@@ -679,6 +679,15 @@ export const agentAPI = {
       method: 'PUT',
       body: { fcmToken, platform }
     });
+  },
+  // Export statistics as CSV
+  exportStatistics: async (month = null) => {
+    const url = month
+      ? `/agent/statistics/export?month=${encodeURIComponent(month)}`
+      : '/agent/statistics/export';
+    return apiRequest(url, {
+      method: 'GET'
+    });
   }
 };
 
