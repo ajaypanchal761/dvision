@@ -16,7 +16,12 @@ const Recordings = () => {
   const [error, setError] = useState('');
   const [selectedRecording, setSelectedRecording] = useState(null);
   const [playbackUrl, setPlaybackUrl] = useState('');
-  const [videoRef, setVideoRef] = useState(null);
+  const videoRef = useRef(null);
+
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [playbackRate, setPlaybackRate] = useState(1);
 
   useEffect(() => {
     fetchRecordings();
@@ -51,7 +56,7 @@ const Recordings = () => {
         setPlaybackUrl(recording.playbackUrl);
         return;
       }
-      
+
       // If not, fetch the recording to get presigned URL
       const response = await liveClassAPI.getRecording(recording._id);
       if (response.success && response.data?.recording) {
@@ -72,7 +77,7 @@ const Recordings = () => {
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
     const secs = seconds % 60;
-    
+
     if (hours > 0) {
       return `${hours}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
     }
@@ -194,47 +199,135 @@ const Recordings = () => {
                 <FiArrowLeft className="text-xl" />
               </button>
             </div>
-            <video
-              ref={setVideoRef}
-              src={playbackUrl}
-              controls
-              controlsList="nodownload"
-              preload="metadata"
-              className="w-full rounded-lg"
-              style={{ 
-                maxHeight: '70vh',
-                // Ensure controls are visible
-                backgroundColor: '#000'
-              }}
-              onLoadedMetadata={(e) => {
-                // Ensure duration is available and displayed
-                const video = e.target;
-                if (video.duration && !isNaN(video.duration)) {
-                  console.log('[Video] Duration loaded:', formatDuration(video.duration));
-                  // Force controls to show duration
-                  video.controls = true;
-                }
-              }}
-              onCanPlay={(e) => {
-                // Ensure video is ready and duration is available
-                const video = e.target;
-                if (video.duration && !isNaN(video.duration)) {
-                  console.log('[Video] Can play - Duration:', formatDuration(video.duration));
-                }
-              }}
-              onTimeUpdate={(e) => {
-                // Track current time - this ensures seek bar updates
-                const video = e.target;
-                const current = video.currentTime;
-                const duration = video.duration;
-                if (duration && current && !isNaN(duration) && !isNaN(current)) {
-                  // This ensures the seek bar shows progress
-                  // Native controls will show: currentTime / duration
-                }
-              }}
-            >
-              Your browser does not support the video tag.
-            </video>
+            <div className="w-full rounded-lg bg-black">
+              <video
+                ref={videoRef}
+                src={playbackUrl}
+                controls={false}
+                preload="metadata"
+                className="w-full rounded-lg"
+                style={{ maxHeight: '70vh', backgroundColor: '#000' }}
+                onLoadedMetadata={(e) => {
+                  const vid = e.target;
+                  if (vid.duration && !isNaN(vid.duration)) {
+                    setDuration(vid.duration);
+                    setCurrentTime(0);
+                    vid.currentTime = 0; // ensure start at 0
+                    vid.playbackRate = playbackRate;
+                  }
+                }}
+                onTimeUpdate={(e) => {
+                  const vid = e.target;
+                  setCurrentTime(vid.currentTime || 0);
+                }}
+                onEnded={() => setIsPlaying(false)}
+              >
+                Your browser does not support the video tag.
+              </video>
+
+              {/* Custom Controls */}
+              <div className="px-3 py-2 flex items-center gap-3 bg-gray-900 rounded-b-lg mt-2">
+                <button
+                  onClick={() => {
+                    const vid = videoRef.current;
+                    if (!vid) return;
+                    if (isPlaying) {
+                      vid.pause();
+                      setIsPlaying(false);
+                    } else {
+                      vid.play();
+                      setIsPlaying(true);
+                    }
+                  }}
+                  className="text-white p-2 bg-[var(--app-dark-blue)]/80 rounded-lg"
+                >
+                  {isPlaying ? <FiPause /> : <FiPlay />}
+                </button>
+
+                <button
+                  onClick={() => {
+                    const vid = videoRef.current;
+                    if (!vid) return;
+                    vid.currentTime = Math.max(0, (vid.currentTime || 0) - 10);
+                    setCurrentTime(vid.currentTime);
+                  }}
+                  className="text-white p-2 bg-gray-800 rounded-lg"
+                  title="Rewind 10s"
+                >
+                  <FiChevronLeft />
+                </button>
+
+                <button
+                  onClick={() => {
+                    const vid = videoRef.current;
+                    if (!vid) return;
+                    vid.currentTime = Math.min(vid.duration || 0, (vid.currentTime || 0) + 10);
+                    setCurrentTime(vid.currentTime);
+                  }}
+                  className="text-white p-2 bg-gray-800 rounded-lg"
+                  title="Forward 10s"
+                >
+                  <FiChevronRight />
+                </button>
+
+                {/* Progress */}
+                <div className="flex-1 mx-2">
+                  <input
+                    type="range"
+                    min={0}
+                    max={duration || 0}
+                    step="0.1"
+                    value={Math.min(currentTime, duration || 0)}
+                    onChange={(e) => {
+                      const vid = videoRef.current;
+                      if (!vid) return;
+                      const t = Number(e.target.value || 0);
+                      vid.currentTime = t;
+                      setCurrentTime(t);
+                    }}
+                    className="w-full"
+                  />
+                  <div className="flex items-center justify-between text-xs text-gray-300 mt-1">
+                    <span>{formatDuration(Math.floor(currentTime))}</span>
+                    <span>{formatDuration(Math.floor(duration))}</span>
+                  </div>
+                </div>
+
+                {/* Speed selector */}
+                <div className="flex items-center gap-1">
+                  {[0.5, 1, 2].map((s) => (
+                    <button
+                      key={s}
+                      onClick={() => {
+                        const vid = videoRef.current;
+                        if (!vid) return;
+                        vid.playbackRate = s;
+                        setPlaybackRate(s);
+                      }}
+                      className={`px-2 py-1 rounded text-sm ${playbackRate === s ? 'bg-[var(--app-dark-blue)] text-white' : 'bg-gray-800 text-gray-300'}`}
+                    >
+                      {s}x
+                    </button>
+                  ))}
+                </div>
+
+                {/* Fullscreen */}
+                <button
+                  onClick={() => {
+                    const vid = videoRef.current;
+                    if (!vid) return;
+                    const el = vid.parentElement || vid;
+                    if (el.requestFullscreen) el.requestFullscreen();
+                    else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+                    else if (el.mozRequestFullScreen) el.mozRequestFullScreen();
+                  }}
+                  className="text-white p-2 bg-gray-800 rounded-lg"
+                  title="Fullscreen"
+                >
+                  <FiMaximize />
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
