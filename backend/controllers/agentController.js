@@ -582,5 +582,75 @@ exports.updateFcmToken = asyncHandler(async (req, res) => {
   });
 });
 
+// @desc    Export agent statistics as CSV
+// @route   GET /api/agent/statistics/export
+// @access  Private (Agent)
+exports.exportStatistics = asyncHandler(async (req, res) => {
+  const agent = await Agent.findById(req.user._id);
+
+  if (!agent) {
+    throw new ErrorResponse('Agent not found', 404);
+  }
+
+  // Get month filter from query parameter (format: YYYY-MM)
+  const monthFilter = req.query.month;
+  let dateFilter = {};
+
+  if (monthFilter) {
+    // Validate month format (YYYY-MM)
+    const monthRegex = /^\d{4}-\d{2}$/;
+    if (!monthRegex.test(monthFilter)) {
+      throw new ErrorResponse('Invalid month format. Use YYYY-MM', 400);
+    }
+
+    // Parse month and create date range
+    const [year, month] = monthFilter.split('-').map(Number);
+    const startDate = new Date(year, month - 1, 1); // First day of month
+    const endDate = new Date(year, month, 0, 23, 59, 59, 999); // Last day of month
+
+    dateFilter = {
+      $or: [
+        { referredAt: { $gte: startDate, $lte: endDate } },
+        { createdAt: { $gte: startDate, $lte: endDate } }
+      ]
+    };
+  }
+
+  // Students referred by this agent (with optional month filter)
+  const referredStudentsQuery = {
+    referralAgentId: agent._id,
+    ...dateFilter
+  };
+
+  const referredStudents = await Student.find(referredStudentsQuery)
+    .select('name phone email class board referredAt createdAt')
+    .sort({ referredAt: -1, createdAt: -1 })
+    .lean();
+
+  // Define CSV headers
+  const headers = ['Student Name', 'Phone', 'Email', 'Class', 'Board', 'Referred Date'];
+  const csvRows = [headers.join(',')];
+
+  // Add data rows
+  referredStudents.forEach(student => {
+    const row = [
+      `"${student.name || ''}"`,
+      `"${student.phone || ''}"`,
+      `"${student.email || ''}"`,
+      `"${student.class || ''}"`,
+      `"${student.board || ''}"`,
+      `"${new Date(student.referredAt || student.createdAt).toLocaleDateString()}"`
+    ];
+    csvRows.push(row.join(','));
+  });
+
+  const csvContent = csvRows.join('\n');
+  const fileName = `referrals-${monthFilter || 'all'}-${Date.now()}.csv`;
+
+  res.setHeader('Content-Type', 'text/csv');
+  res.setHeader('Content-Disposition', `attachment; filename=${fileName}`);
+  res.status(200).send(csvContent);
+});
+
 
 

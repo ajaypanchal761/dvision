@@ -8,7 +8,8 @@ const {
   updateMe,
   getReferralLink,
   getStatistics,
-  updateFcmToken
+  updateFcmToken,
+  exportStatistics
 } = require('../controllers/agentController');
 const { protect } = require('../middlewares/auth');
 
@@ -23,6 +24,7 @@ router.put('/me', protect, updateMe);
 router.put('/fcm-token', protect, updateFcmToken);
 router.get('/referral-link', protect, getReferralLink);
 router.get('/statistics', protect, getStatistics);
+router.get('/statistics/export', protect, exportStatistics);
 
 module.exports = router;
 
