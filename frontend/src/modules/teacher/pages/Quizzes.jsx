@@ -124,14 +124,23 @@ const Quizzes = () => {
       {/* Dark Blue Header */}
       <header className="sticky top-0 z-50 bg-[var(--app-dark-blue)] text-white relative animate-fade-in" style={{ borderRadius: '0 0 50% 50% / 0 0 30px 30px' }}>
         <div className="px-3 sm:px-4 md:px-6 pt-3 sm:pt-4 md:pt-6 pb-4 sm:pb-6 md:pb-8">
-          <div className="flex items-center gap-3 sm:gap-4">
+          <div className="flex items-center justify-between gap-3 sm:gap-4">
+            <div className="flex items-center gap-3 sm:gap-4">
+              <button
+                onClick={() => navigate('/teacher/dashboard')}
+                className="p-1.5 sm:p-2 hover:bg-white/10 rounded-full transition-colors hover:scale-110"
+              >
+                <FiArrowLeft className="text-white text-lg sm:text-xl md:text-2xl" />
+              </button>
+              <h1 className="text-base sm:text-lg md:text-xl lg:text-2xl font-bold animate-slide-in-left">My Quizzes</h1>
+            </div>
             <button
-              onClick={() => navigate('/teacher/dashboard')}
-              className="p-1.5 sm:p-2 hover:bg-white/10 rounded-full transition-colors hover:scale-110"
+              onClick={() => navigate('/teacher/quizzes/add')}
+              className="flex items-center gap-1.5 sm:gap-2 bg-white/20 hover:bg-white/30 text-white px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg sm:rounded-xl transition-all shadow-lg hover:shadow-xl backdrop-blur-md border border-white/10"
             >
-              <FiArrowLeft className="text-white text-lg sm:text-xl md:text-2xl" />
+              <FiPlus className="text-base sm:text-lg font-bold" />
+              <span className="text-xs sm:text-sm font-bold hidden sm:inline">Create</span>
             </button>
-            <h1 className="text-base sm:text-lg md:text-xl lg:text-2xl font-bold animate-slide-in-left">My Quizzes</h1>
           </div>
         </div>
       </header>
@@ -184,8 +193,8 @@ const Quizzes = () => {
           <button
             onClick={() => { setStatusFilter('all'); setPage(1); }}
             className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl font-semibold text-xs sm:text-sm whitespace-nowrap transition-all duration-300 hover:scale-105 ${statusFilter === 'all'
-                ? 'bg-gradient-to-r from-[var(--app-dark-blue)] to-blue-700 text-white shadow-lg'
-                : 'bg-white text-gray-700 border-2 border-gray-200 hover:border-[var(--app-dark-blue)]/30'
+              ? 'bg-gradient-to-r from-[var(--app-dark-blue)] to-blue-700 text-white shadow-lg'
+              : 'bg-white text-gray-700 border-2 border-gray-200 hover:border-[var(--app-dark-blue)]/30'
               }`}
           >
             All
@@ -193,8 +202,8 @@ const Quizzes = () => {
           <button
             onClick={() => { setStatusFilter('active'); setPage(1); }}
             className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl font-semibold text-xs sm:text-sm whitespace-nowrap transition-all duration-300 ${statusFilter === 'active'
-                ? 'bg-gradient-to-r from-green-500 to-green-600 text-white shadow-lg'
-                : 'bg-white text-gray-700 border-2 border-gray-200 hover:border-green-300'
+              ? 'bg-gradient-to-r from-green-500 to-green-600 text-white shadow-lg'
+              : 'bg-white text-gray-700 border-2 border-gray-200 hover:border-green-300'
               }`}
           >
             Active
@@ -202,8 +211,8 @@ const Quizzes = () => {
           <button
             onClick={() => { setStatusFilter('completed'); setPage(1); }}
             className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl font-semibold text-xs sm:text-sm whitespace-nowrap transition-all duration-300 ${statusFilter === 'completed'
-                ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg'
-                : 'bg-white text-gray-700 border-2 border-gray-200 hover:border-blue-300'
+              ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg'
+              : 'bg-white text-gray-700 border-2 border-gray-200 hover:border-blue-300'
               }`}
           >
             Completed
@@ -211,8 +220,8 @@ const Quizzes = () => {
           <button
             onClick={() => { setStatusFilter('inactive'); setPage(1); }}
             className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl font-semibold text-xs sm:text-sm whitespace-nowrap transition-all duration-300 ${statusFilter === 'inactive'
-                ? 'bg-gradient-to-r from-gray-500 to-gray-600 text-white shadow-lg'
-                : 'bg-white text-gray-700 border-2 border-gray-200 hover:border-gray-300'
+              ? 'bg-gradient-to-r from-gray-500 to-gray-600 text-white shadow-lg'
+              : 'bg-white text-gray-700 border-2 border-gray-200 hover:border-gray-300'
               }`}
           >
             Inactive
@@ -322,8 +331,8 @@ const Quizzes = () => {
                           </div>
                         ) : (
                           <div className={`flex items-center gap-1.5 px-2 py-1 rounded-lg border ${quiz.isActive
-                              ? 'bg-green-50 border-green-200'
-                              : 'bg-gray-50 border-gray-200'
+                            ? 'bg-green-50 border-green-200'
+                            : 'bg-gray-50 border-gray-200'
                             }`}>
                             <FiCheckCircle className={`w-3 h-3 ${quiz.isActive ? 'text-green-600' : 'text-gray-600'
                               }`} />
@@ -395,8 +404,8 @@ const Quizzes = () => {
                 onClick={() => setPage(p => Math.max(1, p - 1))}
                 disabled={page === 1}
                 className={`p-2 rounded-lg border flex items-center gap-1 transition-all ${page === 1
-                    ? 'border-gray-200 text-gray-300 cursor-not-allowed'
-                    : 'border-gray-300 text-gray-700 hover:bg-[var(--app-dark-blue)] hover:text-white hover:border-[var(--app-dark-blue)]'
+                  ? 'border-gray-200 text-gray-300 cursor-not-allowed'
+                  : 'border-gray-300 text-gray-700 hover:bg-[var(--app-dark-blue)] hover:text-white hover:border-[var(--app-dark-blue)]'
                   }`}
               >
                 <FiChevronLeft className="w-5 h-5" />
@@ -425,8 +434,8 @@ const Quizzes = () => {
                 onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                 disabled={page === totalPages}
                 className={`p-2 rounded-lg border flex items-center gap-1 transition-all ${page === totalPages
-                    ? 'border-gray-200 text-gray-300 cursor-not-allowed'
-                    : 'border-gray-300 text-gray-700 hover:bg-[var(--app-dark-blue)] hover:text-white hover:border-[var(--app-dark-blue)]'
+                  ? 'border-gray-200 text-gray-300 cursor-not-allowed'
+                  : 'border-gray-300 text-gray-700 hover:bg-[var(--app-dark-blue)] hover:text-white hover:border-[var(--app-dark-blue)]'
                   }`}
               >
                 <span className="hidden sm:inline font-medium">Next</span>
@@ -474,16 +483,7 @@ const Quizzes = () => {
       )}
 
       {/* Floating Action Button - Create Quiz */}
-      <button
-        onClick={() => navigate('/teacher/quizzes/add')}
-        className="group fixed bottom-28 sm:bottom-32 right-4 sm:right-6 bg-gradient-to-r from-[var(--app-dark-blue)] via-[var(--app-dark-blue)] to-blue-700 hover:from-blue-700 hover:via-[var(--app-dark-blue)] hover:to-[var(--app-dark-blue)] text-white px-4 sm:px-5 md:px-6 py-3 sm:py-3.5 rounded-full shadow-2xl hover:shadow-3xl transition-all flex items-center gap-2 z-50 transform hover:scale-105"
-      >
-        <span className="relative z-10 flex items-center gap-2">
-          <FiPlus className="text-lg sm:text-xl group-hover:rotate-90 transition-transform duration-300" />
-          <span className="font-bold text-xs sm:text-sm md:text-base">Create Quiz</span>
-        </span>
-        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700 rounded-full"></div>
-      </button>
+
 
       {/* Bottom Navigation Bar */}
       <BottomNav />
