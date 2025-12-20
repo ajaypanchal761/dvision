@@ -1,0 +1,1 @@
+import{j as e}from"./index-BPKQ2keO.js";const a=()=>e.jsxs("div",{className:"bg-white rounded-xl shadow-md p-6",children:[e.jsx("h2",{className:"text-2xl font-bold text-gray-800 mb-4",children:"Mark Attendance"}),e.jsx("div",{className:"text-gray-600",children:e.jsx("p",{children:"Mark attendance page coming soon..."})})]});export{a as default};
