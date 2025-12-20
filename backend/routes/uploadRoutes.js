@@ -57,7 +57,12 @@ router.get(
     if (file) {
       // Normalize and prevent path traversal
       const uploadsDir = path.join(__dirname, '..', 'uploads');
-      const normalized = file.replace(/^\/+/, '');
+      // decode in case value is URL encoded
+      let normalized = decodeURIComponent(String(file || '')).replace(/^\/+/, '');
+      // strip a leading 'uploads/' segment if caller included it
+      if (normalized.toLowerCase().startsWith('uploads/')) {
+        normalized = normalized.slice('uploads/'.length);
+      }
       const filePath = path.join(uploadsDir, normalized);
       const resolved = path.resolve(filePath);
 

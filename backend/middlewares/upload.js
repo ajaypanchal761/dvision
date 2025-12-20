@@ -2,8 +2,8 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 
-// Ensure uploads directory exists
-const uploadsDir = path.join(__dirname, '../../uploads');
+// Ensure uploads directory exists (backend/uploads)
+const uploadsDir = path.join(__dirname, '..', 'uploads');
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
@@ -124,7 +124,7 @@ const uploadCourse = multer({
 const uploadRecording = multer({
   storage: multer.diskStorage({
     destination: function (req, file, cb) {
-      const recordingsDir = path.join(__dirname, '../../uploads/recordings');
+      const recordingsDir = path.join(__dirname, '..', 'uploads', 'recordings');
       if (!fs.existsSync(recordingsDir)) {
         fs.mkdirSync(recordingsDir, { recursive: true });
       }
@@ -150,15 +150,15 @@ const uploadRecording = multer({
       'video/x-matroska',
       'video/x-msvideo'
     ];
-    
-    const isVideoFile = allowedMimes.some(allowedMime => 
+
+    const isVideoFile = allowedMimes.some(allowedMime =>
       file.mimetype === allowedMime || file.mimetype.startsWith(allowedMime + ';')
     );
-    
+
     const allowedExtensions = ['.webm', '.mp4', '.ogg', '.mov', '.avi', '.mkv'];
     const fileExtension = path.extname(file.originalname).toLowerCase();
     const hasValidExtension = allowedExtensions.includes(fileExtension);
-    
+
     if (isVideoFile || hasValidExtension) {
       cb(null, true);
     } else {

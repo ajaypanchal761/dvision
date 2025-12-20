@@ -30,6 +30,8 @@ router.use('/agent', agentRoutes);
 router.use('/notifications', notificationRoutes);
 router.use('/examples', exampleRoutes);
 router.use('/upload', uploadRoutes);
+// Backwards-compatibility: accept plural '/uploads' as well
+router.use('/uploads', uploadRoutes);
 router.use('/email', emailRoutes);
 router.use('/contact', contactRoutes);
 router.use('/terms', termsRoutes);
