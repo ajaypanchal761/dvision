@@ -429,71 +429,56 @@ const EditCourse = () => {
 
   if (isLoadingData) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-dvision-blue-lightestBg flex items-center justify-center">
+      <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-dvision-blue mx-auto mb-4"></div>
-          <p className="text-gray-500 font-medium">Loading course data...</p>
+          <div className="animate-spin rounded-full h-8 w-8 sm:h-10 sm:w-10 border-b-2 border-[#1e3a5f] mx-auto mb-2 sm:mb-3"></div>
+          <p className="text-gray-500 font-medium text-xs sm:text-sm">Loading course data...</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-dvision-blue-lightestBg">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
+    <div className="min-h-screen bg-white">
+      <div className="px-4 sm:px-6 lg:px-8 pt-2 sm:pt-3">
         {/* Header */}
-        <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg border border-gray-100 overflow-hidden mb-4 sm:mb-6 lg:mb-8">
-          <div className="bg-gradient-to-r from-dvision-blue to-dvision-blue-dark px-4 sm:px-6 lg:px-8 py-4 sm:py-5 lg:py-6">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
-              <div className="flex items-center space-x-2 sm:space-x-3 lg:space-x-4 w-full sm:w-auto">
-                <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-lg sm:rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center flex-shrink-0">
-                  <svg className="w-5 h-5 sm:w-6 sm:h-6 lg:w-7 lg:h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                  </svg>
-                </div>
-                <div className="min-w-0 flex-1">
-                  <h2 className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold text-white truncate">Edit Course</h2>
-                  <p className="text-blue-100 mt-1 text-xs sm:text-sm md:text-base">Update the course information</p>
-                </div>
-              </div>
-              <button
-                onClick={() => navigate('/admin/courses')}
-                className="w-full sm:w-auto px-3 sm:px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg sm:rounded-xl font-medium transition-all duration-200 flex items-center justify-center space-x-2 backdrop-blur-sm text-xs sm:text-sm md:text-base"
-              >
-                <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                </svg>
-                <span>Back</span>
-              </button>
-            </div>
+        <div className="pb-1 sm:pb-2">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <button
+              onClick={() => navigate('/admin/courses')}
+              className="text-[#1e3a5f] hover:text-[#2a4a6f] transition-colors"
+            >
+              <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+              </svg>
+            </button>
+            <h1 className="text-sm sm:text-base md:text-lg lg:text-xl font-bold text-[#1e3a5f]">Edit Course</h1>
           </div>
         </div>
 
         {/* Error Message */}
         {error && (
-          <div className="mb-4 sm:mb-6 bg-red-50 border border-red-200 text-red-700 px-3 sm:px-4 py-2 sm:py-3 rounded-lg sm:rounded-xl text-xs sm:text-sm md:text-base">
+          <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-lg text-xs sm:text-sm mt-2 sm:mt-3">
             {error}
           </div>
         )}
 
-        {/* Form Card */}
-        <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg border border-gray-100 p-4 sm:p-6 lg:p-8">
-          <form onSubmit={handleSubmit} className="space-y-6 sm:space-y-8">
-            {/* Basic Course Info */}
-            <div className="space-y-4 sm:space-y-5 lg:space-y-6">
-              <h3 className="text-base sm:text-lg md:text-xl font-bold text-gray-800 border-b-2 border-gray-200 pb-2">Course Information</h3>
+        {/* Form */}
+        <div className="mt-2 sm:mt-3">
+          <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
+            <div className="bg-white rounded-lg shadow-md border border-gray-200 p-3 sm:p-4 md:p-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5 lg:gap-6">
                 {/* Course Type */}
                 <div className="md:col-span-2">
-                  <label className="block text-xs sm:text-sm md:text-base font-semibold text-gray-700 mb-1.5 sm:mb-2">
+                  <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1.5 sm:mb-2">
                     Course Type <span className="text-red-500">*</span>
                   </label>
                   <select
                     required
                     value={formData.type}
                     onChange={(e) => setFormData({ ...formData, type: e.target.value, board: '', class: '', classId: '', subject: '' })}
-                    className="w-full px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm md:text-base border-2 border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-dvision-blue focus:border-dvision-blue outline-none transition-all duration-200 bg-white"
+                    className="w-full px-3 py-2 text-xs sm:text-sm border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-[#1e3a5f] focus:border-[#1e3a5f] outline-none transition-all duration-200 bg-white"
                     disabled={isLoading}
                   >
                     <option value="regular">Regular Class</option>
@@ -503,7 +488,7 @@ const EditCourse = () => {
 
                 {/* Course Title */}
                 <div className="md:col-span-2">
-                  <label className="block text-xs sm:text-sm md:text-base font-semibold text-gray-700 mb-1.5 sm:mb-2">
+                  <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1.5 sm:mb-2">
                     Course Title <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -511,7 +496,7 @@ const EditCourse = () => {
                     required
                     value={formData.title}
                     onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                    className="w-full px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm md:text-base border-2 border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-dvision-blue focus:border-dvision-blue outline-none transition-all duration-200"
+                    className="w-full px-3 py-2 text-xs sm:text-sm border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-[#1e3a5f] focus:border-[#1e3a5f] outline-none transition-all duration-200"
                     placeholder="Enter course title"
                     disabled={isLoading}
                   />
@@ -520,14 +505,14 @@ const EditCourse = () => {
                 {/* Board - Only for regular courses */}
                 {formData.type === 'regular' && (
                   <div>
-                    <label className="block text-xs sm:text-sm md:text-base font-semibold text-gray-700 mb-1.5 sm:mb-2">
+                    <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1.5 sm:mb-2">
                       Board <span className="text-red-500">*</span>
                     </label>
                     <select
                       required
                       value={formData.board}
                       onChange={(e) => setFormData({ ...formData, board: e.target.value, class: '', subject: '' })}
-                      className="w-full px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm md:text-base border-2 border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-dvision-blue focus:border-dvision-blue outline-none transition-all duration-200 bg-white"
+                      className="w-full px-3 py-2 text-xs sm:text-sm border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-[#1e3a5f] focus:border-[#1e3a5f] outline-none transition-all duration-200 bg-white"
                       disabled={isLoading || boards.length === 0}
                     >
                       <option value="">Select Board</option>
@@ -541,14 +526,14 @@ const EditCourse = () => {
                 {/* Class - Only for regular courses */}
                 {formData.type === 'regular' && (
                   <div>
-                    <label className="block text-xs sm:text-sm md:text-base font-semibold text-gray-700 mb-1.5 sm:mb-2">
+                    <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1.5 sm:mb-2">
                       Class <span className="text-red-500">*</span>
                     </label>
                     <select
                       required
                       value={formData.class}
                       onChange={(e) => setFormData({ ...formData, class: e.target.value, subject: '' })}
-                      className="w-full px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm md:text-base border-2 border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-dvision-blue focus:border-dvision-blue outline-none transition-all duration-200 bg-white"
+                      className="w-full px-3 py-2 text-xs sm:text-sm border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-[#1e3a5f] focus:border-[#1e3a5f] outline-none transition-all duration-200 bg-white"
                       disabled={isLoading || !formData.board || availableClasses.length === 0}
                     >
                       <option value="">{formData.board ? 'Select Class' : 'Select Board First'}</option>
@@ -562,14 +547,14 @@ const EditCourse = () => {
                 {/* Preparation Class - Only for preparation courses */}
                 {formData.type === 'preparation' && (
                   <div className="md:col-span-2">
-                    <label className="block text-xs sm:text-sm md:text-base font-semibold text-gray-700 mb-1.5 sm:mb-2">
+                    <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1.5 sm:mb-2">
                       Preparation Class <span className="text-red-500">*</span>
                     </label>
                     <select
                       required
                       value={formData.classId}
                       onChange={(e) => setFormData({ ...formData, classId: e.target.value, subject: '' })}
-                      className="w-full px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm md:text-base border-2 border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-dvision-blue focus:border-dvision-blue outline-none transition-all duration-200 bg-white"
+                      className="w-full px-3 py-2 text-xs sm:text-sm border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-[#1e3a5f] focus:border-[#1e3a5f] outline-none transition-all duration-200 bg-white"
                       disabled={isLoading || preparationClasses.length === 0}
                     >
                       <option value="">Select Preparation Class</option>
@@ -582,7 +567,7 @@ const EditCourse = () => {
 
                 {/* Subject */}
                 <div>
-                  <label className="block text-xs sm:text-sm md:text-base font-semibold text-gray-700 mb-1.5 sm:mb-2">
+                  <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1.5 sm:mb-2">
                     Subject <span className="text-red-500">*</span>
                   </label>
                   {formData.type === 'regular' ? (
@@ -590,7 +575,7 @@ const EditCourse = () => {
                       required
                       value={formData.subject}
                       onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
-                      className="w-full px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm md:text-base border-2 border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-dvision-blue focus:border-dvision-blue outline-none transition-all duration-200 bg-white"
+                      className="w-full px-3 py-2 text-xs sm:text-sm border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-[#1e3a5f] focus:border-[#1e3a5f] outline-none transition-all duration-200 bg-white"
                       disabled={isLoading || !formData.board || !formData.class || availableSubjects.length === 0}
                     >
                       <option value="">{formData.board && formData.class ? 'Select Subject' : 'Select Board & Class First'}</option>
@@ -603,7 +588,7 @@ const EditCourse = () => {
                       required
                       value={formData.subject}
                       onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
-                      className="w-full px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm md:text-base border-2 border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-dvision-blue focus:border-dvision-blue outline-none transition-all duration-200 bg-white"
+                      className="w-full px-3 py-2 text-xs sm:text-sm border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-[#1e3a5f] focus:border-[#1e3a5f] outline-none transition-all duration-200 bg-white"
                       disabled={isLoading || !formData.classId || preparationSubjects.length === 0}
                     >
                       <option value="">{formData.classId ? 'Select Subject' : 'Select Preparation Class First'}</option>
@@ -616,14 +601,14 @@ const EditCourse = () => {
 
                 {/* Status */}
                 <div>
-                  <label className="block text-xs sm:text-sm md:text-base font-semibold text-gray-700 mb-1.5 sm:mb-2">
+                  <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1.5 sm:mb-2">
                     Status <span className="text-red-500">*</span>
                   </label>
                   <select
                     required
                     value={formData.status}
                     onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                    className="w-full px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm md:text-base border-2 border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-dvision-blue focus:border-dvision-blue outline-none transition-all duration-200 bg-white"
+                    className="w-full px-3 py-2 text-xs sm:text-sm border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-[#1e3a5f] focus:border-[#1e3a5f] outline-none transition-all duration-200 bg-white"
                     disabled={isLoading}
                   >
                     <option value="Active">Active</option>
@@ -633,14 +618,14 @@ const EditCourse = () => {
 
                 {/* Description */}
                 <div className="md:col-span-2">
-                  <label className="block text-xs sm:text-sm md:text-base font-semibold text-gray-700 mb-1.5 sm:mb-2">
+                  <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1.5 sm:mb-2">
                     Description
                   </label>
                   <textarea
                     value={formData.description}
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                     rows="3"
-                    className="w-full px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm md:text-base border-2 border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-dvision-blue focus:border-dvision-blue outline-none transition-all duration-200 resize-none"
+                    className="w-full px-3 py-2 text-xs sm:text-sm border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-[#1e3a5f] focus:border-[#1e3a5f] outline-none transition-all duration-200 resize-none"
                     placeholder="Enter course description (optional)"
                     disabled={isLoading}
                   />
@@ -648,7 +633,7 @@ const EditCourse = () => {
 
                 {/* Thumbnail */}
                 <div className="md:col-span-2">
-                  <label className="block text-xs sm:text-sm md:text-base font-semibold text-gray-700 mb-1.5 sm:mb-2">
+                  <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1.5 sm:mb-2">
                     Thumbnail <span className="text-red-500">*</span>
                   </label>
                   <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
@@ -657,7 +642,7 @@ const EditCourse = () => {
                         type="file"
                         accept="image/*"
                         onChange={handleThumbnailChange}
-                        className="w-full px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm md:text-base border-2 border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-dvision-blue focus:border-dvision-blue outline-none transition-all duration-200"
+                        className="w-full px-3 py-2 text-xs sm:text-sm border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-[#1e3a5f] focus:border-[#1e3a5f] outline-none transition-all duration-200"
                         disabled={isLoading}
                       />
                       <p className="text-xs text-gray-500 mt-1">Max size: 5MB (JPG, PNG). Leave empty to keep existing thumbnail.</p>
@@ -670,193 +655,193 @@ const EditCourse = () => {
                   </div>
                 </div>
               </div>
-            </div>
 
-            {/* Chapters Section */}
-            {!showChaptersSection ? (
-              <div className="flex items-center justify-between border-b-2 border-gray-200 pb-2">
-                <h3 className="text-base sm:text-lg md:text-xl font-bold text-gray-800">Chapters</h3>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowChaptersSection(true)
-                    // If no chapters exist, add one when expanding
-                    if (chapters.length === 0) {
-                      handleAddChapter()
-                    }
-                  }}
-                  className="px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm md:text-base bg-green-500 hover:bg-green-600 text-white rounded-lg sm:rounded-xl font-medium transition-all duration-200"
-                  disabled={isLoading}
-                >
-                  + Add Chapter
-                </button>
-              </div>
-            ) : (
-              <div className="space-y-4 sm:space-y-5 lg:space-y-6">
-                <div className="flex items-center justify-between border-b-2 border-gray-200 pb-2">
-                  <h3 className="text-base sm:text-lg md:text-xl font-bold text-gray-800">Chapters</h3>
-                  <button
-                    type="button"
-                    onClick={() => setShowChaptersSection(false)}
-                    className="px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm md:text-base bg-gray-500 hover:bg-gray-600 text-white rounded-lg sm:rounded-xl font-medium transition-all duration-200"
-                    disabled={isLoading}
-                  >
-                    Hide
-                  </button>
-                </div>
-
-                {chapters.map((chapter, index) => (
-                  <div key={index} className="border-2 border-gray-200 rounded-lg sm:rounded-xl p-4 sm:p-5 lg:p-6 space-y-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <h4 className="text-sm sm:text-base md:text-lg font-semibold text-gray-700">
-                        Chapter {index + 1}
-                        {chapter._id && (
-                          <span className="ml-2 text-xs text-gray-500 font-normal">(Existing)</span>
-                        )}
-                      </h4>
+              {/* Chapters Section */}
+              <div className="mt-6 pt-4 border-t border-gray-200">
+                {!showChaptersSection ? (
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm sm:text-base font-bold text-[#1e3a5f]">Chapters</h3>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowChaptersSection(true)
+                        if (chapters.length === 0) {
+                          handleAddChapter()
+                        }
+                      }}
+                      className="px-3 py-1.5 text-xs sm:text-sm bg-green-500 hover:bg-green-600 text-white rounded-lg font-medium transition-all duration-200"
+                      disabled={isLoading}
+                    >
+                      + Add Chapter
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between pb-2">
+                      <h3 className="text-sm sm:text-base font-bold text-[#1e3a5f]">Chapters</h3>
                       <button
                         type="button"
-                        onClick={() => handleRemoveChapter(index)}
-                        className="px-2 sm:px-3 py-1 text-xs sm:text-sm bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium transition-all duration-200"
+                        onClick={() => setShowChaptersSection(false)}
+                        className="px-3 py-1.5 text-xs sm:text-sm bg-gray-500 hover:bg-gray-600 text-white rounded-lg font-medium transition-all duration-200"
                         disabled={isLoading}
                       >
-                        Remove Chapter
+                        Hide
                       </button>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
-                      {/* Chapter Name */}
-                      <div className="md:col-span-2">
-                        <label className="block text-xs sm:text-sm md:text-base font-semibold text-gray-700 mb-1.5 sm:mb-2">
-                          Chapter Name <span className="text-red-500">*</span>
-                        </label>
-                        <input
-                          type="text"
-                          required
-                          value={chapter.chapterName}
-                          onChange={(e) => handleChapterChange(index, 'chapterName', e.target.value)}
-                          className="w-full px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm md:text-base border-2 border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-dvision-blue focus:border-dvision-blue outline-none transition-all duration-200"
-                          placeholder="Enter chapter name"
-                          disabled={isLoading}
-                        />
-                      </div>
+                    {chapters.map((chapter, index) => (
+                      <div key={index} className="border border-gray-200 rounded-lg p-3 sm:p-4 space-y-3 bg-gray-50/50">
+                        <div className="flex items-center justify-between">
+                          <h4 className="text-xs sm:text-sm font-semibold text-gray-700">
+                            Chapter {index + 1}
+                            {chapter._id && (
+                              <span className="ml-2 text-xs text-gray-500 font-normal">(Existing)</span>
+                            )}
+                          </h4>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveChapter(index)}
+                            className="px-2 py-1 text-xs bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium transition-all duration-200"
+                            disabled={isLoading}
+                          >
+                            Remove
+                          </button>
+                        </div>
 
-                      {/* Chapter Details */}
-                      <div className="md:col-span-2">
-                        <label className="block text-xs sm:text-sm md:text-base font-semibold text-gray-700 mb-1.5 sm:mb-2">
-                          Chapter Details
-                        </label>
-                        <textarea
-                          value={chapter.chapterDetails}
-                          onChange={(e) => handleChapterChange(index, 'chapterDetails', e.target.value)}
-                          rows="2"
-                          className="w-full px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm md:text-base border-2 border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-dvision-blue focus:border-dvision-blue outline-none transition-all duration-200 resize-none"
-                          placeholder="Enter chapter details (optional)"
-                          disabled={isLoading}
-                        />
-                      </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+                          {/* Chapter Name */}
+                          <div className="md:col-span-2">
+                            <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1.5 sm:mb-2">
+                              Chapter Name <span className="text-red-500">*</span>
+                            </label>
+                            <input
+                              type="text"
+                              required
+                              value={chapter.chapterName}
+                              onChange={(e) => handleChapterChange(index, 'chapterName', e.target.value)}
+                              className="w-full px-3 py-2 text-xs sm:text-sm border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-[#1e3a5f] focus:border-[#1e3a5f] outline-none transition-all duration-200"
+                              placeholder="Enter chapter name"
+                              disabled={isLoading}
+                            />
+                          </div>
 
-                      {/* PDF Upload */}
-                      <div className="md:col-span-2">
-                        <label className="block text-xs sm:text-sm md:text-base font-semibold text-gray-700 mb-1.5 sm:mb-2">
-                          PDF File <span className="text-red-500">*</span>
-                        </label>
-                        {chapter.pdfUrl && !chapter.pdfFile && (
-                          <div className="mb-3 p-3 bg-green-50 border-2 border-green-200 rounded-lg">
-                            <div className="flex items-center justify-between gap-2">
-                              <div className="flex items-center gap-2 flex-1 min-w-0">
-                                <svg className="w-5 h-5 text-green-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                </svg>
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-xs sm:text-sm font-semibold text-green-800">Existing PDF:</p>
-                                  <p className="text-xs text-green-700 truncate">{chapter.pdfFileName || 'chapter.pdf'}</p>
+                          {/* Chapter Details */}
+                          <div className="md:col-span-2">
+                            <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1.5 sm:mb-2">
+                              Chapter Details
+                            </label>
+                            <textarea
+                              value={chapter.chapterDetails}
+                              onChange={(e) => handleChapterChange(index, 'chapterDetails', e.target.value)}
+                              rows="2"
+                              className="w-full px-3 py-2 text-xs sm:text-sm border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-[#1e3a5f] focus:border-[#1e3a5f] outline-none transition-all duration-200 resize-none"
+                              placeholder="Enter chapter details (optional)"
+                              disabled={isLoading}
+                            />
+                          </div>
+
+                          {/* PDF Upload */}
+                          <div className="md:col-span-2">
+                            <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1.5 sm:mb-2">
+                              PDF File <span className="text-red-500">*</span>
+                            </label>
+                            {chapter.pdfUrl && !chapter.pdfFile && (
+                              <div className="mb-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+                                <div className="flex items-center justify-between gap-2">
+                                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                                    <svg className="w-5 h-5 text-green-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                    </svg>
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-xs sm:text-sm font-semibold text-green-800">Existing PDF:</p>
+                                      <p className="text-xs text-green-700 truncate">{chapter.pdfFileName || 'chapter.pdf'}</p>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-2 flex-shrink-0">
+                                    <a
+                                      href={chapter.pdfUrl}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="px-2 sm:px-3 py-1 text-xs sm:text-sm bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-all duration-200 flex items-center gap-1"
+                                      title="View PDF"
+                                    >
+                                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                      </svg>
+                                      <span className="hidden sm:inline">View</span>
+                                    </a>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleRemoveExistingPdf(index)}
+                                      className="px-2 sm:px-3 py-1 text-xs sm:text-sm bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium transition-all duration-200 flex items-center justify-center"
+                                      title="Remove PDF"
+                                      disabled={isLoading}
+                                    >
+                                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                      </svg>
+                                    </button>
+                                  </div>
                                 </div>
                               </div>
-                              <div className="flex items-center gap-2 flex-shrink-0">
-                                <a
-                                  href={chapter.pdfUrl}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="px-2 sm:px-3 py-1 text-xs sm:text-sm bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-all duration-200 flex items-center gap-1"
-                                  title="View PDF"
-                                >
-                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                                  </svg>
-                                  <span className="hidden sm:inline">View</span>
-                                </a>
-                                <button
-                                  type="button"
-                                  onClick={() => handleRemoveExistingPdf(index)}
-                                  className="px-2 sm:px-3 py-1 text-xs sm:text-sm bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium transition-all duration-200 flex items-center justify-center"
-                                  title="Remove PDF"
-                                  disabled={isLoading}
-                                >
-                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                  </svg>
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-                        )}
-                        {(!chapter.pdfUrl || chapter.pdfFile) && (
-                          <input
-                            type="file"
-                            accept="application/pdf"
-                            onChange={(e) => handleChapterPdfChange(index, e)}
-                            className="w-full px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm md:text-base border-2 border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-dvision-blue focus:border-dvision-blue outline-none transition-all duration-200"
-                            disabled={isLoading}
-                          />
-                        )}
-                        {chapter.pdfFile && (
-                          <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-lg">
-                            <p className="text-xs text-blue-700 font-medium">✓ New PDF selected: {chapter.pdfFileName}</p>
-                            {chapter.pdfUrl && (
-                              <p className="text-xs text-blue-600 mt-1">This will replace the existing PDF</p>
                             )}
+                            {(!chapter.pdfUrl || chapter.pdfFile) && (
+                              <input
+                                type="file"
+                                accept="application/pdf"
+                                onChange={(e) => handleChapterPdfChange(index, e)}
+                                className="w-full px-3 py-2 text-xs sm:text-sm border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-[#1e3a5f] focus:border-[#1e3a5f] outline-none transition-all duration-200"
+                                disabled={isLoading}
+                              />
+                            )}
+                            {chapter.pdfFile && (
+                              <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-lg">
+                                <p className="text-xs text-blue-700 font-medium">✓ New PDF selected: {chapter.pdfFileName}</p>
+                                {chapter.pdfUrl && (
+                                  <p className="text-xs text-blue-600 mt-1">This will replace the existing PDF</p>
+                                )}
+                              </div>
+                            )}
+                            <p className="text-xs text-gray-500 mt-1">
+                              Max size: 10MB (PDF only). {chapter.pdfUrl ? 'Select new PDF to replace existing one.' : 'Upload PDF file.'}
+                            </p>
                           </div>
-                        )}
-                        <p className="text-xs text-gray-500 mt-1">
-                          Max size: 10MB (PDF only). {chapter.pdfUrl ? 'Select new PDF to replace existing one.' : 'Upload PDF file.'}
-                        </p>
+                        </div>
                       </div>
+                    ))}
+
+                    <div className="flex justify-end pt-2">
+                      <button
+                        type="button"
+                        onClick={handleAddChapter}
+                        className="px-3 py-1.5 text-xs sm:text-sm bg-green-500 hover:bg-green-600 text-white rounded-lg font-medium transition-all duration-200"
+                        disabled={isLoading}
+                      >
+                        + Add Chapter
+                      </button>
                     </div>
                   </div>
-                ))}
-
-                {/* Add Chapter Button at Bottom */}
-                <div className="flex justify-end pt-2">
-                  <button
-                    type="button"
-                    onClick={handleAddChapter}
-                    className="px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm md:text-base bg-green-500 hover:bg-green-600 text-white rounded-lg sm:rounded-xl font-medium transition-all duration-200"
-                    disabled={isLoading}
-                  >
-                    + Add Chapter
-                  </button>
-                </div>
+                )}
               </div>
-            )}
+            </div>
 
-            {/* Submit Buttons */}
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-3 sm:gap-4 pt-4 sm:pt-6 border-t-2 border-gray-100">
+            {/* Buttons */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2 sm:gap-3 pt-3 sm:pt-4">
               <button
                 type="button"
                 onClick={() => navigate('/admin/courses')}
                 disabled={isLoading}
-                className="w-full sm:w-auto px-4 sm:px-6 md:px-8 py-2.5 sm:py-3 text-xs sm:text-sm md:text-base border-2 border-gray-300 text-gray-700 rounded-lg sm:rounded-xl font-semibold hover:bg-gray-50 transition-all duration-200 disabled:opacity-50"
+                className="w-full sm:w-auto px-4 sm:px-6 py-2 text-xs sm:text-sm border-2 border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-50 transition-all duration-200 disabled:opacity-50"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={isLoading || !isFormValid()}
-                className={`w-full sm:w-auto px-4 sm:px-6 md:px-8 py-2.5 sm:py-3 text-xs sm:text-sm md:text-base rounded-lg sm:rounded-xl font-semibold transition-all duration-200 shadow-lg ${isFormValid() && !isLoading
-                    ? 'bg-gradient-to-r from-dvision-blue to-dvision-blue-dark hover:from-dvision-blue-dark hover:to-dvision-blue text-white hover:shadow-xl transform hover:-translate-y-0.5'
-                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                className={`w-full sm:w-auto px-4 sm:px-6 py-2 text-xs sm:text-sm rounded-lg font-semibold transition-all duration-200 shadow-md ${isFormValid() && !isLoading
+                  ? 'bg-gradient-to-r from-[#1e3a5f] to-[#2a4a6f] hover:from-[#2a4a6f] hover:to-[#1e3a5f] text-white hover:shadow-lg'
+                  : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                   }`}
               >
                 {isLoading ? 'Updating...' : 'Update Course'}

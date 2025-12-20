@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { FiPlus, FiSearch, FiFileText, FiEdit2, FiTrash2, FiEye, FiArrowLeft, FiClock, FiCheckCircle, FiBarChart2, FiFilter } from 'react-icons/fi'
+import { FiPlus, FiSearch, FiFileText, FiEdit2, FiTrash2, FiEye, FiArrowLeft, FiClock, FiCheckCircle, FiBarChart2, FiFilter, FiChevronLeft, FiChevronRight } from 'react-icons/fi'
 import { quizAPI } from '../services/api'
 import BottomNav from '../components/common/BottomNav'
 
@@ -13,28 +13,45 @@ const Quizzes = () => {
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('all') // 'all', 'active', 'completed', 'inactive'
   const [quizStats, setQuizStats] = useState({ total: 0, active: 0, completed: 0, inactive: 0 })
+  const [page, setPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [totalItems, setTotalItems] = useState(0)
+  const [limit] = useState(10)
 
   useEffect(() => {
     fetchQuizzes()
+  }, [page, statusFilter, searchTerm]) // Refetch when these change
+
+  useEffect(() => {
     fetchQuizStatistics()
   }, [])
 
   const fetchQuizzes = async () => {
     try {
       setLoading(true)
-      const response = await quizAPI.getAll()
-      if (response.success && response.data?.quizzes) {
-        // Sort quizzes by creation date (newest first)
-        const sortedQuizzes = [...response.data.quizzes].sort((a, b) => {
-          const dateA = new Date(a.createdAt || a._id)
-          const dateB = new Date(b.createdAt || b._id)
-          return dateB - dateA // Newest first
-        })
-        setQuizzes(sortedQuizzes)
+      const params = {
+        page,
+        limit,
+        search: searchTerm,
+        status: statusFilter !== 'all' ? statusFilter : undefined
+      }
+
+      const response = await quizAPI.getAll(params)
+      if (response.success) {
+        setQuizzes(response.data.quizzes || [])
+        setTotalPages(response.pages || 1)
+        setTotalItems(response.total || 0)
+        // If current page is greater than new total pages, reset to last available page
+        if (response.pages < page && response.pages > 0) {
+          setPage(response.pages)
+        }
       }
     } catch (error) {
       console.error('Error fetching quizzes:', error)
-      alert('Failed to load quizzes. Please try again.')
+      // Don't alert on search errors to avoid spamming
+      if (!searchTerm) {
+        alert('Failed to load quizzes. Please try again.')
+      }
     } finally {
       setLoading(false)
     }
@@ -74,9 +91,9 @@ const Quizzes = () => {
   const formatDate = (dateString) => {
     if (!dateString) return null
     const date = new Date(dateString)
-    return date.toLocaleDateString('en-US', { 
-      year: 'numeric', 
-      month: 'short', 
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
       day: 'numeric',
       hour: 'numeric',
       minute: '2-digit',
@@ -91,23 +108,8 @@ const Quizzes = () => {
     return now >= deadlineDate
   }
 
-  const filteredQuizzes = quizzes.filter(quiz => {
-    // Search filter
-    const matchesSearch = quiz.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      quiz.subjectId?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      quiz.board?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      quiz.classNumber?.toString().includes(searchTerm)
-    
-    if (!matchesSearch) return false
-    
-    // Status filter
-    if (statusFilter === 'all') return true
-    if (statusFilter === 'completed') return isDeadlinePassed(quiz.deadline)
-    if (statusFilter === 'active') return quiz.isActive && !isDeadlinePassed(quiz.deadline)
-    if (statusFilter === 'inactive') return !quiz.isActive && !isDeadlinePassed(quiz.deadline)
-    
-    return true
-  })
+  // Client-side filtering removed in favor of server-side pagination
+  const filteredQuizzes = quizzes
 
   // Use statistics from backend, fallback to local calculation if not available
   const displayStats = quizStats.total > 0 ? quizStats : {
@@ -180,42 +182,38 @@ const Quizzes = () => {
       <div className="px-3 sm:px-4 md:px-6 mb-3 sm:mb-4 animate-slide-in-up">
         <div className="flex items-center gap-2 sm:gap-3 overflow-x-auto pb-2">
           <button
-            onClick={() => setStatusFilter('all')}
-            className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl font-semibold text-xs sm:text-sm whitespace-nowrap transition-all duration-300 hover:scale-105 ${
-              statusFilter === 'all'
+            onClick={() => { setStatusFilter('all'); setPage(1); }}
+            className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl font-semibold text-xs sm:text-sm whitespace-nowrap transition-all duration-300 hover:scale-105 ${statusFilter === 'all'
                 ? 'bg-gradient-to-r from-[var(--app-dark-blue)] to-blue-700 text-white shadow-lg'
                 : 'bg-white text-gray-700 border-2 border-gray-200 hover:border-[var(--app-dark-blue)]/30'
-            }`}
+              }`}
           >
             All
           </button>
           <button
-            onClick={() => setStatusFilter('active')}
-            className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl font-semibold text-xs sm:text-sm whitespace-nowrap transition-all duration-300 ${
-              statusFilter === 'active'
+            onClick={() => { setStatusFilter('active'); setPage(1); }}
+            className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl font-semibold text-xs sm:text-sm whitespace-nowrap transition-all duration-300 ${statusFilter === 'active'
                 ? 'bg-gradient-to-r from-green-500 to-green-600 text-white shadow-lg'
                 : 'bg-white text-gray-700 border-2 border-gray-200 hover:border-green-300'
-            }`}
+              }`}
           >
             Active
           </button>
           <button
-            onClick={() => setStatusFilter('completed')}
-            className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl font-semibold text-xs sm:text-sm whitespace-nowrap transition-all duration-300 ${
-              statusFilter === 'completed'
+            onClick={() => { setStatusFilter('completed'); setPage(1); }}
+            className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl font-semibold text-xs sm:text-sm whitespace-nowrap transition-all duration-300 ${statusFilter === 'completed'
                 ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg'
                 : 'bg-white text-gray-700 border-2 border-gray-200 hover:border-blue-300'
-            }`}
+              }`}
           >
             Completed
           </button>
           <button
-            onClick={() => setStatusFilter('inactive')}
-            className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl font-semibold text-xs sm:text-sm whitespace-nowrap transition-all duration-300 ${
-              statusFilter === 'inactive'
+            onClick={() => { setStatusFilter('inactive'); setPage(1); }}
+            className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl font-semibold text-xs sm:text-sm whitespace-nowrap transition-all duration-300 ${statusFilter === 'inactive'
                 ? 'bg-gradient-to-r from-gray-500 to-gray-600 text-white shadow-lg'
                 : 'bg-white text-gray-700 border-2 border-gray-200 hover:border-gray-300'
-            }`}
+              }`}
           >
             Inactive
           </button>
@@ -232,7 +230,7 @@ const Quizzes = () => {
             type="text"
             placeholder="Search quizzes by name, subject, board, or class..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
             className="w-full pl-9 sm:pl-10 md:pl-12 pr-3 sm:pr-4 py-2.5 sm:py-3 text-xs sm:text-sm border-2 border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-[var(--app-dark-blue)] focus:border-[var(--app-dark-blue)] outline-none transition-all shadow-sm hover:shadow-md"
           />
         </div>
@@ -259,9 +257,8 @@ const Quizzes = () => {
             {filteredQuizzes.map((quiz, index) => (
               <div
                 key={quiz._id}
-                className={`group relative bg-white rounded-lg sm:rounded-xl p-3 sm:p-4 border border-[var(--app-dark-blue)]/60 hover:border-[var(--app-dark-blue)] transition-all duration-300 transform hover:-translate-y-0.5 shadow-sm hover:shadow-md shadow-gray-200/50 ${
-                  index % 2 === 0 ? 'animate-slide-in-left' : 'animate-slide-in-right'
-                }`}
+                className={`group relative bg-white rounded-lg sm:rounded-xl p-3 sm:p-4 border border-[var(--app-dark-blue)]/60 hover:border-[var(--app-dark-blue)] transition-all duration-300 transform hover:-translate-y-0.5 shadow-sm hover:shadow-md shadow-gray-200/50 ${index % 2 === 0 ? 'animate-slide-in-left' : 'animate-slide-in-right'
+                  }`}
                 style={{ animationDelay: `${index * 0.15}s` }}
               >
 
@@ -273,7 +270,7 @@ const Quizzes = () => {
                       <h3 className="text-sm sm:text-base md:text-lg font-bold text-gray-900 mb-1.5 sm:mb-2 group-hover:text-[var(--app-dark-blue)] transition-colors leading-tight">
                         {quiz.name}
                       </h3>
-                      
+
                       {/* Info Badges Row */}
                       <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
                         <div className="flex items-center gap-1 px-2 py-1 bg-gray-50 border border-gray-200 rounded-lg">
@@ -282,19 +279,19 @@ const Quizzes = () => {
                             {quiz.subjectId?.name || 'N/A'}
                           </span>
                         </div>
-                        
+
                         <div className="flex items-center gap-1 px-2 py-1 bg-gray-50 border border-gray-200 rounded-lg">
                           <span className="text-[10px] sm:text-xs font-medium text-gray-700">
                             Class {quiz.classNumber}
                           </span>
                         </div>
-                        
+
                         <div className="flex items-center gap-1 px-2 py-1 bg-gray-50 border border-gray-200 rounded-lg">
                           <span className="text-[10px] sm:text-xs font-medium text-gray-700">
                             {quiz.board}
                           </span>
                         </div>
-                        
+
                         {quiz.questions && (
                           <div className="flex items-center gap-1 px-2 py-1 bg-gray-50 border border-gray-200 rounded-lg">
                             <FiFileText className="w-3 h-3 text-gray-600 flex-shrink-0" />
@@ -316,7 +313,7 @@ const Quizzes = () => {
                           </span>
                         </div>
                       )}
-                      
+
                       <div>
                         {isDeadlinePassed(quiz.deadline) ? (
                           <div className="flex items-center gap-1.5 px-2 py-1 bg-blue-50 border border-blue-200 rounded-lg">
@@ -324,17 +321,14 @@ const Quizzes = () => {
                             <span className="text-[10px] sm:text-xs font-medium text-blue-700">Completed</span>
                           </div>
                         ) : (
-                          <div className={`flex items-center gap-1.5 px-2 py-1 rounded-lg border ${
-                            quiz.isActive 
-                              ? 'bg-green-50 border-green-200' 
+                          <div className={`flex items-center gap-1.5 px-2 py-1 rounded-lg border ${quiz.isActive
+                              ? 'bg-green-50 border-green-200'
                               : 'bg-gray-50 border-gray-200'
-                          }`}>
-                            <FiCheckCircle className={`w-3 h-3 ${
-                              quiz.isActive ? 'text-green-600' : 'text-gray-600'
-                            }`} />
-                            <span className={`text-[10px] sm:text-xs font-medium ${
-                              quiz.isActive ? 'text-green-700' : 'text-gray-700'
                             }`}>
+                            <FiCheckCircle className={`w-3 h-3 ${quiz.isActive ? 'text-green-600' : 'text-gray-600'
+                              }`} />
+                            <span className={`text-[10px] sm:text-xs font-medium ${quiz.isActive ? 'text-green-700' : 'text-gray-700'
+                              }`}>
                               {quiz.isActive ? 'Active' : 'Inactive'}
                             </span>
                           </div>
@@ -352,7 +346,7 @@ const Quizzes = () => {
                     >
                       <FiEye className="w-4 h-4 sm:w-5 sm:h-5" />
                     </button>
-                    
+
                     {!isDeadlinePassed(quiz.deadline) && (
                       <>
                         <button
@@ -387,6 +381,61 @@ const Quizzes = () => {
           </div>
         )}
       </div>
+
+      {/* Pagination Controls */}
+      {!loading && filteredQuizzes.length > 0 && (
+        <div className="px-3 sm:px-4 md:px-6 mt-4 sm:mt-6 mb-8">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+            <div className="text-sm text-gray-500 font-medium">
+              Showing <span className="font-bold text-gray-900">{((page - 1) * limit) + 1}</span> to <span className="font-bold text-gray-900">{Math.min(page * limit, totalItems)}</span> of <span className="font-bold text-gray-900">{totalItems}</span> results
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                disabled={page === 1}
+                className={`p-2 rounded-lg border flex items-center gap-1 transition-all ${page === 1
+                    ? 'border-gray-200 text-gray-300 cursor-not-allowed'
+                    : 'border-gray-300 text-gray-700 hover:bg-[var(--app-dark-blue)] hover:text-white hover:border-[var(--app-dark-blue)]'
+                  }`}
+              >
+                <FiChevronLeft className="w-5 h-5" />
+                <span className="hidden sm:inline font-medium">Previous</span>
+              </button>
+
+              <div className="flex items-center gap-1 px-2">
+                {/* Simple page numbers */}
+                {[...Array(totalPages)].map((_, i) => {
+                  // Logic to show limited page numbers can be complex, for now simple 
+                  // If total pages is huge, we might need a more complex component, 
+                  // but assuming quiz count isn't massive yet.
+                  // Let's implement a simple "1 ... 4 5 6 ... 10" logic if needed, 
+                  // but for now keeping it safe with just current page indicator if too many, 
+                  // or just listing them if small.
+                  // For better UX with specific requirement "10 documents per page", standard Prev/Next is robust.
+                  // Let's just show current page number input or simple buttons if few.
+                  // Actually, let's just stick to Prev/Next and "Page X of Y" for simplicity and robustness.
+                })}
+                <span className="text-sm font-medium text-gray-700 bg-gray-50 px-3 py-1 rounded-md border border-gray-200">
+                  Page {page} of {totalPages}
+                </span>
+              </div>
+
+              <button
+                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                disabled={page === totalPages}
+                className={`p-2 rounded-lg border flex items-center gap-1 transition-all ${page === totalPages
+                    ? 'border-gray-200 text-gray-300 cursor-not-allowed'
+                    : 'border-gray-300 text-gray-700 hover:bg-[var(--app-dark-blue)] hover:text-white hover:border-[var(--app-dark-blue)]'
+                  }`}
+              >
+                <span className="hidden sm:inline font-medium">Next</span>
+                <FiChevronRight className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Delete Confirmation Modal */}
       {isDeleteModalOpen && (

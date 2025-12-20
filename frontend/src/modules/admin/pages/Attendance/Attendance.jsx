@@ -5,6 +5,7 @@ import { teacherAttendanceAPI } from '../../services/api'
 const Attendance = () => {
   const navigate = useNavigate()
   const [records, setRecords] = useState([])
+  const [selectedDate, setSelectedDate] = useState(new Date().toLocaleDateString('en-CA'))
   const [searchTerm, setSearchTerm] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -14,7 +15,8 @@ const Attendance = () => {
       try {
         setLoading(true)
         setError('')
-        const res = await teacherAttendanceAPI.getAll()
+        // Fetch records for the selected date
+        const res = await teacherAttendanceAPI.getAll({ date: selectedDate })
         if (res.success && res.data?.records) {
           setRecords(res.data.records)
         } else {
@@ -29,13 +31,13 @@ const Attendance = () => {
       }
     }
     fetchAttendance()
-  }, [])
+  }, [selectedDate])
 
-  const todayStr = new Date().toISOString().slice(0, 10)
+  const todayStr = new Date().toLocaleDateString('en-CA')
 
   const filteredAttendance = records.filter(record => {
     const teacherName = record.teacher?.name || ''
-    const dateStr = new Date(record.date).toISOString().slice(0, 10)
+    const dateStr = new Date(record.date).toLocaleDateString('en-CA')
     const status = record.status || ''
     const term = searchTerm.toLowerCase()
     return (
@@ -125,9 +127,9 @@ const Attendance = () => {
 
         {/* Table Card */}
         <div className="bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden mt-3 sm:mt-4 md:mt-5 lg:mt-6">
-          {/* Search Bar */}
-          <div className="p-3 sm:p-4 border-b border-gray-200">
-            <div className="relative">
+          {/* Search Bar and Date Filter */}
+          <div className="p-3 sm:p-4 border-b border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div className="relative w-full">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <svg className="h-4 w-4 sm:h-5 sm:w-5 text-[#1e3a5f]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -139,6 +141,14 @@ const Attendance = () => {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-9 sm:pl-10 pr-3 py-2 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-[#1e3a5f] focus:border-[#1e3a5f] outline-none transition-all duration-200 text-xs sm:text-sm text-gray-700 placeholder-gray-400"
+              />
+            </div>
+            <div className="mt-3 sm:mt-0 sm:ml-4 w-full sm:w-auto">
+              <input
+                type="date"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className="w-full sm:w-auto px-3 py-2 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-[#1e3a5f] focus:border-[#1e3a5f] outline-none transition-all duration-200 text-xs sm:text-sm text-gray-700"
               />
             </div>
           </div>
@@ -198,47 +208,47 @@ const Attendance = () => {
                 ) : (
                   filteredAttendance.map((record) => {
                     const teacherName = record.teacher?.name || 'Unknown Teacher'
-                    const dateStr = new Date(record.date).toISOString().slice(0, 10)
+                    const dateStr = new Date(record.date).toLocaleDateString('en-CA')
                     const createdStr = new Date(record.createdAt).toLocaleString()
                     const status = (record.status || '').toUpperCase()
 
                     return (
-                    <tr key={record._id} className="hover:bg-gray-50 transition-all duration-200">
-                      <td className="px-2 sm:px-3 py-2 whitespace-nowrap">
-                        <div className="flex items-center">
-                          {(
-                            <div className="h-6 w-6 sm:h-8 sm:w-8 rounded-full bg-gradient-to-br from-[#1e3a5f] to-[#2a4a6f] flex items-center justify-center ring-2 ring-gray-200">
-                              <span className="text-white font-semibold text-[10px] sm:text-xs">
-                                {getInitials(teacherName)}
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-2 sm:px-3 py-2 whitespace-nowrap">
-                        <div className="text-xs font-semibold text-gray-900">{teacherName}</div>
-                      </td>
-                      <td className="px-2 sm:px-3 py-2 whitespace-nowrap hidden sm:table-cell">
-                        <span className="px-2 py-0.5 inline-flex text-[10px] sm:text-xs font-medium rounded-lg bg-blue-50 text-[#1e3a5f]">
-                          {dateStr}
-                        </span>
-                      </td>
-                      <td className="px-2 sm:px-3 py-2 whitespace-nowrap">
-                        <span
-                          className={`px-2 py-0.5 inline-flex text-[10px] sm:text-xs font-medium rounded-lg ${
-                            status === 'P' || status === 'PRESENT'
+                      <tr key={record._id} className="hover:bg-gray-50 transition-all duration-200">
+                        <td className="px-2 sm:px-3 py-2 whitespace-nowrap">
+                          <div className="flex items-center">
+                            {(
+                              <div className="h-6 w-6 sm:h-8 sm:w-8 rounded-full bg-gradient-to-br from-[#1e3a5f] to-[#2a4a6f] flex items-center justify-center ring-2 ring-gray-200">
+                                <span className="text-white font-semibold text-[10px] sm:text-xs">
+                                  {getInitials(teacherName)}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-2 sm:px-3 py-2 whitespace-nowrap">
+                          <div className="text-xs font-semibold text-gray-900">{teacherName}</div>
+                        </td>
+                        <td className="px-2 sm:px-3 py-2 whitespace-nowrap hidden sm:table-cell">
+                          <span className="px-2 py-0.5 inline-flex text-[10px] sm:text-xs font-medium rounded-lg bg-blue-50 text-[#1e3a5f]">
+                            {dateStr}
+                          </span>
+                        </td>
+                        <td className="px-2 sm:px-3 py-2 whitespace-nowrap">
+                          <span
+                            className={`px-2 py-0.5 inline-flex text-[10px] sm:text-xs font-medium rounded-lg ${status === 'P' || status === 'PRESENT'
                               ? 'bg-green-50 text-green-700'
                               : 'bg-red-50 text-red-600'
-                          }`}
-                        >
-                          {status === 'PRESENT' ? 'Present' : status === 'P' ? 'P' : 'Absent'}
-                        </span>
-                      </td>
-                      <td className="px-2 sm:px-3 py-2 whitespace-nowrap hidden lg:table-cell">
-                        <div className="text-[10px] sm:text-xs text-gray-500">{createdStr}</div>
-                      </td>
-                    </tr>
-                  )})
+                              }`}
+                          >
+                            {status === 'PRESENT' ? 'Present' : status === 'P' ? 'P' : 'Absent'}
+                          </span>
+                        </td>
+                        <td className="px-2 sm:px-3 py-2 whitespace-nowrap hidden lg:table-cell">
+                          <div className="text-[10px] sm:text-xs text-gray-500">{createdStr}</div>
+                        </td>
+                      </tr>
+                    )
+                  })
                 )}
               </tbody>
             </table>

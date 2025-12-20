@@ -436,12 +436,9 @@ export const teacherAttendanceAPI = {
 
 export const doubtAPI = {
   // Get all doubts (for teachers)
-  getAllDoubts: async (status = null) => {
-    let endpoint = '/doubts';
-    if (status) {
-      endpoint += `?status=${status}`;
-    }
-    return apiRequest(endpoint, {
+  getAllDoubts: async (params = {}) => {
+    const queryString = new URLSearchParams(params).toString();
+    return apiRequest(`/doubts${queryString ? `?${queryString}` : ''}`, {
       method: 'GET',
     });
   },
@@ -669,7 +666,7 @@ export const agentAPI = {
   },
   // Get referral statistics (optional month filter in YYYY-MM format)
   getStatistics: async (month = null) => {
-    const url = month 
+    const url = month
       ? `/agent/statistics?month=${encodeURIComponent(month)}`
       : '/agent/statistics';
     return apiRequest(url, {

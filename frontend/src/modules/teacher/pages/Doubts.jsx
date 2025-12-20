@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiArrowLeft, FiSearch, FiClock, FiMessageCircle, FiCheckCircle, FiX, FiEdit2, FiUser } from 'react-icons/fi';
+import { FiArrowLeft, FiSearch, FiClock, FiMessageCircle, FiCheckCircle, FiX, FiEdit2, FiUser, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 import { ROUTES } from '../constants/routes';
 import BottomNav from '../components/common/BottomNav';
 import { doubtAPI } from '../services/api';
@@ -23,21 +23,48 @@ const Doubts = () => {
   const [selectedImage, setSelectedImage] = useState(null);
   const [showImageModal, setShowImageModal] = useState(false);
 
+  const [page, setPage] = useState(1);
+  const [limit] = useState(10);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+
   useEffect(() => {
     fetchDoubts();
-  }, [statusFilter]);
+  }, [page, statusFilter]); // Refetch when page or status changes
+
+  // Debounce search effect could be added here, currently sticking to manual or effect on string change
+  useEffect(() => {
+    // Reset page when search changes, but we also want to trigger fetch
+    // Ideally we want to fetch when searchTerm changes too
+    setPage(1);
+    const delayDebounceFn = setTimeout(() => {
+      fetchDoubts();
+    }, 500);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchTerm]);
 
   const fetchDoubts = async () => {
     try {
       setLoading(true);
-      const status = statusFilter !== 'all' ? statusFilter : null;
-      const response = await doubtAPI.getAllDoubts(status);
-      if (response.success && response.data.doubts) {
-        setDoubts(response.data.doubts);
+      const params = {
+        page,
+        limit,
+        search: searchTerm
+      };
+      if (statusFilter !== 'all') {
+        params.status = statusFilter;
+      }
+
+      const response = await doubtAPI.getAllDoubts(params);
+      if (response.success) {
+        setDoubts(response.data.doubts || []);
+        setTotalPages(response.pages || 1);
+        setTotalItems(response.total || 0);
       }
     } catch (error) {
       console.error('Error fetching doubts:', error);
-      alert('Failed to load doubts. Please try again.');
+      // alert('Failed to load doubts. Please try again.'); // Silent fail on search typing
     } finally {
       setLoading(false);
     }
@@ -108,12 +135,8 @@ const Doubts = () => {
     }
   };
 
-  const filteredDoubts = doubts.filter(doubt => {
-    const matchesSearch = 
-      doubt.question?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      doubt.studentId?.name?.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesSearch;
-  });
+  // Client-side filtering removed
+  const filteredDoubts = doubts;
 
   return (
     <div className="min-h-screen bg-white pb-20">
@@ -152,12 +175,11 @@ const Doubts = () => {
             {['all', 'Pending', 'Answered', 'Resolved'].map((status) => (
               <button
                 key={status}
-                onClick={() => setStatusFilter(status)}
-                className={`px-3 sm:px-4 md:px-5 py-2 sm:py-2.5 md:py-3 rounded-lg sm:rounded-xl text-xs sm:text-sm md:text-base font-bold transition-all duration-300 hover:scale-105 ${
-                  statusFilter === status
-                    ? 'bg-gradient-to-r from-[var(--app-dark-blue)] to-blue-700 text-white shadow-lg hover:shadow-xl scale-105'
-                    : 'bg-white border-2 border-gray-200 text-gray-700 hover:border-[var(--app-dark-blue)]/30 hover:bg-gray-50 hover:shadow-md'
-                }`}
+                onClick={() => { setStatusFilter(status); setPage(1); }}
+                className={`px-3 sm:px-4 md:px-5 py-2 sm:py-2.5 md:py-3 rounded-lg sm:rounded-xl text-xs sm:text-sm md:text-base font-bold transition-all duration-300 hover:scale-105 ${statusFilter === status
+                  ? 'bg-gradient-to-r from-[var(--app-dark-blue)] to-blue-700 text-white shadow-lg hover:shadow-xl scale-105'
+                  : 'bg-white border-2 border-gray-200 text-gray-700 hover:border-[var(--app-dark-blue)]/30 hover:bg-gray-50 hover:shadow-md'
+                  }`}
               >
                 {status}
               </button>
@@ -176,9 +198,8 @@ const Doubts = () => {
             {filteredDoubts.map((doubt, index) => (
               <div
                 key={doubt._id}
-                className={`relative bg-gradient-to-br from-white via-white to-gray-50/30 rounded-xl border border-gray-200/80 transition-all duration-300 transform hover:scale-[1.02] hover:-translate-y-2 ${
-                  index % 2 === 0 ? 'animate-slide-in-left' : 'animate-slide-in-right'
-                }`}
+                className={`relative bg-gradient-to-br from-white via-white to-gray-50/30 rounded-xl border border-gray-200/80 transition-all duration-300 transform hover:scale-[1.02] hover:-translate-y-2 ${index % 2 === 0 ? 'animate-slide-in-left' : 'animate-slide-in-right'
+                  }`}
                 style={{
                   animationDelay: `${index * 0.15}s`,
                   boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(0, 0, 0, 0.05), 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05), inset 0 1px 0 0 rgba(255, 255, 255, 0.8)'
@@ -209,7 +230,7 @@ const Doubts = () => {
                           </p>
                         </div>
                       )}
-                      
+
                       {/* Date */}
                       <div className="flex items-center gap-1.5 text-gray-500 text-[10px] sm:text-xs mb-1.5">
                         <FiClock className="text-[var(--app-dark-blue)] text-xs" />
@@ -274,7 +295,7 @@ const Doubts = () => {
                             </div>
                           ))}
                           {doubt.images.length > 3 && (
-                            <div 
+                            <div
                               className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 rounded-md sm:rounded-lg border-2 border-gray-200 bg-gray-100 flex items-center justify-center cursor-pointer hover:bg-gray-200 transition-colors shadow-sm"
                               onClick={() => {
                                 setSelectedImage(doubt.images[3]);
@@ -308,6 +329,49 @@ const Doubts = () => {
           </div>
         )}
       </main>
+
+      {/* Pagination Controls */}
+      {!loading && doubts.length > 0 && (
+        <div className="px-3 sm:px-4 md:px-6 mb-20 sm:mb-24">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+            <div className="text-sm text-gray-500 font-medium">
+              Showing <span className="font-bold text-gray-900">{((page - 1) * limit) + 1}</span> to <span className="font-bold text-gray-900">{Math.min(page * limit, totalItems)}</span> of <span className="font-bold text-gray-900">{totalItems}</span> results
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                disabled={page === 1}
+                className={`p-2 rounded-lg border flex items-center gap-1 transition-all ${page === 1
+                  ? 'border-gray-200 text-gray-300 cursor-not-allowed'
+                  : 'border-gray-300 text-gray-700 hover:bg-[var(--app-dark-blue)] hover:text-white hover:border-[var(--app-dark-blue)]'
+                  }`}
+              >
+                <FiChevronLeft className="w-5 h-5" />
+                <span className="hidden sm:inline font-medium">Previous</span>
+              </button>
+
+              <div className="flex items-center gap-1 px-2">
+                <span className="text-sm font-medium text-gray-700 bg-gray-50 px-3 py-1 rounded-md border border-gray-200">
+                  Page {page} of {totalPages}
+                </span>
+              </div>
+
+              <button
+                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                disabled={page === totalPages}
+                className={`p-2 rounded-lg border flex items-center gap-1 transition-all ${page === totalPages
+                  ? 'border-gray-200 text-gray-300 cursor-not-allowed'
+                  : 'border-gray-300 text-gray-700 hover:bg-[var(--app-dark-blue)] hover:text-white hover:border-[var(--app-dark-blue)]'
+                  }`}
+              >
+                <span className="hidden sm:inline font-medium">Next</span>
+                <FiChevronRight className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Answer Modal */}
       {showAnswerModal && selectedDoubt && (
@@ -380,8 +444,8 @@ const Doubts = () => {
                 className="group relative overflow-hidden flex-1 bg-gradient-to-r from-[var(--app-dark-blue)] via-[var(--app-dark-blue)] to-blue-700 hover:from-blue-700 hover:via-[var(--app-dark-blue)] hover:to-[var(--app-dark-blue)] text-white font-semibold sm:font-bold py-2 sm:py-2.5 rounded-lg transition-all duration-300 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed text-xs sm:text-sm"
               >
                 <span className="relative z-10">
-                  {submitting 
-                    ? (selectedDoubt?.answer ? 'Updating...' : 'Submitting...') 
+                  {submitting
+                    ? (selectedDoubt?.answer ? 'Updating...' : 'Submitting...')
                     : (selectedDoubt?.answer ? 'Update Answer' : 'Submit Answer')
                   }
                 </span>
