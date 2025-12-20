@@ -64,43 +64,74 @@ const CourseDetails = () => {
     }
   }, [id]);
 
-  const handlePdfView = (pdfUrl) => {
+  const handlePdfView = async (pdfUrl) => {
     if (!pdfUrl) return;
 
-    // If already absolute URL, use it
-    if (pdfUrl.startsWith('http')) {
-      window.open(pdfUrl, '_blank');
-      return;
-    }
+    // Build API base
+    const apiBase = getApiBaseUrl();
 
-    // If protocol-relative URL (//...), prefix protocol
-    if (pdfUrl.startsWith('//')) {
-      window.open(`${window.location.protocol}${pdfUrl}`, '_blank');
-      return;
-    }
+    // If relative path (starts with / or without protocol), use backend download endpoint
+    const isRelative = !/^https?:\/\//i.test(pdfUrl) && !/^\/\//.test(pdfUrl);
+    const isProtocolRelative = /^\/\//.test(pdfUrl);
 
-    // If url contains the current hostname (but stored with an extra leading slash),
-    // extract suffix from hostname occurrence and build correct absolute URL.
     try {
-      const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
-      const protocol = typeof window !== 'undefined' ? window.location.protocol : 'https:';
-
-      const hostIndex = hostname ? pdfUrl.indexOf(hostname) : -1;
-      if (hostIndex !== -1) {
-        // e.g. pdfUrl = '/.dvisionacademy.com/api/uploads/..' -> find hostname and keep suffix
-        const suffix = pdfUrl.substring(hostIndex + hostname.length) || '';
-        const fullUrl = `${protocol}//${hostname}${suffix}`;
-        window.open(fullUrl, '_blank');
+      if (isRelative || pdfUrl.startsWith('/')) {
+        // Ensure we send the path relative to uploads folder (strip leading slash)
+        const relative = pdfUrl.replace(/^\/+/, '');
+        const downloadUrl = `${apiBase}/api/uploads/download?file=${encodeURIComponent(relative)}`;
+        window.location.href = downloadUrl;
         return;
       }
-    } catch (e) {
-      // fallthrough to default behavior
-      console.error('Error normalizing pdfUrl', e);
-    }
 
-    // Default: relative path like /uploads/..., prefix API base
-    const fullUrl = pdfUrl.startsWith('/') ? `${getApiBaseUrl()}${pdfUrl}` : `${getApiBaseUrl()}/${pdfUrl}`;
-    window.open(fullUrl, '_blank');
+      if (isProtocolRelative) {
+        const absolute = `${window.location.protocol}${pdfUrl}`;
+        // If same-hosted, proxy via backend
+        if (absolute.includes(window.location.hostname)) {
+          const urlPath = absolute.replace(`${window.location.protocol}//${window.location.hostname}`, '');
+          const relative = urlPath.replace(/^\/+/, '');
+          const downloadUrl = `${apiBase}/api/uploads/download?file=${encodeURIComponent(relative)}`;
+          window.location.href = downloadUrl;
+          return;
+        }
+        // otherwise fallback to fetch
+        pdfUrl = absolute;
+      }
+
+      // If absolute remote URL and same-origin API host, use backend proxy to attach download header
+      if (/^https?:\/\//i.test(pdfUrl)) {
+        const parsed = new URL(pdfUrl);
+        if (parsed.hostname === window.location.hostname || pdfUrl.includes(apiBase)) {
+          const downloadUrl = `${apiBase}/api/uploads/download?url=${encodeURIComponent(pdfUrl)}`;
+          window.location.href = downloadUrl;
+          return;
+        }
+
+        // External URL: fetch as blob and trigger download in browser
+        const resp = await fetch(pdfUrl);
+        if (!resp.ok) throw new Error('Failed to fetch file');
+        const blob = await resp.blob();
+        const disposition = resp.headers.get('content-disposition');
+        let filename = 'file.pdf';
+        if (disposition) {
+          const match = /filename\*=UTF-8''([^;\n]+)/i.exec(disposition) || /filename="?([^";\n]+)"?/i.exec(disposition);
+          if (match && match[1]) filename = decodeURIComponent(match[1]);
+        } else {
+          try { filename = pdfUrl.split('/').pop().split('?')[0] || filename; } catch (e) { }
+        }
+
+        const link = document.createElement('a');
+        link.href = window.URL.createObjectURL(blob);
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        return;
+      }
+    } catch (err) {
+      console.error('Download error:', err);
+      // fallback: open in new tab
+      window.open(pdfUrl, '_blank');
+    }
   };
 
   if (isLoading) {
@@ -271,7 +302,7 @@ const CourseDetails = () => {
                             className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-600 text-white px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg font-semibold text-[10px] sm:text-xs transition-all shadow-sm hover:shadow-md flex items-center justify-center gap-1 sm:gap-1.5 w-full sm:w-auto"
                           >
                             <FiFileText className="text-xs" />
-                            <span>View PDF</span>
+                            <span>Download PDF</span>
                             <FiDownload className="text-xs" />
                           </button>
                         )}
