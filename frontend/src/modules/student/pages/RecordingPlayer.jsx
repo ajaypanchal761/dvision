@@ -57,8 +57,6 @@ const RecordingPlayer = () => {
         vid.pause();
         // assign src and load to ensure metadata/dimensions are available
         vid.src = liveClass.recording.playbackUrl;
-        // set crossOrigin to allow pixel access if server provides CORS
-        vid.crossOrigin = 'anonymous';
         vid.load();
       } catch (err) {
         console.error('[Video] Error setting src:', err);
@@ -187,7 +185,6 @@ const RecordingPlayer = () => {
           <video
             ref={videoRef}
             src={liveClass?.recording?.playbackUrl}
-            crossOrigin="anonymous"
             playsInline
             onPlay={() => setIsPlaying(true)}
             onPause={() => setIsPlaying(false)}
