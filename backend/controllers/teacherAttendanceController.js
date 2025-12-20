@@ -170,6 +170,11 @@ exports.getAllTeacherAttendanceAdmin = asyncHandler(async (req, res, next) => {
     const m = parseInt(month, 10) || now.getMonth() + 1;
     const { start, end } = getMonthRange(y, m - 1);
     filter.date = { $gte: start, $lte: end };
+  } else {
+    // Default: Fetch only today's records
+    const now = new Date();
+    const { start, end } = getDayRange(now);
+    filter.date = { $gte: start, $lte: end };
   }
 
   const records = await TeacherAttendance.find(filter)

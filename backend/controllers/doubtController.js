@@ -72,8 +72,8 @@ exports.createDoubt = asyncHandler(async (req, res) => {
   // Also honor activeSubscriptions stored on the student document
   const activeSubsFromArray = (student.activeSubscriptions || []).filter(sub => new Date(sub.endDate) >= now);
 
-  const hasActiveClassSubscription = activePayments.some(payment => 
-    payment.subscriptionPlanId && 
+  const hasActiveClassSubscription = activePayments.some(payment =>
+    payment.subscriptionPlanId &&
     payment.subscriptionPlanId.type === 'regular' &&
     payment.subscriptionPlanId.board === student.board &&
     payment.subscriptionPlanId.classes &&
@@ -84,8 +84,8 @@ exports.createDoubt = asyncHandler(async (req, res) => {
     sub.class === student.class
   );
 
-  const hasActivePreparationSubscription = activePayments.some(payment => 
-    payment.subscriptionPlanId && 
+  const hasActivePreparationSubscription = activePayments.some(payment =>
+    payment.subscriptionPlanId &&
     payment.subscriptionPlanId.type === 'preparation'
   ) || activeSubsFromArray.some(sub => sub.type === 'preparation');
 
@@ -216,11 +216,27 @@ exports.createDoubt = asyncHandler(async (req, res) => {
 // @access  Private/Student
 exports.getMyDoubts = asyncHandler(async (req, res) => {
   const studentId = req.user._id;
+  const { page = 1, limit = 10, search } = req.query;
 
-  const doubts = await Doubt.find({ studentId })
+  const query = { studentId };
+
+  // Add search functionality
+  if (search) {
+    query.$or = [
+      { question: { $regex: search, $options: 'i' } },
+      { answer: { $regex: search, $options: 'i' } }
+    ];
+  }
+
+  const skip = (parseInt(page) - 1) * parseInt(limit);
+  const total = await Doubt.countDocuments(query);
+
+  const doubts = await Doubt.find(query)
     .sort({ createdAt: -1 })
     .populate('teacherId', 'name email subjects')
-    .select('-__v');
+    .select('-__v')
+    .skip(skip)
+    .limit(parseInt(limit));
 
   // Populate answeredBy based on answeredByModel (Teacher or Admin)
   // Since we use refPath, we need to populate conditionally for each doubt
@@ -242,6 +258,9 @@ exports.getMyDoubts = asyncHandler(async (req, res) => {
   res.status(200).json({
     success: true,
     count: doubts.length,
+    total,
+    page: parseInt(page),
+    pages: Math.ceil(total / parseInt(limit)),
     data: {
       doubts
     }
@@ -257,7 +276,7 @@ exports.getDoubtStatistics = asyncHandler(async (req, res) => {
   const pendingDoubts = await Doubt.countDocuments({ status: 'Pending' });
   const answeredDoubts = await Doubt.countDocuments({ status: 'Answered' });
   const resolvedDoubts = await Doubt.countDocuments({ status: 'Resolved' });
-  
+
   res.status(200).json({
     success: true,
     data: {
@@ -285,7 +304,7 @@ exports.getAllDoubts = asyncHandler(async (req, res) => {
   if (studentId) {
     query.studentId = studentId;
   }
-  
+
   // Add search functionality
   if (search) {
     query.$or = [

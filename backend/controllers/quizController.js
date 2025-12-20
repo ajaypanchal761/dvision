@@ -124,26 +124,26 @@ exports.getAllQuizzes = asyncHandler(async (req, res) => {
 
   // Build query
   const query = {};
-  
+
   // For students, automatically filter by their class and board, and only active quizzes
   if (isStudent) {
     const Student = require('../models/Student');
     const student = await Student.findById(req.user._id);
-    
+
     if (!student) {
       throw new ErrorResponse('Student not found', 404);
     }
 
     query.isActive = true;
-    
+
     // Check active subscriptions from both sources
     const now = new Date();
-    
+
     // Get from activeSubscriptions array
-    const activeSubsFromArray = (student.activeSubscriptions || []).filter(sub => 
+    const activeSubsFromArray = (student.activeSubscriptions || []).filter(sub =>
       new Date(sub.endDate) >= now
     );
-    
+
     // Get from Payment records
     const activePayments = await Payment.find({
       studentId: student._id,
@@ -160,27 +160,27 @@ exports.getAllQuizzes = asyncHandler(async (req, res) => {
       });
 
     // Check for active regular subscription
-    const hasActiveClassSubscription = activePayments.some(payment => 
-      payment.subscriptionPlanId && 
+    const hasActiveClassSubscription = activePayments.some(payment =>
+      payment.subscriptionPlanId &&
       payment.subscriptionPlanId.type === 'regular' &&
       payment.subscriptionPlanId.board === student.board &&
       payment.subscriptionPlanId.classes &&
       payment.subscriptionPlanId.classes.includes(student.class)
-    ) || activeSubsFromArray.some(sub => 
-      sub.type === 'regular' && 
-      sub.board === student.board && 
+    ) || activeSubsFromArray.some(sub =>
+      sub.type === 'regular' &&
+      sub.board === student.board &&
       sub.class === student.class
     );
 
     // Get preparation class IDs from active preparation subscriptions
     const prepClassIdsFromPayments = activePayments
-      .filter(payment => 
-        payment.subscriptionPlanId && 
+      .filter(payment =>
+        payment.subscriptionPlanId &&
         payment.subscriptionPlanId.type === 'preparation' &&
         payment.subscriptionPlanId.classId
       )
       .map(payment => payment.subscriptionPlanId.classId._id || payment.subscriptionPlanId.classId);
-    
+
     const prepClassIdsFromArray = activeSubsFromArray
       .filter(sub => sub.type === 'preparation' && sub.classId)
       .map(sub => {
@@ -188,13 +188,13 @@ exports.getAllQuizzes = asyncHandler(async (req, res) => {
         return classId ? classId.toString() : null;
       })
       .filter(Boolean);
-    
+
     // Combine both sources and remove duplicates
     const allPrepClassIds = [...new Set([
       ...prepClassIdsFromPayments.map(id => id.toString()),
       ...prepClassIdsFromArray
     ])];
-    
+
     // Convert to ObjectIds for MongoDB query
     const preparationClassIds = allPrepClassIds
       .filter(id => mongoose.Types.ObjectId.isValid(id))
@@ -203,12 +203,12 @@ exports.getAllQuizzes = asyncHandler(async (req, res) => {
     // Build queries for both types
     const regularQuery = { ...query };
     const preparationQuery = { ...query };
-    
+
     if (hasActiveClassSubscription) {
       regularQuery.classNumber = student.class;
       regularQuery.board = student.board;
     }
-    
+
     if (preparationClassIds.length > 0) {
       preparationQuery.classId = { $in: preparationClassIds };
     }
@@ -216,19 +216,19 @@ exports.getAllQuizzes = asyncHandler(async (req, res) => {
     // Fetch both types of quizzes
     const regularQuizzes = hasActiveClassSubscription
       ? await Quiz.find(regularQuery)
-          .sort({ createdAt: -1 })
-          .populate('subjectId', 'name')
-          .populate('createdBy', 'name email')
-          .select('-__v')
+        .sort({ createdAt: -1 })
+        .populate('subjectId', 'name')
+        .populate('createdBy', 'name email')
+        .select('-__v')
       : [];
 
     const preparationQuizzes = preparationClassIds.length > 0
       ? await Quiz.find(preparationQuery)
-          .sort({ createdAt: -1 })
-          .populate('subjectId', 'name')
-          .populate('classId', 'name classCode')
-          .populate('createdBy', 'name email')
-          .select('-__v')
+        .sort({ createdAt: -1 })
+        .populate('subjectId', 'name')
+        .populate('classId', 'name classCode')
+        .populate('createdBy', 'name email')
+        .select('-__v')
       : [];
 
     // Combine both types
@@ -258,7 +258,7 @@ exports.getAllQuizzes = asyncHandler(async (req, res) => {
   } else {
     // For admins and teachers, use query parameters
     const { page = 1, limit = 10, search } = req.query;
-    
+
     if (classNumber) {
       query.classNumber = parseInt(classNumber);
     }
@@ -268,16 +268,35 @@ exports.getAllQuizzes = asyncHandler(async (req, res) => {
     if (subjectId) {
       query.subjectId = subjectId;
     }
-    if (isActive !== undefined) {
-      query.isActive = isActive === 'true';
-    }
-    
     // Add search functionality
     if (search) {
       query.$or = [
-        { title: { $regex: search, $options: 'i' } },
+        { name: { $regex: search, $options: 'i' } }, // Changed title to name as per schema
         { description: { $regex: search, $options: 'i' } }
       ];
+    }
+
+    // Add status filtering
+    if (req.query.status) {
+      const status = req.query.status;
+      const now = new Date();
+
+      if (status === 'active') {
+        query.isActive = true;
+        query.$or = [
+          { deadline: { $exists: false } },
+          { deadline: null },
+          { deadline: { $gt: now } }
+        ];
+      } else if (status === 'completed') {
+        query.deadline = { $lte: now };
+      } else if (status === 'inactive') {
+        // Inactive means explicitly set to inactive, regardless of deadline
+        query.isActive = false;
+      }
+    } else if (isActive !== undefined) {
+      // Fallback to legacy isActive if status not provided
+      query.isActive = isActive === 'true';
     }
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
@@ -310,12 +329,12 @@ exports.getAllQuizzes = asyncHandler(async (req, res) => {
 // @access  Private/Admin
 exports.getQuizStatistics = asyncHandler(async (req, res) => {
   const Quiz = require('../models/Quiz');
-  
+
   // Get overall statistics (not filtered by search or pagination)
   const totalQuizzes = await Quiz.countDocuments({});
   const activeQuizzes = await Quiz.countDocuments({ isActive: true });
   const inactiveQuizzes = await Quiz.countDocuments({ isActive: false });
-  
+
   res.status(200).json({
     success: true,
     data: {
@@ -350,7 +369,7 @@ exports.getQuizById = asyncHandler(async (req, res) => {
     const Student = require('../models/Student');
     const Payment = require('../models/Payment');
     const student = await Student.findById(req.user._id);
-    
+
     if (!student) {
       throw new ErrorResponse('Student not found', 404);
     }
@@ -372,7 +391,7 @@ exports.getQuizById = asyncHandler(async (req, res) => {
       });
 
     // Also check activeSubscriptions array
-    const activeSubsFromArray = (student.activeSubscriptions || []).filter(sub => 
+    const activeSubsFromArray = (student.activeSubscriptions || []).filter(sub =>
       new Date(sub.endDate) >= now
     );
 
@@ -381,41 +400,41 @@ exports.getQuizById = asyncHandler(async (req, res) => {
     // Check if quiz is regular type
     if (quiz.type === 'regular' || (quiz.classNumber && quiz.board)) {
       // Check if student has active regular subscription for their class
-      const hasActiveClassSubscription = activePayments.some(payment => 
-        payment.subscriptionPlanId && 
+      const hasActiveClassSubscription = activePayments.some(payment =>
+        payment.subscriptionPlanId &&
         payment.subscriptionPlanId.type === 'regular' &&
         payment.subscriptionPlanId.board === student.board &&
         payment.subscriptionPlanId.classes &&
         payment.subscriptionPlanId.classes.includes(student.class)
-      ) || activeSubsFromArray.some(sub => 
-        sub.type === 'regular' && 
-        sub.board === student.board && 
+      ) || activeSubsFromArray.some(sub =>
+        sub.type === 'regular' &&
+        sub.board === student.board &&
         sub.class === student.class
       );
 
       if (quiz.classNumber === student.class && quiz.board === student.board && hasActiveClassSubscription) {
         hasAccess = true;
       }
-    } 
+    }
     // Check if quiz is preparation type
     else if (quiz.type === 'preparation' || quiz.classId) {
       const quizClassId = quiz.classId?._id || quiz.classId;
-      
+
       if (quizClassId) {
         // Check if student has active prep subscription for this prep class
         const hasActivePrepSubscription = activePayments.some(payment => {
-          if (!payment.subscriptionPlanId || 
-              payment.subscriptionPlanId.type !== 'preparation' ||
-              !payment.subscriptionPlanId.classId) {
+          if (!payment.subscriptionPlanId ||
+            payment.subscriptionPlanId.type !== 'preparation' ||
+            !payment.subscriptionPlanId.classId) {
             return false;
           }
-          
-          const paymentClassId = payment.subscriptionPlanId.classId._id || 
-                                payment.subscriptionPlanId.classId;
+
+          const paymentClassId = payment.subscriptionPlanId.classId._id ||
+            payment.subscriptionPlanId.classId;
           return paymentClassId && paymentClassId.toString() === quizClassId.toString();
         }) || activeSubsFromArray.some(sub => {
           if (sub.type !== 'preparation' || !sub.classId) return false;
-          
+
           const subClassId = sub.classId._id || sub.classId;
           return subClassId && subClassId.toString() === quizClassId.toString();
         });
@@ -485,7 +504,7 @@ exports.updateQuiz = asyncHandler(async (req, res) => {
   if (type !== undefined) {
     quiz.type = quizType;
   }
-  
+
   // Type-specific field updates
   if (quizType === 'regular') {
     if (classNumber !== undefined) {
@@ -640,7 +659,7 @@ exports.getStudentQuizStatistics = asyncHandler(async (req, res) => {
   }
 
   // Check active subscriptions (same logic as getAllQuizzes)
-  const activeSubsFromArray = (student.activeSubscriptions || []).filter(sub => 
+  const activeSubsFromArray = (student.activeSubscriptions || []).filter(sub =>
     new Date(sub.endDate) >= now
   );
 
@@ -658,21 +677,21 @@ exports.getStudentQuizStatistics = asyncHandler(async (req, res) => {
       }
     });
 
-  const hasActiveClassSubscription = activePayments.some(payment => 
-    payment.subscriptionPlanId && 
+  const hasActiveClassSubscription = activePayments.some(payment =>
+    payment.subscriptionPlanId &&
     payment.subscriptionPlanId.type === 'regular' &&
     payment.subscriptionPlanId.board === student.board &&
     payment.subscriptionPlanId.classes &&
     payment.subscriptionPlanId.classes.includes(student.class)
-  ) || activeSubsFromArray.some(sub => 
-    sub.type === 'regular' && 
-    sub.board === student.board && 
+  ) || activeSubsFromArray.some(sub =>
+    sub.type === 'regular' &&
+    sub.board === student.board &&
     sub.class === student.class
   );
 
   const prepClassIdsFromPayments = activePayments
-    .filter(payment => 
-      payment.subscriptionPlanId && 
+    .filter(payment =>
+      payment.subscriptionPlanId &&
       payment.subscriptionPlanId.type === 'preparation' &&
       payment.subscriptionPlanId.classId
     )

@@ -7,24 +7,30 @@ import Image from '../components/common/Image';
 import BottomNav from '../components/common/BottomNav';
 
 // Helper function to get API base URL
+// Helper function to get API base URL
 const getApiBaseUrl = () => {
+  // Priority 1: Check if we are in production on the specific domain
+  // This overrides env vars which might be set incorrectly or relatively
+  if (typeof window !== 'undefined' && window.location.hostname.includes('dvisionacademy.com')) {
+    const hostname = window.location.hostname;
+    const protocol = window.location.protocol;
+
+    // Return base URL without /api suffix, as handlePdfView appends it
+    if (hostname.startsWith('www.')) {
+      return `${protocol}//api.${hostname.substring(4)}`;
+    } else if (!hostname.startsWith('api.')) {
+      return `${protocol}//api.${hostname}`;
+    } else {
+      // Fallback if we are securely on api subdomain or something else
+      return `${protocol}//${hostname}`;
+    }
+  }
+
+  // Priority 2: Env var
   if (import.meta.env.VITE_API_BASE_URL) {
     return import.meta.env.VITE_API_BASE_URL.replace('/api', '');
   }
-  if (typeof window !== 'undefined') {
-    const hostname = window.location.hostname;
-    const isProduction = hostname.includes('dvisionacademy.com');
-    if (isProduction) {
-      const protocol = window.location.protocol;
-      if (hostname.startsWith('www.')) {
-        return `${protocol}//api.${hostname.substring(4)}`;
-      } else if (!hostname.startsWith('api.')) {
-        return `${protocol}//api.${hostname}`;
-      } else {
-        return `${protocol}//${hostname}`;
-      }
-    }
-  }
+
   return 'http://localhost:5000';
 };
 
