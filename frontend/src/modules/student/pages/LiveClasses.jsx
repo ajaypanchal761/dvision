@@ -17,8 +17,6 @@ const LiveClasses = () => {
   const [liveClasses, setLiveClasses] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
-  const [selectedRecording, setSelectedRecording] = useState(null);
-  const [playbackUrl, setPlaybackUrl] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDate, setSelectedDate] = useState(null); // null means today
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -138,45 +136,11 @@ const LiveClasses = () => {
     navigate(`/live-class/${liveClassId}`);
   };
 
-  const handlePlayRecording = async (liveClass) => {
-    try {
-      // Check if recording is available in the live class data
-      if (liveClass.recording?.isAvailable && liveClass.recording?.playbackUrl) {
-        setSelectedRecording({
-          _id: liveClass._id,
-          title: liveClass.title,
-          description: liveClass.description,
-          playbackUrl: liveClass.recording.playbackUrl
-        });
-        setPlaybackUrl(liveClass.recording.playbackUrl);
-        return;
-      }
-
-      // Try to fetch recording from Recording model using liveClassId
-      // First, try to get recording by finding it via liveClassId
-      try {
-        // Get the Recording document for this live class
-        const response = await liveClassAPI.getLiveClass(liveClass._id);
-        if (response.success && response.data?.liveClass?.recording?.isAvailable) {
-          const recording = response.data.liveClass.recording;
-          setSelectedRecording({
-            _id: liveClass._id,
-            title: liveClass.title,
-            description: liveClass.description,
-            playbackUrl: recording.playbackUrl
-          });
-          setPlaybackUrl(recording.playbackUrl);
-          return;
-        }
-      } catch (fetchErr) {
-        console.warn('Error fetching recording from live class:', fetchErr);
-      }
-
-      // If still not available, show message
+  const handlePlayRecording = (liveClass) => {
+    if (liveClass.recording?.isAvailable) {
+      navigate(`/recording/${liveClass._id}`);
+    } else {
       alert('Recording is not available yet. Please check back later.');
-    } catch (err) {
-      console.error('Error loading recording:', err);
-      alert(err.message || 'Failed to load recording');
     }
   };
 
@@ -609,67 +573,6 @@ const LiveClasses = () => {
           </div>
         )}
       </main>
-
-      {/* Video Player Modal */}
-      {selectedRecording && playbackUrl && (
-        <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4">
-          <div className="bg-gray-900 rounded-xl p-4 max-w-4xl w-full">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-white font-bold text-lg">{selectedRecording.title}</h3>
-              <button
-                onClick={() => {
-                  setSelectedRecording(null);
-                  setPlaybackUrl('');
-                }}
-                className="text-white hover:bg-gray-800 p-2 rounded-lg"
-              >
-                <FiArrowLeft className="text-xl" />
-              </button>
-            </div>
-            <video
-              src={playbackUrl}
-              controls
-              controlsList="nodownload"
-              preload="metadata"
-              className="w-full rounded-lg"
-              style={{
-                maxHeight: '70vh',
-                // Ensure controls are visible
-                backgroundColor: '#000'
-              }}
-              autoPlay
-              onLoadedMetadata={(e) => {
-                // Ensure duration is available and displayed
-                const video = e.target;
-                if (video.duration && !isNaN(video.duration)) {
-                  console.log('[Video] Duration loaded:', formatDuration(video.duration));
-                  // Force controls to show duration
-                  video.controls = true;
-                }
-              }}
-              onCanPlay={(e) => {
-                // Ensure video is ready and duration is available
-                const video = e.target;
-                if (video.duration && !isNaN(video.duration)) {
-                  console.log('[Video] Can play - Duration:', formatDuration(video.duration));
-                }
-              }}
-              onTimeUpdate={(e) => {
-                // Track current time - this ensures seek bar updates
-                const video = e.target;
-                const current = video.currentTime;
-                const duration = video.duration;
-                if (duration && current && !isNaN(duration) && !isNaN(current)) {
-                  // This ensures the seek bar shows progress
-                  // Native controls will show: currentTime / duration
-                }
-              }}
-            >
-              Your browser does not support the video tag.
-            </video>
-          </div>
-        </div>
-      )}
 
       {/* Bottom Navigation Bar */}
       <BottomNav />

@@ -40,6 +40,7 @@ const StudentTeacherDetails = lazy(() => import('./modules/student/pages/Teacher
 const StudentSubjectTopics = lazy(() => import('./modules/student/pages/SubjectTopics'));
 const StudentContentView = lazy(() => import('./modules/student/pages/ContentView'));
 const StudentPaymentReturn = lazy(() => import('./modules/student/pages/PaymentReturn'));
+const RecordingPlayer = lazy(() => import('./modules/student/pages/RecordingPlayer'));
 
 // Admin Module (lazy)
 const AdminLayout = lazy(() => import('./modules/admin/components/Layout/Layout'));
@@ -375,6 +376,14 @@ function App() {
           element={
             <StudentProtectedRoute>
               <StudentPaymentReturn />
+            </StudentProtectedRoute>
+          }
+        />
+        <Route
+          path="/recording/:id"
+          element={
+            <StudentProtectedRoute>
+              <RecordingPlayer />
             </StudentProtectedRoute>
           }
         />
