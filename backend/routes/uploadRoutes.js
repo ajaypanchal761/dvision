@@ -71,9 +71,11 @@ router.get(
       }
 
       if (!fs.existsSync(resolved)) {
+        console.error(`[Download] File not found: ${resolved}`);
         return res.status(404).json({ success: false, message: 'File not found' });
       }
 
+      console.log(`[Download] Serving local file: ${resolved}`);
       return res.download(resolved);
     }
 
@@ -81,10 +83,15 @@ router.get(
     if (url) {
       try {
         const parsedUrl = new URL(url);
-        const filename = path.basename(parsedUrl.pathname) || 'file';
+        const filename = path.basename(parsedUrl.pathname) || 'file.pdf';
+
+        console.log(`[Download] Proxying remote file: ${url}`);
 
         const response = await axios.get(url, { responseType: 'stream' });
-        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+
+        // Handle Content-Disposition with UTF-8 support
+        const encodedFilename = encodeURIComponent(filename).replace(/['()]/g, escape);
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"; filename*=UTF-8''${encodedFilename}`);
         res.setHeader('Content-Type', response.headers['content-type'] || 'application/octet-stream');
         return response.data.pipe(res);
       } catch (err) {
