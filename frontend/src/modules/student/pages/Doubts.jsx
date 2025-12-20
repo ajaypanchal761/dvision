@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiArrowLeft, FiSearch, FiCalendar, FiClock, FiPlus, FiX, FiChevronDown, FiPaperclip, FiMessageCircle, FiUser } from 'react-icons/fi';
+import { FiArrowLeft, FiSearch, FiCalendar, FiClock, FiPlus, FiX, FiChevronDown, FiPaperclip, FiMessageCircle, FiUser, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 import { ROUTES } from '../constants/routes';
 import BottomNav from '../components/common/BottomNav';
 import { doubtAPI, teacherAPI } from '../services/api';
@@ -25,6 +25,10 @@ const Doubts = () => {
   const [loading, setLoading] = useState(true);
   const [loadingTeachers, setLoadingTeachers] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [page, setPage] = useState(1);
+  const [limit] = useState(10);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
 
   // Fetch teachers list
   useEffect(() => {
@@ -77,12 +81,28 @@ const Doubts = () => {
   // Fetch doubts from backend
   useEffect(() => {
     fetchDoubts();
-  }, []);
+  }, [page]); // Refetch when page changes
+
+  // Debounce search
+  useEffect(() => {
+    setPage(1);
+    const delayDebounceFn = setTimeout(() => {
+      fetchDoubts();
+    }, 500);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchQuery]);
 
   const fetchDoubts = async () => {
     try {
       setLoading(true);
-      const response = await doubtAPI.getMyDoubts();
+      const params = {
+        page,
+        limit,
+        search: searchQuery
+      };
+
+      const response = await doubtAPI.getMyDoubts(params);
       if (response.success && response.data.doubts) {
         // Format doubts for display
         const formattedDoubts = response.data.doubts.map(doubt => ({
@@ -100,10 +120,14 @@ const Doubts = () => {
           images: doubt.images || []
         }));
         setDoubts(formattedDoubts);
+        setTotalPages(response.pages || 1);
+        setTotalItems(response.total || 0);
       }
     } catch (error) {
       console.error('Error fetching doubts:', error);
-      alert('Failed to load doubts. Please try again.');
+      if (!searchQuery) {
+        // alert('Failed to load doubts. Please try again.'); // Silent fail on search
+      }
     } finally {
       setLoading(false);
     }
@@ -287,100 +311,91 @@ const Doubts = () => {
           </div>
         ) : doubts.length > 0 ? (
           <div className="space-y-3 sm:space-y-4">
-            {doubts
-              .filter(doubt => {
-                if (!searchQuery.trim()) return true;
-                const query = searchQuery.toLowerCase();
-                const teacherName = doubt.teacher?.name || '';
-                return teacherName.toLowerCase().includes(query) ||
-                  doubt.question.toLowerCase().includes(query) ||
-                  doubt.date.includes(searchQuery);
-              })
-              .map((doubt, index) => (
-                <div
-                  key={doubt.id}
-                  className={`bg-white rounded-lg sm:rounded-xl p-3 sm:p-4 md:p-5 shadow-md hover:shadow-lg transition-all duration-200 border border-gray-200 ${index % 2 === 0 ? 'animate-slide-in-left' : 'animate-slide-in-right'
-                    }`}
-                  style={{ animationDelay: `${index * 0.15}s` }}
-                >
-                  <div className="flex items-start gap-2 sm:gap-3 md:gap-4">
-                    <div className="flex-1 min-w-0">
-                      {/* Teacher Badge */}
-                      {doubt.teacher && (
-                        <div className="mb-2 sm:mb-2.5 md:mb-3">
-                          <div className="flex items-center gap-2">
-                            <FiUser className="text-[var(--app-dark-blue)] text-sm" />
-                            <span className="inline-block px-2 sm:px-2.5 md:px-3 py-1 sm:py-1.5 rounded-lg text-xs sm:text-sm font-semibold bg-[var(--app-dark-blue)]/10 text-[var(--app-dark-blue)] border border-[var(--app-dark-blue)]/20">
-                              {doubt.teacher.name}
+            {doubts.map((doubt, index) => (
+              <div
+                key={doubt.id}
+                className={`bg-white rounded-lg sm:rounded-xl p-3 sm:p-4 md:p-5 shadow-md hover:shadow-lg transition-all duration-200 border border-gray-200 ${index % 2 === 0 ? 'animate-slide-in-left' : 'animate-slide-in-right'
+                  }`}
+                style={{ animationDelay: `${index * 0.15}s` }}
+              >
+                <div className="flex items-start gap-2 sm:gap-3 md:gap-4">
+                  <div className="flex-1 min-w-0">
+                    {/* Teacher Badge */}
+                    {doubt.teacher && (
+                      <div className="mb-2 sm:mb-2.5 md:mb-3">
+                        <div className="flex items-center gap-2">
+                          <FiUser className="text-[var(--app-dark-blue)] text-sm" />
+                          <span className="inline-block px-2 sm:px-2.5 md:px-3 py-1 sm:py-1.5 rounded-lg text-xs sm:text-sm font-semibold bg-[var(--app-dark-blue)]/10 text-[var(--app-dark-blue)] border border-[var(--app-dark-blue)]/20">
+                            {doubt.teacher.name}
+                          </span>
+                          {doubt.teacher.subjects && doubt.teacher.subjects.length > 0 && (
+                            <span className="text-xs text-gray-500">
+                              ({doubt.teacher.subjects.join(', ')})
                             </span>
-                            {doubt.teacher.subjects && doubt.teacher.subjects.length > 0 && (
-                              <span className="text-xs text-gray-500">
-                                ({doubt.teacher.subjects.join(', ')})
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Question */}
-                      <h3 className="text-sm sm:text-base md:text-lg font-bold text-gray-800 mb-2 sm:mb-2.5 md:mb-3 leading-tight">
-                        {doubt.question}
-                      </h3>
-
-                      {/* Status and Date */}
-                      <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
-                        <span className={`px-2 sm:px-2.5 md:px-3 py-1 sm:py-1.5 rounded-lg text-[10px] sm:text-xs md:text-sm font-bold border ${getStatusColor(doubt.status)}`}>
-                          {doubt.status}
-                        </span>
-                        <div className="flex items-center gap-1 sm:gap-1.5 text-gray-500 text-xs sm:text-sm">
-                          <FiClock className="text-[var(--app-dark-blue)]" />
-                          <span className="font-medium">{formatDate(doubt.date)}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Images on Right Side */}
-                    {doubt.images && doubt.images.length > 0 && (
-                      <div className="flex-shrink-0">
-                        <div className="flex flex-col gap-1.5 sm:gap-2">
-                          {doubt.images.slice(0, 3).map((imageUrl, index) => (
-                            <div key={index} className="relative">
-                              <img
-                                src={imageUrl}
-                                alt={`Doubt image ${index + 1}`}
-                                className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 object-cover rounded-lg border-2 border-gray-200 cursor-pointer hover:opacity-90 transition-opacity shadow-sm"
-                                onClick={() => window.open(imageUrl, '_blank')}
-                              />
-                            </div>
-                          ))}
-                          {doubt.images.length > 3 && (
-                            <div className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 rounded-lg border-2 border-gray-200 bg-gray-100 flex items-center justify-center cursor-pointer hover:bg-gray-200 transition-colors">
-                              <span className="text-[10px] sm:text-xs font-bold text-gray-600">
-                                +{doubt.images.length - 3}
-                              </span>
-                            </div>
                           )}
                         </div>
                       </div>
                     )}
+
+                    {/* Question */}
+                    <h3 className="text-sm sm:text-base md:text-lg font-bold text-gray-800 mb-2 sm:mb-2.5 md:mb-3 leading-tight">
+                      {doubt.question}
+                    </h3>
+
+                    {/* Status and Date */}
+                    <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+                      <span className={`px-2 sm:px-2.5 md:px-3 py-1 sm:py-1.5 rounded-lg text-[10px] sm:text-xs md:text-sm font-bold border ${getStatusColor(doubt.status)}`}>
+                        {doubt.status}
+                      </span>
+                      <div className="flex items-center gap-1 sm:gap-1.5 text-gray-500 text-xs sm:text-sm">
+                        <FiClock className="text-[var(--app-dark-blue)]" />
+                        <span className="font-medium">{formatDate(doubt.date)}</span>
+                      </div>
+                    </div>
                   </div>
 
-                  {/* Answer Section */}
-                  {doubt.answer && (
-                    <div className="mt-3 sm:mt-3.5 md:mt-4 p-3 sm:p-3.5 md:p-4 bg-blue-50 rounded-lg sm:rounded-xl border border-blue-100">
-                      <div className="flex items-center gap-1.5 sm:gap-2 mb-1.5 sm:mb-2">
-                        <FiMessageCircle className="text-[var(--app-dark-blue)] text-sm sm:text-base md:text-lg" />
-                        <p className="text-xs sm:text-sm font-bold text-[var(--app-dark-blue)]">
-                          Answer{doubt.answeredBy && doubt.answeredBy.name ? ` by ${doubt.answeredBy.name}` : ''}:
-                        </p>
+                  {/* Images on Right Side */}
+                  {doubt.images && doubt.images.length > 0 && (
+                    <div className="flex-shrink-0">
+                      <div className="flex flex-col gap-1.5 sm:gap-2">
+                        {doubt.images.slice(0, 3).map((imageUrl, index) => (
+                          <div key={index} className="relative">
+                            <img
+                              src={imageUrl}
+                              alt={`Doubt image ${index + 1}`}
+                              className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 object-cover rounded-lg border-2 border-gray-200 cursor-pointer hover:opacity-90 transition-opacity shadow-sm"
+                              onClick={() => window.open(imageUrl, '_blank')}
+                            />
+                          </div>
+                        ))}
+                        {doubt.images.length > 3 && (
+                          <div className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 rounded-lg border-2 border-gray-200 bg-gray-100 flex items-center justify-center cursor-pointer hover:bg-gray-200 transition-colors">
+                            <span className="text-[10px] sm:text-xs font-bold text-gray-600">
+                              +{doubt.images.length - 3}
+                            </span>
+                          </div>
+                        )}
                       </div>
-                      <p className="text-gray-700 text-xs sm:text-sm md:text-base leading-relaxed">
-                        {doubt.answer}
-                      </p>
                     </div>
                   )}
                 </div>
-              ))}
+
+                {/* Answer Section */}
+                {doubt.answer && (
+                  <div className="mt-3 sm:mt-3.5 md:mt-4 p-3 sm:p-3.5 md:p-4 bg-blue-50 rounded-lg sm:rounded-xl border border-blue-100">
+                    <div className="flex items-center gap-1.5 sm:gap-2 mb-1.5 sm:mb-2">
+                      <FiMessageCircle className="text-[var(--app-dark-blue)] text-sm sm:text-base md:text-lg" />
+                      <p className="text-xs sm:text-sm font-bold text-[var(--app-dark-blue)]">
+                        Answer{doubt.answeredBy && doubt.answeredBy.name ? ` by ${doubt.answeredBy.name}` : ''}:
+                      </p>
+                    </div>
+                    <p className="text-gray-700 text-xs sm:text-sm md:text-base leading-relaxed">
+                      {doubt.answer}
+                    </p>
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
         ) : (
           /* Empty State */
@@ -396,6 +411,50 @@ const Doubts = () => {
             </p>
           </div>
         )}
+
+        {/* Pagination Controls */}
+        {!loading && doubts.length > 0 && (
+          <div className="mt-4 sm:mt-6">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+              <div className="text-sm text-gray-500 font-medium">
+                Showing <span className="font-bold text-gray-900">{((page - 1) * limit) + 1}</span> to <span className="font-bold text-gray-900">{Math.min(page * limit, totalItems)}</span> of <span className="font-bold text-gray-900">{totalItems}</span> results
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                  className={`p-2 rounded-lg border flex items-center gap-1 transition-all ${page === 1
+                      ? 'border-gray-200 text-gray-300 cursor-not-allowed'
+                      : 'border-gray-300 text-gray-700 hover:bg-[var(--app-dark-blue)] hover:text-white hover:border-[var(--app-dark-blue)]'
+                    }`}
+                >
+                  <FiChevronLeft className="w-5 h-5" />
+                  <span className="hidden sm:inline font-medium">Previous</span>
+                </button>
+
+                <div className="flex items-center gap-1 px-2">
+                  <span className="text-sm font-medium text-gray-700 bg-gray-50 px-3 py-1 rounded-md border border-gray-200">
+                    Page {page} of {totalPages}
+                  </span>
+                </div>
+
+                <button
+                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                  disabled={page === totalPages}
+                  className={`p-2 rounded-lg border flex items-center gap-1 transition-all ${page === totalPages
+                      ? 'border-gray-200 text-gray-300 cursor-not-allowed'
+                      : 'border-gray-300 text-gray-700 hover:bg-[var(--app-dark-blue)] hover:text-white hover:border-[var(--app-dark-blue)]'
+                    }`}
+                >
+                  <span className="hidden sm:inline font-medium">Next</span>
+                  <FiChevronRight className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
       </main>
 
       {/* Floating Action Button - Only show if user has active subscription */}

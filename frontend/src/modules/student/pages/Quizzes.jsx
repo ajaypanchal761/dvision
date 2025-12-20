@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiClock, FiBook, FiArrowRight, FiAward, FiArrowLeft, FiFileText, FiCheckCircle, FiBarChart2, FiSearch } from 'react-icons/fi';
+import { FiClock, FiBook, FiArrowRight, FiAward, FiArrowLeft, FiFileText, FiCheckCircle, FiBarChart2, FiSearch, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 import { useAuth } from '../context/AuthContext';
 import { studentAPI } from '../services/api';
 import BottomNav from '../components/common/BottomNav';
@@ -15,12 +15,25 @@ const Quizzes = () => {
   const [statusFilter, setStatusFilter] = useState('all'); // 'all', 'available', 'submitted', 'expired'
   const [countUpValues, setCountUpValues] = useState({ total: 0, available: 0, submitted: 0, expired: 0 });
   const [quizStats, setQuizStats] = useState({ total: 0, available: 0, submitted: 0, expired: 0 });
+  const [page, setPage] = useState(1);
+  const [limit] = useState(10);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
   const hasAnimated = useRef(false);
 
   useEffect(() => {
     fetchQuizzes();
-    fetchQuizStatistics();
-  }, []);
+  }, [page, statusFilter]); // Refetch when page or status changes
+
+  // Debounce search
+  useEffect(() => {
+    setPage(1);
+    const delayDebounceFn = setTimeout(() => {
+      fetchQuizzes();
+    }, 500);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchTerm]);
 
   useEffect(() => {
     if (quizzes.length > 0) {
@@ -35,7 +48,7 @@ const Quizzes = () => {
         checkSubmissionStatuses();
       }
     };
-    
+
     window.addEventListener('focus', handleFocus);
     return () => window.removeEventListener('focus', handleFocus);
   }, [quizzes]);
@@ -43,16 +56,26 @@ const Quizzes = () => {
   const fetchQuizzes = async () => {
     try {
       setLoading(true);
-      const response = await studentAPI.getQuizzes();
+      const params = {
+        page,
+        limit,
+        status: statusFilter !== 'all' ? statusFilter : undefined,
+        search: searchTerm
+      };
+
+      const response = await studentAPI.getQuizzes(params);
       if (response.success && response.data?.quizzes) {
-        // Backend already filters by subscription and isActive, so use all quizzes returned
         setQuizzes(response.data.quizzes);
+        setTotalPages(response.pages || 1);
+        setTotalItems(response.total || 0);
       } else {
         setQuizzes([]);
       }
     } catch (err) {
       console.error('Error fetching quizzes:', err);
-      setQuizzes([]);
+      if (!searchTerm) { // Silent fail on search
+        setQuizzes([]);
+      }
     } finally {
       setLoading(false);
     }
@@ -88,15 +111,15 @@ const Quizzes = () => {
   const formatDeadline = (deadline) => {
     if (!deadline) return null;
     const deadlineDate = new Date(deadline);
-    const dateStr = deadlineDate.toLocaleDateString('en-US', { 
-      year: 'numeric', 
-      month: 'short', 
-      day: 'numeric' 
+    const dateStr = deadlineDate.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
     });
-    const timeStr = deadlineDate.toLocaleTimeString('en-US', { 
-      hour: 'numeric', 
+    const timeStr = deadlineDate.toLocaleTimeString('en-US', {
+      hour: 'numeric',
       minute: '2-digit',
-      hour12: true 
+      hour12: true
     });
     return `${dateStr} ${timeStr}`;
   };
@@ -109,31 +132,8 @@ const Quizzes = () => {
     return now >= deadlinePlusOneMinute;
   };
 
-  const filteredQuizzes = quizzes.filter(quiz => {
-    // Search filter
-    const matchesSearch = quiz.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      quiz.subjectId?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      quiz.board?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      quiz.classNumber?.toString().includes(searchTerm) ||
-      quiz.classId?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      quiz.classId?.classCode?.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    if (!matchesSearch) return false;
-    
-    // Status filter - Fixed logic:
-    // If submitted: "Submitted"
-    // If deadline passed AND NOT submitted: "Expired"
-    // Otherwise: "Available"
-    const isSubmitted = submissionStatuses[quiz._id] || false;
-    const isExpired = isDeadlinePassed(quiz.deadline) && !isSubmitted;
-    
-    if (statusFilter === 'all') return true;
-    if (statusFilter === 'submitted') return isSubmitted;
-    if (statusFilter === 'available') return !isSubmitted && !isExpired;
-    if (statusFilter === 'expired') return isExpired;
-    
-    return true;
-  });
+  // Client-side filtering removed
+  const filteredQuizzes = quizzes;
 
   // Use statistics from backend, fallback to local calculation if not available
   const displayStats = quizStats.total > 0 ? quizStats : {
@@ -155,30 +155,30 @@ const Quizzes = () => {
     if (!loading && quizzes.length > 0 && !hasAnimated.current) {
       hasAnimated.current = true;
       const duration = 20; // Fast animation - 0.02 seconds
-      
+
       // Get all stats values first
       const total = displayStats.total;
       const available = displayStats.available;
       const submitted = displayStats.submitted;
       const expired = displayStats.expired;
-      
+
       const animateCount = (targetValue, key) => {
         const startTime = Date.now();
         const startValue = 0;
-        
+
         const updateCount = () => {
           const elapsed = Date.now() - startTime;
           const progress = Math.min(elapsed / duration, 1);
-          
+
           // Easing function for smooth animation (ease-out)
           const easeOut = 1 - Math.pow(1 - progress, 3);
           const currentValue = Math.floor(startValue + (targetValue - startValue) * easeOut);
-          
+
           setCountUpValues(prev => ({
             ...prev,
             [key]: currentValue
           }));
-          
+
           if (progress < 1) {
             requestAnimationFrame(updateCount);
           } else {
@@ -188,7 +188,7 @@ const Quizzes = () => {
             }));
           }
         };
-        
+
         requestAnimationFrame(updateCount);
       };
 
@@ -271,42 +271,38 @@ const Quizzes = () => {
       <div className="px-3 sm:px-4 md:px-6 mb-3 sm:mb-4 animate-slide-in-up">
         <div className="flex items-center gap-2 sm:gap-3 overflow-x-auto pb-2">
           <button
-            onClick={() => setStatusFilter('all')}
-            className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl font-semibold text-xs sm:text-sm whitespace-nowrap transition-all duration-300 hover:scale-105 ${
-              statusFilter === 'all'
-                ? 'bg-gradient-to-r from-[var(--app-dark-blue)] to-blue-700 text-white shadow-lg'
-                : 'bg-white text-gray-700 border-2 border-gray-200 hover:border-[var(--app-dark-blue)]/30'
-            }`}
+            onClick={() => { setStatusFilter('all'); setPage(1); }}
+            className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl font-semibold text-xs sm:text-sm whitespace-nowrap transition-all duration-300 hover:scale-105 ${statusFilter === 'all'
+              ? 'bg-gradient-to-r from-[var(--app-dark-blue)] to-blue-700 text-white shadow-lg'
+              : 'bg-white text-gray-700 border-2 border-gray-200 hover:border-[var(--app-dark-blue)]/30'
+              }`}
           >
             All
           </button>
           <button
-            onClick={() => setStatusFilter('available')}
-            className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl font-semibold text-xs sm:text-sm whitespace-nowrap transition-all duration-300 ${
-              statusFilter === 'available'
-                ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg'
-                : 'bg-white text-gray-700 border-2 border-gray-200 hover:border-blue-300'
-            }`}
+            onClick={() => { setStatusFilter('available'); setPage(1); }}
+            className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl font-semibold text-xs sm:text-sm whitespace-nowrap transition-all duration-300 ${statusFilter === 'available'
+              ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg'
+              : 'bg-white text-gray-700 border-2 border-gray-200 hover:border-blue-300'
+              }`}
           >
             Available
           </button>
           <button
-            onClick={() => setStatusFilter('submitted')}
-            className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl font-semibold text-xs sm:text-sm whitespace-nowrap transition-all duration-300 ${
-              statusFilter === 'submitted'
-                ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg'
-                : 'bg-white text-gray-700 border-2 border-gray-200 hover:border-blue-300'
-            }`}
+            onClick={() => { setStatusFilter('submitted'); setPage(1); }}
+            className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl font-semibold text-xs sm:text-sm whitespace-nowrap transition-all duration-300 ${statusFilter === 'submitted'
+              ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg'
+              : 'bg-white text-gray-700 border-2 border-gray-200 hover:border-blue-300'
+              }`}
           >
             Submitted
           </button>
           <button
-            onClick={() => setStatusFilter('expired')}
-            className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl font-semibold text-xs sm:text-sm whitespace-nowrap transition-all duration-300 ${
-              statusFilter === 'expired'
-                ? 'bg-gradient-to-r from-gray-500 to-gray-600 text-white shadow-lg'
-                : 'bg-white text-gray-700 border-2 border-gray-200 hover:border-gray-300'
-            }`}
+            onClick={() => { setStatusFilter('expired'); setPage(1); }}
+            className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl font-semibold text-xs sm:text-sm whitespace-nowrap transition-all duration-300 ${statusFilter === 'expired'
+              ? 'bg-gradient-to-r from-gray-500 to-gray-600 text-white shadow-lg'
+              : 'bg-white text-gray-700 border-2 border-gray-200 hover:border-gray-300'
+              }`}
           >
             Expired
           </button>
@@ -368,20 +364,18 @@ const Quizzes = () => {
               const isSubmitted = submissionStatuses[quiz._id] || false;
               const canViewResults = isDeadlinePassed(quiz.deadline);
               const isExpired = isDeadlinePassed(quiz.deadline) && !isSubmitted;
-              
+
               return (
                 <div
                   key={quiz._id}
                   onClick={() => !isSubmitted && !isExpired && navigate(`/quiz/${quiz._id}`)}
-                  className={`group relative bg-white rounded-lg sm:rounded-xl p-3 sm:p-4 border border-[var(--app-dark-blue)]/60 hover:border-[var(--app-dark-blue)] transition-all duration-300 transform hover:-translate-y-0.5 shadow-sm hover:shadow-md shadow-gray-200/50 ${
-                    index % 2 === 0 ? 'animate-slide-in-left' : 'animate-slide-in-right'
-                  } ${
-                    isSubmitted 
-                      ? 'cursor-default bg-blue-50/20' 
+                  className={`group relative bg-white rounded-lg sm:rounded-xl p-3 sm:p-4 border border-[var(--app-dark-blue)]/60 hover:border-[var(--app-dark-blue)] transition-all duration-300 transform hover:-translate-y-0.5 shadow-sm hover:shadow-md shadow-gray-200/50 ${index % 2 === 0 ? 'animate-slide-in-left' : 'animate-slide-in-right'
+                    } ${isSubmitted
+                      ? 'cursor-default bg-blue-50/20'
                       : isExpired
                         ? 'cursor-default bg-gray-50/20'
                         : 'cursor-pointer bg-white'
-                  }`}
+                    }`}
                   style={{ animationDelay: `${index * 0.15}s` }}
                 >
 
@@ -394,7 +388,7 @@ const Quizzes = () => {
                         <h3 className="text-sm sm:text-base md:text-lg font-bold text-gray-900 mb-1.5 sm:mb-2 group-hover:text-[var(--app-dark-blue)] transition-colors leading-tight">
                           {quiz.name}
                         </h3>
-                        
+
                         {/* Info Badges Row */}
                         <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
                           <div className="flex items-center gap-1 px-2 py-1 bg-gray-50 border border-gray-200 rounded-lg">
@@ -403,7 +397,7 @@ const Quizzes = () => {
                               {quiz.subjectId?.name || 'N/A'}
                             </span>
                           </div>
-                          
+
                           {quiz.classId ? (
                             // Preparation class
                             <div className="flex items-center gap-1 px-2 py-1 bg-purple-50 border border-purple-200 rounded-lg">
@@ -419,7 +413,7 @@ const Quizzes = () => {
                                   Class {quiz.classNumber}
                                 </span>
                               </div>
-                              
+
                               <div className="flex items-center gap-1 px-2 py-1 bg-gray-50 border border-gray-200 rounded-lg">
                                 <span className="text-[10px] sm:text-xs font-medium text-gray-700">
                                   {quiz.board}
@@ -427,7 +421,7 @@ const Quizzes = () => {
                               </div>
                             </>
                           )}
-                          
+
                           {quiz.questions && (
                             <div className="flex items-center gap-1 px-2 py-1 bg-gray-50 border border-gray-200 rounded-lg">
                               <FiFileText className="w-3 h-3 text-gray-600 flex-shrink-0" />
@@ -450,7 +444,7 @@ const Quizzes = () => {
                             </span>
                           </div>
                         )}
-                        
+
                         <div>
                           {isSubmitted ? (
                             <div className="flex items-center gap-1.5 px-2 py-1 bg-blue-50 border border-blue-200 rounded-lg">
@@ -520,6 +514,49 @@ const Quizzes = () => {
                 </div>
               );
             })}
+          </div>
+        )}
+
+        {/* Pagination Controls */}
+        {!loading && filteredQuizzes.length > 0 && (
+          <div className="mt-4 sm:mt-6">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+              <div className="text-sm text-gray-500 font-medium">
+                Showing <span className="font-bold text-gray-900">{((page - 1) * limit) + 1}</span> to <span className="font-bold text-gray-900">{Math.min(page * limit, totalItems)}</span> of <span className="font-bold text-gray-900">{totalItems}</span> results
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                  className={`p-2 rounded-lg border flex items-center gap-1 transition-all ${page === 1
+                      ? 'border-gray-200 text-gray-300 cursor-not-allowed'
+                      : 'border-gray-300 text-gray-700 hover:bg-[var(--app-dark-blue)] hover:text-white hover:border-[var(--app-dark-blue)]'
+                    }`}
+                >
+                  <FiChevronLeft className="w-5 h-5" />
+                  <span className="hidden sm:inline font-medium">Previous</span>
+                </button>
+
+                <div className="flex items-center gap-1 px-2">
+                  <span className="text-sm font-medium text-gray-700 bg-gray-50 px-3 py-1 rounded-md border border-gray-200">
+                    Page {page} of {totalPages}
+                  </span>
+                </div>
+
+                <button
+                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                  disabled={page === totalPages}
+                  className={`p-2 rounded-lg border flex items-center gap-1 transition-all ${page === totalPages
+                      ? 'border-gray-200 text-gray-300 cursor-not-allowed'
+                      : 'border-gray-300 text-gray-700 hover:bg-[var(--app-dark-blue)] hover:text-white hover:border-[var(--app-dark-blue)]'
+                    }`}
+                >
+                  <span className="hidden sm:inline font-medium">Next</span>
+                  <FiChevronRight className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </main>

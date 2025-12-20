@@ -344,8 +344,9 @@ export const studentAPI = {
   },
 
   // Get quizzes (filtered by student's class and board)
-  getQuizzes: async () => {
-    return apiRequest('/student/quizzes', {
+  getQuizzes: async (params = {}) => {
+    const queryString = new URLSearchParams(params).toString();
+    return apiRequest(`/student/quizzes${queryString ? `?${queryString}` : ''}`, {
       method: 'GET',
     });
   },
@@ -397,8 +398,9 @@ export const doubtAPI = {
     });
   },
   // Get all doubts for the current student
-  getMyDoubts: async () => {
-    return apiRequest('/student/doubts', {
+  getMyDoubts: async (params = {}) => {
+    const queryString = new URLSearchParams(params).toString();
+    return apiRequest(`/student/doubts${queryString ? `?${queryString}` : ''}`, {
       method: 'GET',
     });
   },
