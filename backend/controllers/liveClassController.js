@@ -24,7 +24,7 @@ exports.getLiveClassStatistics = asyncHandler(async (req, res) => {
   const scheduledClasses = await LiveClass.countDocuments({ status: 'scheduled' });
   const liveClasses = await LiveClass.countDocuments({ status: 'live' });
   const completedClasses = await LiveClass.countDocuments({ status: 'completed' });
-  
+
   res.status(200).json({
     success: true,
     data: {
@@ -456,7 +456,7 @@ exports.getRecordingStatistics = asyncHandler(async (req, res) => {
   const processingRecordings = await Recording.countDocuments({ isActive: true, status: 'processing' });
   const completedRecordings = await Recording.countDocuments({ isActive: true, status: 'completed' });
   const failedRecordings = await Recording.countDocuments({ isActive: true, status: 'failed' });
-  
+
   res.status(200).json({
     success: true,
     data: {
@@ -1292,7 +1292,7 @@ exports.getUpcomingLiveClasses = asyncHandler(async (req, res) => {
       scheduledEndTime = new Date(liveClass.scheduledStartTime);
       scheduledEndTime.setMinutes(scheduledEndTime.getMinutes() + liveClass.duration);
     }
-    
+
     return {
       _id: liveClass._id,
       id: liveClass._id.toString(),
@@ -1422,28 +1422,28 @@ exports.createLiveClass = asyncHandler(async (req, res) => {
   // We need to convert IST time to UTC for storage
   const [startHours, startMinutes] = startTime.split(':').map(Number);
   const [endHours, endMinutes] = endTime.split(':').map(Number);
-  
+
   // Validate time format
   if (isNaN(startHours) || isNaN(startMinutes) || isNaN(endHours) || isNaN(endMinutes)) {
     throw new ErrorResponse('Invalid time format. Please use HH:MM format', 400);
   }
-  
+
   // Get current date in IST to determine which day the class is scheduled for
   const now = new Date();
   const istOffsetMs = 5.5 * 60 * 60 * 1000; // IST is UTC+5:30 = 19800000 ms
   const istNow = new Date(now.getTime() + istOffsetMs);
-  
+
   // Get today's date components in IST
   const year = istNow.getUTCFullYear();
   const month = istNow.getUTCMonth();
   const day = istNow.getUTCDate();
-  
+
   // Create scheduledStartTime: interpret input time as IST, convert to UTC
   // Example: 17:00 IST = 11:30 UTC (17:00 - 5:30)
   // Create date in IST timezone first, then subtract offset to get UTC
   const scheduledStartTimeIST = new Date(Date.UTC(year, month, day, startHours, startMinutes, 0, 0));
   const scheduledStartTime = new Date(scheduledStartTimeIST.getTime() - istOffsetMs);
-  
+
   // Create scheduledEndTime: interpret input time as IST, convert to UTC
   const scheduledEndTimeIST = new Date(Date.UTC(year, month, day, endHours, endMinutes, 0, 0));
   let scheduledEndTime = new Date(scheduledEndTimeIST.getTime() - istOffsetMs);
@@ -1550,18 +1550,18 @@ exports.createLiveClass = asyncHandler(async (req, res) => {
       if (!payment.subscriptionPlanId || !payment.studentId) return false;
       const plan = payment.subscriptionPlanId;
       const student = payment.studentId;
-      
+
       return plan.type === 'regular' &&
-             plan.board === classItem.board &&
-             plan.classes && plan.classes.includes(classItem.class) &&
-             student.isActive &&
-             student.class === classItem.class &&
-             student.board === classItem.board;
+        plan.board === classItem.board &&
+        plan.classes && plan.classes.includes(classItem.class) &&
+        student.isActive &&
+        student.class === classItem.class &&
+        student.board === classItem.board;
     });
 
     // Get unique student IDs from payments
     const studentIdsFromPayments = [...new Set(validPayments.map(p => p.studentId._id.toString()))];
-    
+
     // Also check activeSubscriptions array on Student model
     const studentsWithActiveSubs = await Student.find({
       isActive: true,
@@ -1573,10 +1573,10 @@ exports.createLiveClass = asyncHandler(async (req, res) => {
       'activeSubscriptions.endDate': { $gte: now }
     }).select('_id');
     const activeSubStudentIds = studentsWithActiveSubs.map(s => s._id.toString());
-    
+
     // Combine both sources
     const allStudentIds = [...new Set([...studentIdsFromPayments, ...activeSubStudentIds])];
-    
+
     if (allStudentIds.length > 0) {
       // Get students with FCM tokens
       students = await Student.find({
@@ -1612,15 +1612,15 @@ exports.createLiveClass = asyncHandler(async (req, res) => {
     const validPayments = activePayments.filter(payment => {
       if (!payment.subscriptionPlanId || !payment.studentId) return false;
       const plan = payment.subscriptionPlanId;
-      
+
       return plan.type === 'preparation' &&
-             plan.classId &&
-             plan.classId._id.toString() === classItem._id.toString() &&
-             payment.studentId.isActive;
+        plan.classId &&
+        plan.classId._id.toString() === classItem._id.toString() &&
+        payment.studentId.isActive;
     });
-    
+
     const studentIds = [...new Set(validPayments.map(p => p.studentId._id.toString()))];
-    
+
     // Also check activeSubscriptions array
     const studentsWithActiveSubs = await Student.find({
       isActive: true,
@@ -1628,10 +1628,10 @@ exports.createLiveClass = asyncHandler(async (req, res) => {
       'activeSubscriptions.endDate': { $gte: now }
     }).select('_id');
     const activeSubStudentIds = studentsWithActiveSubs.map(s => s._id.toString());
-    
+
     // Combine both sources
     const allStudentIds = [...new Set([...studentIds, ...activeSubStudentIds])];
-    
+
     if (allStudentIds.length > 0) {
       students = await Student.find({
         _id: { $in: allStudentIds },
@@ -1672,7 +1672,7 @@ exports.createLiveClass = asyncHandler(async (req, res) => {
       count: studentIds.length,
       studentIds: studentIds
     });
-    
+
     try {
       const result = await notificationService.sendToMultipleUsers(
         studentIds,
@@ -1801,18 +1801,18 @@ exports.startLiveClass = asyncHandler(async (req, res) => {
         if (!payment.subscriptionPlanId || !payment.studentId) return false;
         const plan = payment.subscriptionPlanId;
         const student = payment.studentId;
-        
+
         return plan.type === 'regular' &&
-               plan.board === classItem.board &&
-               plan.classes && plan.classes.includes(classItem.class) &&
-               student.isActive &&
-               student.class === classItem.class &&
-               student.board === classItem.board;
+          plan.board === classItem.board &&
+          plan.classes && plan.classes.includes(classItem.class) &&
+          student.isActive &&
+          student.class === classItem.class &&
+          student.board === classItem.board;
       });
 
       // Get unique student IDs from payments
       const studentIdsFromPayments = [...new Set(validPayments.map(p => p.studentId._id.toString()))];
-      
+
       // Also check activeSubscriptions array on Student model
       const studentsWithActiveSubs = await Student.find({
         isActive: true,
@@ -1824,10 +1824,10 @@ exports.startLiveClass = asyncHandler(async (req, res) => {
         'activeSubscriptions.endDate': { $gte: now }
       }).select('_id');
       const activeSubStudentIds = studentsWithActiveSubs.map(s => s._id.toString());
-      
+
       // Combine both sources
       const allStudentIds = [...new Set([...studentIdsFromPayments, ...activeSubStudentIds])];
-      
+
       if (allStudentIds.length > 0) {
         students = await Student.find({
           _id: { $in: allStudentIds },
@@ -1862,15 +1862,15 @@ exports.startLiveClass = asyncHandler(async (req, res) => {
       const validPayments = activePayments.filter(payment => {
         if (!payment.subscriptionPlanId || !payment.studentId) return false;
         const plan = payment.subscriptionPlanId;
-        
+
         return plan.type === 'preparation' &&
-               plan.classId &&
-               plan.classId._id.toString() === classItem._id.toString() &&
-               payment.studentId.isActive;
+          plan.classId &&
+          plan.classId._id.toString() === classItem._id.toString() &&
+          payment.studentId.isActive;
       });
-      
+
       const studentIds = [...new Set(validPayments.map(p => p.studentId._id.toString()))];
-      
+
       // Also check activeSubscriptions array
       const studentsWithActiveSubs = await Student.find({
         isActive: true,
@@ -1878,10 +1878,10 @@ exports.startLiveClass = asyncHandler(async (req, res) => {
         'activeSubscriptions.endDate': { $gte: now }
       }).select('_id');
       const activeSubStudentIds = studentsWithActiveSubs.map(s => s._id.toString());
-      
+
       // Combine both sources
       const allStudentIds = [...new Set([...studentIds, ...activeSubStudentIds])];
-      
+
       if (allStudentIds.length > 0) {
         students = await Student.find({
           _id: { $in: allStudentIds },
@@ -2939,11 +2939,20 @@ exports.getStudentRecordings = asyncHandler(async (req, res) => {
 // @route   GET /api/recordings/:id
 // @access  Private
 exports.getRecording = asyncHandler(async (req, res) => {
-  const recording = await Recording.findById(req.params.id)
+  let recording = await Recording.findById(req.params.id)
     .populate('teacherId', 'name email phone profileImage')
     .populate('subjectId', 'name')
     .populate('classId', 'type class board name classCode')
     .populate('timetableId', 'dayOfWeek startTime endTime topic');
+
+  // If not found by ID, try finding by liveClassId (for deep linking from LiveClasses)
+  if (!recording) {
+    recording = await Recording.findOne({ liveClassId: req.params.id })
+      .populate('teacherId', 'name email phone profileImage')
+      .populate('subjectId', 'name')
+      .populate('classId', 'type class board name classCode')
+      .populate('timetableId', 'dayOfWeek startTime endTime topic');
+  }
 
   if (!recording) {
     throw new ErrorResponse('Recording not found', 404);

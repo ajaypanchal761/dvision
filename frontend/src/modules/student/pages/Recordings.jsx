@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { FiArrowLeft, FiPlay, FiClock, FiBook, FiUsers, FiCalendar } from 'react-icons/fi';
 import { ROUTES } from '../constants/routes';
 import BottomNav from '../components/common/BottomNav';
@@ -11,6 +11,7 @@ import { liveClassAPI } from '../services/api';
  */
 const Recordings = () => {
   const navigate = useNavigate();
+  const { id } = useParams();
   const [recordings, setRecordings] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
@@ -51,7 +52,7 @@ const Recordings = () => {
         setPlaybackUrl(recording.playbackUrl);
         return;
       }
-      
+
       // If not, fetch the recording to get presigned URL
       const response = await liveClassAPI.getRecording(recording._id);
       if (response.success && response.data?.recording) {
@@ -67,12 +68,19 @@ const Recordings = () => {
     }
   };
 
+  // Auto-play recording if ID is present in URL
+  useEffect(() => {
+    if (id) {
+      handlePlayRecording({ _id: id });
+    }
+  }, [id]);
+
   const formatDuration = (seconds) => {
     if (!seconds) return 'N/A';
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
     const secs = seconds % 60;
-    
+
     if (hours > 0) {
       return `${hours}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
     }
@@ -188,6 +196,9 @@ const Recordings = () => {
                 onClick={() => {
                   setSelectedRecording(null);
                   setPlaybackUrl('');
+                  if (id) {
+                    navigate(-1);
+                  }
                 }}
                 className="text-white hover:bg-gray-800 p-2 rounded-lg"
               >
@@ -201,7 +212,7 @@ const Recordings = () => {
               controlsList="nodownload"
               preload="metadata"
               className="w-full rounded-lg"
-              style={{ 
+              style={{
                 maxHeight: '70vh',
                 // Ensure controls are visible
                 backgroundColor: '#000'
@@ -246,4 +257,3 @@ const Recordings = () => {
 };
 
 export default Recordings;
-
