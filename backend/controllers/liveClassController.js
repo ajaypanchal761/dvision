@@ -2732,11 +2732,12 @@ exports.uploadRecording = asyncHandler(async (req, res) => {
   liveClass.recording.fileSize = fileStats.size;
   await liveClass.save();
 
+  let convertedPath = null;
+
   try {
     // 1. Try to Convert WebM to MP4 using ffmpeg
     // This solves timestamp/seek issues. If fails, fallback to original.
     let uploadPath = req.file.path;
-    let convertedPath = null;
 
     try {
       // Use clean filename in current directory (relative) to avoid annoying Windows path space issues
@@ -2839,8 +2840,7 @@ exports.uploadRecording = asyncHandler(async (req, res) => {
       try {
         if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
         // mp4 also?
-        const mp4Path = req.file.path + '.mp4';
-        if (fs.existsSync(mp4Path)) fs.unlinkSync(mp4Path);
+        if (convertedPath && fs.existsSync(convertedPath)) fs.unlinkSync(convertedPath);
       } catch (unlinkError) {
         console.error('[Upload Recording] Error deleting file:', unlinkError);
       }
