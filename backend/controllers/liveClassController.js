@@ -14,6 +14,9 @@ const notificationService = require('../services/notificationService');
 const fs = require('fs');
 const path = require('path');
 const mongoose = require('mongoose');
+const ffmpeg = require('fluent-ffmpeg');
+const ffmpegPath = require('ffmpeg-static');
+ffmpeg.setFfmpegPath(ffmpegPath);
 
 // @desc    Get live class statistics (Admin)
 // @route   GET /api/admin/live-classes/statistics
@@ -1930,40 +1933,11 @@ exports.startLiveClass = asyncHandler(async (req, res) => {
     RtcRole.PUBLISHER
   );
 
-  // Attempt to start cloud recording (best-effort)
-  if (liveClass.isRecordingEnabled && agoraRecordingService && agoraService.isConfigured()) {
-    try {
-      const acquireRes = await agoraRecordingService.acquire(liveClass.agoraChannelName, teacherUid);
-      const resourceId = acquireRes?.resourceId;
-      if (resourceId) {
-        const startRes = await agoraRecordingService.start(resourceId, liveClass.agoraChannelName, teacherUid, liveClass._id);
-        const sid = startRes?.sid;
-        console.log('[LiveClass] Recording started', {
-          liveClassId: liveClass._id.toString(),
-          resourceId,
-          sid,
-          recorderUid: teacherUid
-        });
-        liveClass.recording = {
-          ...liveClass.recording,
-          status: 'recording',
-          resourceId,
-          sid,
-          recorderUid: teacherUid.toString()
-        };
-        await liveClass.save();
-      }
-    } catch (recErr) {
-      console.error('Failed to start recording:', recErr.message || recErr);
-      // Do not block class start if recording fails
-      liveClass.recording = {
-        ...liveClass.recording,
-        status: 'failed',
-        error: recErr.message || 'Failed to start recording'
-      };
-      await liveClass.save();
-    }
-  }
+  // Recording is now manual - teacher will start it via separate endpoint
+  console.log('[LiveClass] Class started, recording will be manual', {
+    liveClassId: liveClass._id.toString(),
+    isRecordingEnabled: liveClass.isRecordingEnabled
+  });
 
   res.status(200).json({
     success: true,
@@ -2753,20 +2727,61 @@ exports.uploadRecording = asyncHandler(async (req, res) => {
   });
 
   // Update recording status
-  liveClass.recording.status = 'uploading';
+  liveClass.recording.status = 'processing';
   liveClass.recording.localPath = req.file.path;
   liveClass.recording.fileSize = fileStats.size;
   await liveClass.save();
 
   try {
-    // Upload to S3
-    const { s3Url, s3Key } = await s3Service.uploadRecording(req.file.path, liveClass._id.toString());
+    // 1. Try to Convert WebM to MP4 using ffmpeg
+    // This solves timestamp/seek issues. If fails, fallback to original.
+    let uploadPath = req.file.path;
+    let convertedPath = null;
+
+    try {
+      // Use clean filename in current directory (relative) to avoid annoying Windows path space issues
+      // ffmpeg (static) sometimes fails with "Invalid argument" if full path has spaces, even when quoted by fluent-ffmpeg.
+      // Using relative path ./filename.mp4 works reliably.
+      const cleanName = `processed_${Date.now()}_${Math.floor(Math.random() * 1000)}.mp4`;
+      const mp4Path = `./${cleanName}`;
+
+      console.log(`[Upload Recording] Attempting conversion: ${req.file.path} -> ${mp4Path}`);
+
+      await new Promise((resolve, reject) => {
+        ffmpeg(req.file.path)
+          .output(mp4Path)
+          .outputOptions(['-c:v copy', '-c:a copy', '-movflags +faststart', '-y'])
+          .on('end', () => {
+            console.log('[Upload Recording] Conversion complete.');
+            resolve();
+          })
+          .on('error', (err) => {
+            reject(err);
+          })
+          .run();
+      });
+
+      // Conversion successful
+      uploadPath = mp4Path;
+      convertedPath = mp4Path;
+
+    } catch (conversionError) {
+      console.error('[Upload Recording] FFmpeg conversion failed, falling back to raw file:', conversionError.message);
+      // Continue with uploadPath = req.file.path
+    }
+
+    // 2. Upload to S3 (Either MP4 or WebM)
+    const { s3Url, s3Key } = await s3Service.uploadRecording(uploadPath, liveClass._id.toString());
 
     // Update live class with S3 info
     liveClass.recording.status = 'completed';
     liveClass.recording.s3Url = s3Url;
     liveClass.recording.s3Key = s3Key;
     liveClass.recording.uploadedAt = new Date();
+    // Also save metadata if converted
+    if (path.extname(uploadPath) === '.mp4') {
+      liveClass.recording.format = 'mp4';
+    }
     await liveClass.save();
 
     // Create recording record
@@ -2778,19 +2793,20 @@ exports.uploadRecording = asyncHandler(async (req, res) => {
       teacherId: liveClass.teacherId,
       title: liveClass.title,
       description: liveClass.description,
-      localPath: req.file.path,
+      localPath: uploadPath,
       s3Url,
       s3Key,
       status: 'completed',
-      duration: liveClass.duration ? liveClass.duration * 60 : 0, // Convert minutes to seconds
+      duration: req.body.duration ? parseInt(req.body.duration) : (liveClass.duration ? liveClass.duration * 60 : 0),
       fileSize: fileStats.size,
       uploadedAt: new Date()
     });
 
-    // Delete local file after successful S3 upload
+    // Delete local files after successful S3 upload
     try {
-      fs.unlinkSync(req.file.path);
-      console.log(`Deleted local recording file: ${req.file.path}`);
+      if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+      if (convertedPath && fs.existsSync(convertedPath)) fs.unlinkSync(convertedPath);
+      console.log(`Deleted local recording files.`);
     } catch (deleteError) {
       console.error('Error deleting local file:', deleteError);
       // Don't throw error, S3 upload was successful
@@ -2818,10 +2834,13 @@ exports.uploadRecording = asyncHandler(async (req, res) => {
     liveClass.recording.error = error.message;
     await liveClass.save();
 
-    // Delete uploaded file on error
+    // Delete uploaded files on error
     if (req.file && req.file.path) {
       try {
-        fs.unlinkSync(req.file.path);
+        if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+        // mp4 also?
+        const mp4Path = req.file.path + '.mp4';
+        if (fs.existsSync(mp4Path)) fs.unlinkSync(mp4Path);
       } catch (unlinkError) {
         console.error('[Upload Recording] Error deleting file:', unlinkError);
       }
@@ -2977,5 +2996,392 @@ exports.getRecording = asyncHandler(async (req, res) => {
       }
     }
   });
+});
+
+// @desc    Start recording manually (Teacher)
+// @route   POST /api/teacher/live-classes/:id/recording/start
+// @access  Private/Teacher
+exports.startRecording = asyncHandler(async (req, res) => {
+  const liveClass = await LiveClass.findById(req.params.id);
+
+  if (!liveClass) {
+    throw new ErrorResponse('Live class not found', 404);
+  }
+
+  // Verify teacher owns this class
+  if (liveClass.teacherId.toString() !== req.user._id.toString()) {
+    throw new ErrorResponse('Not authorized to start recording for this class', 403);
+  }
+
+  // Check if class is live
+  if (liveClass.status !== 'live') {
+    throw new ErrorResponse('Class must be live to start recording', 400);
+  }
+
+  console.log('[LiveClass] Manual recording started (Client-side)', {
+    liveClassId: liveClass._id.toString()
+  });
+
+  liveClass.recording = {
+    ...liveClass.recording,
+    status: 'recording',
+    startedAt: new Date(),
+    error: null
+  };
+  await liveClass.save();
+
+  res.status(200).json({
+    success: true,
+    message: 'Recording started successfully',
+    data: {
+      recording: liveClass.recording
+    }
+  });
+});
+
+// @desc    Pause recording manually
+// @route   POST /api/teacher/live-classes/:id/recording/pause
+// @access  Private/Teacher
+exports.pauseRecording = asyncHandler(async (req, res) => {
+  const liveClass = await LiveClass.findById(req.params.id);
+
+  if (!liveClass) {
+    throw new ErrorResponse('Live class not found', 404);
+  }
+
+  if (liveClass.recording && liveClass.recording.status === 'recording') {
+    liveClass.recording.status = 'paused';
+    await liveClass.save();
+  }
+
+  res.status(200).json({
+    success: true,
+    data: {
+      recording: liveClass.recording
+    }
+  });
+});
+
+// @desc    Resume recording manually
+// @route   POST /api/teacher/live-classes/:id/recording/resume
+// @access  Private/Teacher
+exports.resumeRecording = asyncHandler(async (req, res) => {
+  const liveClass = await LiveClass.findById(req.params.id);
+
+  if (!liveClass) {
+    throw new ErrorResponse('Live class not found', 404);
+  }
+
+  if (liveClass.recording && liveClass.recording.status === 'paused') {
+    liveClass.recording.status = 'recording';
+    await liveClass.save();
+  }
+
+  res.status(200).json({
+    success: true,
+    data: {
+      recording: liveClass.recording
+    }
+  });
+});
+
+// @desc    Stop recording manually (Teacher)
+// @route   POST /api/teacher/live-classes/:id/recording/stop
+// @access  Private/Teacher
+exports.stopRecording = asyncHandler(async (req, res) => {
+  const liveClass = await LiveClass.findById(req.params.id);
+
+  if (!liveClass) {
+    throw new ErrorResponse('Live class not found', 404);
+  }
+
+  // Verify teacher owns this class
+  if (liveClass.teacherId.toString() !== req.user._id.toString()) {
+    throw new ErrorResponse('Not authorized to stop recording for this class', 403);
+  }
+
+  // Check if recording is active
+  if (!liveClass.recording || liveClass.recording.status !== 'recording') {
+    throw new ErrorResponse('No active recording found', 400);
+  }
+
+  // Verify recording has required data
+  if (!liveClass.recording.resourceId || !liveClass.recording.sid) {
+    throw new ErrorResponse('Recording session data is incomplete', 400);
+  }
+
+  // Update status to processing immediately
+  liveClass.recording.status = 'processing';
+  await liveClass.save();
+
+  // Send response immediately
+  res.status(200).json({
+    success: true,
+    message: 'Recording stopped successfully. Processing will continue in background.',
+    data: {
+      recording: {
+        status: 'processing'
+      }
+    }
+  });
+
+  // Process recording in background (same flow as endLiveClass)
+  (async () => {
+    try {
+      // Verify recording was actually started before trying to stop
+      if (!liveClass.recording?.resourceId || !liveClass.recording?.sid) {
+        console.warn('[LiveClass] Recording not started, skipping stop', {
+          liveClassId: liveClass._id.toString(),
+          hasResourceId: !!liveClass.recording?.resourceId,
+          hasSid: !!liveClass.recording?.sid
+        });
+        liveClass.recording = {
+          ...liveClass.recording,
+          status: 'failed',
+          error: 'Recording was not started successfully'
+        };
+        await liveClass.save();
+        return;
+      }
+
+      // Use the same UID that started the recording
+      const recorderUid = liveClass.recording.recorderUid || parseInt(liveClass.teacherId.toString().slice(-8), 16) || 0;
+
+      const stopRes = await agoraRecordingService.stop(
+        liveClass.recording.resourceId,
+        liveClass.recording.sid,
+        liveClass.agoraChannelName,
+        recorderUid
+      );
+      console.log('[LiveClass] Recording stop response', {
+        liveClassId: liveClass._id.toString(),
+        resourceId: liveClass.recording.resourceId,
+        sid: liveClass.recording.sid,
+        recorderUid,
+        stopRes
+      });
+
+      // If Agora explicitly reports no data (e.g., code 435), fail fast
+      if (stopRes?.code === 435 || /no recorded data/i.test(stopRes?.reason || '')) {
+        liveClass.recording = {
+          ...liveClass.recording,
+          status: 'failed',
+          error: stopRes?.reason || 'No recorded data returned by Agora'
+        };
+        await liveClass.save();
+        console.warn('[LiveClass] Recording failed: no data from Agora', {
+          liveClassId: liveClass._id.toString(),
+          stopRes
+        });
+        return;
+      }
+
+      // Extract file list; if missing, try querying a few times
+      let fileList = stopRes?.fileList || stopRes?.serverResponse?.fileList;
+      if (!fileList) {
+        console.log('[Recording] No fileList in stop response, querying Agora...');
+        for (let attempt = 1; attempt <= 5; attempt++) {
+          try {
+            const queryRes = await agoraRecordingService.query(
+              liveClass.recording.resourceId,
+              liveClass.recording.sid
+            );
+
+            const status = queryRes?.serverResponse?.status;
+            console.log('[Recording] Query response status:', status, { attempt });
+
+            if (status === 3) {
+              console.error('[Recording] Recording status is error');
+              throw new Error('Recording status is error');
+            }
+
+            if (status === 1) {
+              console.log('[Recording] Still recording, waiting...');
+              await new Promise(r => setTimeout(r, 5000));
+              continue;
+            }
+
+            fileList = queryRes?.fileList || queryRes?.serverResponse?.fileList;
+            if (fileList) {
+              console.log('[Recording] Retrieved fileList via query', { attempt, fileList });
+              break;
+            } else {
+              console.log('[Recording] No fileList in query response, waiting...', { attempt });
+              await new Promise(r => setTimeout(r, 5000));
+            }
+          } catch (qErr) {
+            if (qErr?.response?.status === 404) {
+              console.error('[Recording] Query returned 404', { attempt });
+              if (attempt === 5) {
+                liveClass.recording = {
+                  ...liveClass.recording,
+                  status: 'failed',
+                  error: 'Recording session not found'
+                };
+                await liveClass.save();
+                return;
+              }
+              await new Promise(r => setTimeout(r, 10000));
+            } else {
+              console.warn('[Recording] Query failed', { attempt, error: qErr?.message });
+              await new Promise(r => setTimeout(r, 5000));
+            }
+          }
+        }
+      }
+
+      if (!fileList) {
+        liveClass.recording = {
+          ...liveClass.recording,
+          status: 'failed',
+          error: 'No recording file returned from Agora after multiple queries'
+        };
+        await liveClass.save();
+        console.warn('[LiveClass] Recording failed: no fileUrl', { liveClassId: liveClass._id.toString() });
+        return;
+      }
+
+      if (typeof fileList === 'string') {
+        fileList = fileList.split(',').map(f => f.trim()).filter(Boolean);
+      }
+      const firstFile = Array.isArray(fileList) && fileList.length > 0 ? fileList[0] : null;
+      const fileName = typeof firstFile === 'string' ? firstFile : firstFile?.fileUrl || firstFile?.file_name || firstFile?.fileName || firstFile?.url;
+
+      if (fileName) {
+        const recordingsDir = path.join(__dirname, '..', 'uploads', 'recordings', liveClass._id.toString());
+        if (!fs.existsSync(recordingsDir)) {
+          fs.mkdirSync(recordingsDir, { recursive: true });
+        }
+
+        const safeFileName = path.basename(fileName) || `recording_${Date.now()}.m3u8`;
+        const localPath = path.join(recordingsDir, safeFileName);
+
+        const bucket = process.env.AWS_BUCKET_NAME || process.env.AWS_S3_BUCKET;
+        const recordFolder = process.env.AWS_S3_RECORDINGS_FOLDER || 'recordings';
+        const s3Key = `${recordFolder}/${liveClass._id.toString()}/${safeFileName}`;
+        const s3Url = `https://${bucket || ''}.s3.${process.env.AWS_REGION || 'ap-south-1'}.amazonaws.com/${s3Key}`;
+
+        let downloaded = false;
+
+        await new Promise(r => setTimeout(r, 20000));
+
+        if (s3Service.isConfigured() && bucket) {
+          try {
+            let exists = false;
+            for (let i = 0; i < 12; i++) {
+              exists = await s3Service.objectExists(s3Key);
+              if (exists) break;
+              await new Promise(r => setTimeout(r, 6000));
+            }
+            if (exists) {
+              await s3Service.downloadToFile(s3Key, localPath);
+              downloaded = true;
+              console.log('[LiveClass] Local copy downloaded from S3', { liveClassId: liveClass._id.toString(), localPath });
+            }
+          } catch (s3dlErr) {
+            console.warn('[LiveClass] Failed S3 download, will try Agora', s3dlErr?.message);
+          }
+        }
+
+        if (!downloaded) {
+          if (firstFile?.fileUrl || firstFile?.url) {
+            const directUrl = firstFile.fileUrl || firstFile.url;
+            await agoraRecordingService.downloadFile(directUrl, localPath);
+          } else {
+            await agoraRecordingService.downloadRecordingWithRetry({
+              resourceId: liveClass.recording.resourceId,
+              sid: liveClass.recording.sid,
+              fileName: safeFileName,
+              destPath: localPath,
+              maxAttempts: 15,
+              delayMs: 10000
+            });
+          }
+          downloaded = true;
+          console.log('[LiveClass] Recording downloaded from Agora', { liveClassId: liveClass._id.toString(), localPath });
+        }
+
+        let finalS3Url = s3Service.isConfigured() ? s3Url : null;
+        let finalS3Key = s3Service.isConfigured() ? s3Key : null;
+        if (s3Service.isConfigured() && bucket) {
+          const exists = await s3Service.objectExists(s3Key).catch(() => false);
+          if (!exists && downloaded) {
+            const contentType = safeFileName.endsWith('.m3u8') ? 'application/vnd.apple.mpegurl' : 'video/mp4';
+            try {
+              const uploaded = await s3Service.uploadFile(localPath, s3Key, contentType);
+              finalS3Url = uploaded.s3Url;
+              finalS3Key = uploaded.s3Key;
+              console.log('[LiveClass] Recording uploaded to S3', { liveClassId: liveClass._id.toString(), finalS3Key });
+            } catch (uploadErr) {
+              console.error('Failed to upload recording to S3:', uploadErr);
+            }
+          }
+        }
+
+        const stats = fs.statSync(localPath);
+        const fileSize = stats.size;
+
+        liveClass.recording = {
+          status: finalS3Url ? 'completed' : 'processing',
+          localPath,
+          s3Url: finalS3Url,
+          s3Key: finalS3Key,
+          fileSize,
+          duration: liveClass.duration ? liveClass.duration * 60 : undefined,
+          uploadedAt: finalS3Url ? new Date() : undefined,
+          resourceId: liveClass.recording.resourceId,
+          sid: liveClass.recording.sid,
+          remoteUrl: safeFileName
+        };
+        await liveClass.save();
+
+        await Recording.create({
+          liveClassId: liveClass._id,
+          timetableId: liveClass.timetableId,
+          classId: liveClass.classId,
+          subjectId: liveClass.subjectId,
+          teacherId: liveClass.teacherId,
+          title: liveClass.title,
+          description: liveClass.description,
+          localPath,
+          s3Url: finalS3Url,
+          s3Key: finalS3Key,
+          status: finalS3Url ? 'completed' : 'processing',
+          duration: liveClass.duration ? liveClass.duration * 60 : undefined,
+          fileSize,
+          uploadedAt: finalS3Url ? new Date() : undefined
+        });
+
+        if (finalS3Url) {
+          try {
+            fs.unlinkSync(localPath);
+            const dirFiles = fs.readdirSync(recordingsDir);
+            if (dirFiles.length === 0) {
+              fs.rmdirSync(recordingsDir, { recursive: true });
+            }
+            console.log('[LiveClass] Local recording cleaned', { liveClassId: liveClass._id.toString() });
+          } catch (cleanupErr) {
+            console.warn('Failed to clean up local recording:', cleanupErr);
+          }
+        }
+      } else {
+        liveClass.recording = {
+          ...liveClass.recording,
+          status: 'failed',
+          error: 'No recording file returned from Agora'
+        };
+        await liveClass.save();
+        console.warn('[LiveClass] Recording failed: no fileUrl', { liveClassId: liveClass._id.toString() });
+      }
+    } catch (stopErr) {
+      console.error('Failed to stop/process recording:', stopErr);
+      liveClass.recording = {
+        ...liveClass.recording,
+        status: 'failed',
+        error: stopErr.message || 'Failed to stop recording'
+      };
+      await liveClass.save();
+    }
+  })();
 });
 

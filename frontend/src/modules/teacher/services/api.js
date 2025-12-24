@@ -585,9 +585,10 @@ export const liveClassAPI = {
     });
   },
   // Upload recording (from client-side MediaRecorder)
-  uploadRecording: async (id, file) => {
+  uploadRecording: async (id, file, duration) => {
     const formData = new FormData();
     formData.append('recording', file);
+    if (duration) formData.append('duration', duration);
 
     // For large file uploads, use a longer timeout (30 minutes for 500MB files)
     const fileSizeMB = file.size / (1024 * 1024);
@@ -619,6 +620,34 @@ export const liveClassAPI = {
       }
       throw error;
     }
+  },
+  // Start recording manually
+  startRecording: async (id) => {
+    console.log('[API][Teacher] startRecording', { id });
+    return apiRequest(`/live-classes/teacher/live-classes/${id}/recording/start`, {
+      method: 'POST',
+    });
+  },
+  // Stop recording manually
+  stopRecording: async (id) => {
+    console.log('[API][Teacher] stopRecording', { id });
+    return apiRequest(`/live-classes/teacher/live-classes/${id}/recording/stop`, {
+      method: 'POST',
+    });
+  },
+  // Pause recording manually
+  pauseRecording: async (id) => {
+    console.log('[API][Teacher] pauseRecording', { id });
+    return apiRequest(`/live-classes/teacher/live-classes/${id}/recording/pause`, {
+      method: 'POST',
+    });
+  },
+  // Resume recording manually
+  resumeRecording: async (id) => {
+    console.log('[API][Teacher] resumeRecording', { id });
+    return apiRequest(`/live-classes/teacher/live-classes/${id}/recording/resume`, {
+      method: 'POST',
+    });
   },
 };
 

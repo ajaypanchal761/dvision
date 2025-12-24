@@ -13,13 +13,144 @@ import {
   FiPhone,
   FiRotateCw,
   FiVolume2,
-  FiVolumeX
+  FiVolumeX,
+  FiCircle,
+  FiPause,
+  FiPlay,
+  FiSquare
 } from 'react-icons/fi';
 import { RiCameraSwitchLine } from 'react-icons/ri';
 import { PiHandPalm } from 'react-icons/pi';
 import AgoraRTC from 'agora-rtc-sdk-ng';
 import { io } from 'socket.io-client';
 import { liveClassAPI } from '../services/api';
+
+// IndexedDB Helper for persistent recording chunks
+const DB_NAME = 'dvision_live_recordings';
+const STORE_NAME = 'chunks';
+const METADATA_STORE_NAME = 'metadata';
+const DB_VERSION = 2; // Increment version for new store
+
+const initDB = () => {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, DB_VERSION);
+    request.onerror = (event) => reject('IndexedDB error: ' + event.target.error);
+    request.onupgradeneeded = (event) => {
+      const db = event.target.result;
+      if (!db.objectStoreNames.contains(STORE_NAME)) {
+        db.createObjectStore(STORE_NAME, { keyPath: 'id', autoIncrement: true });
+      }
+      if (!db.objectStoreNames.contains(METADATA_STORE_NAME)) {
+        db.createObjectStore(METADATA_STORE_NAME, { keyPath: 'classId' });
+      }
+    };
+    request.onsuccess = (event) => resolve(event.target.result);
+  });
+};
+
+const saveChunkToDB = async (classId, blob) => {
+
+  try {
+    const db = await initDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction([STORE_NAME], 'readwrite');
+      const store = tx.objectStore(STORE_NAME);
+      const item = {
+        classId,
+        blob,
+        timestamp: Date.now()
+      };
+      store.add(item);
+      tx.oncomplete = () => resolve();
+      tx.onerror = (e) => reject(e.target.error);
+    });
+  } catch (err) {
+    console.error('IDB Save Error:', err);
+  }
+};
+
+const getChunksFromDB = async (classId) => {
+  try {
+    const db = await initDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction([STORE_NAME], 'readonly');
+      const store = tx.objectStore(STORE_NAME);
+      const request = store.getAll();
+      request.onsuccess = () => {
+        const allItems = request.result;
+        const classItems = allItems
+          .filter(item => item.classId === classId)
+          .sort((a, b) => a.timestamp - b.timestamp)
+          .map(item => item.blob);
+        resolve(classItems);
+      };
+      request.onerror = (e) => reject(e.target.error);
+    });
+  } catch (err) {
+    console.error('IDB Get Error:', err);
+    return [];
+  }
+};
+
+const clearChunksFromDB = async (classId) => {
+  try {
+    const db = await initDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction([STORE_NAME, METADATA_STORE_NAME], 'readwrite');
+      const store = tx.objectStore(STORE_NAME);
+      const metaStore = tx.objectStore(METADATA_STORE_NAME);
+
+      const request = store.openCursor();
+      request.onsuccess = (event) => {
+        const cursor = event.target.result;
+        if (cursor) {
+          if (cursor.value.classId === classId) {
+            cursor.delete();
+          }
+          cursor.continue();
+        }
+      };
+
+      // Also clear metadata
+      const metaRequest = metaStore.delete(classId);
+
+      tx.oncomplete = () => resolve();
+      tx.onerror = (e) => reject(e.target.error);
+    });
+  } catch (err) {
+    console.error('IDB Clear Error:', err);
+  }
+};
+
+const saveDurationToDB = async (classId, duration) => {
+  try {
+    const db = await initDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction([METADATA_STORE_NAME], 'readwrite');
+      const store = tx.objectStore(METADATA_STORE_NAME);
+      store.put({ classId, duration });
+      tx.oncomplete = () => resolve();
+      tx.onerror = (e) => reject(e.target.error);
+    });
+  } catch (err) {
+    console.error('IDB Duration Save Error:', err);
+  }
+};
+
+const getDurationFromDB = async (classId) => {
+  try {
+    const db = await initDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction([METADATA_STORE_NAME], 'readonly');
+      const store = tx.objectStore(METADATA_STORE_NAME);
+      const request = store.get(classId);
+      request.onsuccess = () => resolve(request.result?.duration || 0);
+      request.onerror = (e) => reject(e.target.error);
+    });
+  } catch (err) {
+    return 0;
+  }
+};
 
 // Auto-detect API base URL for socket connections
 // Use the same logic as the API service to ensure consistency
@@ -167,10 +298,16 @@ const LiveClassRoom = () => {
   const remoteUsersRef = useRef({});
   const localVideoContainerRef = useRef(null);
 
-  // Recording refs
+  const isComponentMounted = useRef(true);
+  // Local Recording Refs
   const mediaRecorderRef = useRef(null);
   const recordedChunksRef = useRef([]);
-  const [isRecording, setIsRecording] = useState(false);
+  const recordingStartTimeRef = useRef(null);
+  const accumulatedDurationRef = useRef(0);
+
+  // Cloud recording state (Agora cloud recording)
+  const [recordingStatus, setRecordingStatus] = useState('idle'); // idle, starting, recording, stopping, processing
+  const [recordingError, setRecordingError] = useState(null);
 
   // Socket.io ref
   const socketRef = useRef(null);
@@ -198,7 +335,17 @@ const LiveClassRoom = () => {
 
   // Initialize class
   useEffect(() => {
+    isComponentMounted.current = true;
     let isMounted = true;
+
+    // Handle browser close/refresh race condition
+    const handleBeforeUnload = () => {
+      isComponentMounted.current = false;
+      if (mediaRecorderRef.current) {
+        mediaRecorderRef.current.onstop = null;
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
 
     const init = async () => {
       // Cleanup any existing connections first
@@ -214,7 +361,15 @@ const LiveClassRoom = () => {
     scheduleChromeHide();
 
     return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
       isMounted = false;
+      isComponentMounted.current = false;
+      // Prevent auto-upload on unmount/refresh
+      // We only want upload on explicit Stop/End Class.
+      if (mediaRecorderRef.current) {
+        console.log('Unmounting: Disabling upload on stop');
+        mediaRecorderRef.current.onstop = null;
+      }
       cleanup();
       if (chromeHideTimerRef.current) {
         clearTimeout(chromeHideTimerRef.current);
@@ -885,10 +1040,7 @@ const LiveClassRoom = () => {
         });
       }
 
-      // Start local recording automatically when stream starts
-      setTimeout(() => {
-        startLocalRecording();
-      }, 2000); // Wait 2 seconds for tracks to be fully ready
+
     } catch (err) {
       console.error('Error creating local tracks:', err);
       if (err.message.includes('permission')) {
@@ -900,275 +1052,9 @@ const LiveClassRoom = () => {
     }
   };
 
-  // Start local recording using MediaRecorder API
-  const startLocalRecording = () => {
-    try {
-      // Check if MediaRecorder is supported
-      if (typeof MediaRecorder === 'undefined') {
-        console.error('[Recording] MediaRecorder is not supported in this browser');
-        setError('Recording is not supported in this browser');
-        return;
-      }
 
-      // Verify tracks exist
-      if (!localVideoTrackRef.current || !localAudioTrackRef.current) {
-        console.error('[Recording] Video or audio tracks are not available');
-        setError('Video or audio tracks are not available for recording');
-        return;
-      }
 
-      // Get MediaStreamTracks
-      const videoTrack = localVideoTrackRef.current.getMediaStreamTrack();
-      const audioTrack = localAudioTrackRef.current.getMediaStreamTrack();
 
-      if (!videoTrack || !audioTrack) {
-        console.error('[Recording] Failed to get MediaStreamTracks');
-        setError('Failed to get video or audio tracks');
-        return;
-      }
-
-      // Verify tracks are live
-      if (videoTrack.readyState !== 'live' || audioTrack.readyState !== 'live') {
-        console.error('[Recording] Tracks are not live:', {
-          video: videoTrack.readyState,
-          audio: audioTrack.readyState,
-        });
-        setError('Video or audio tracks are not live');
-        return;
-      }
-
-      // Create a MediaStream from the video and audio tracks
-      const stream = new MediaStream();
-      stream.addTrack(videoTrack);
-      stream.addTrack(audioTrack);
-
-      console.log('[Recording] Stream created with tracks:', {
-        videoTrack: { id: videoTrack.id, kind: videoTrack.kind, enabled: videoTrack.enabled, readyState: videoTrack.readyState },
-        audioTrack: { id: audioTrack.id, kind: audioTrack.kind, enabled: audioTrack.enabled, readyState: audioTrack.readyState },
-        streamTracks: stream.getTracks().length,
-      });
-
-      // Verify stream has tracks
-      if (stream.getTracks().length === 0) {
-        console.error('[Recording] Stream has no tracks');
-        setError('Stream has no tracks for recording');
-        return;
-      }
-
-      // Determine best mimeType
-      let mimeType = 'video/webm';
-      if (MediaRecorder.isTypeSupported('video/webm;codecs=vp9')) {
-        mimeType = 'video/webm;codecs=vp9';
-      } else if (MediaRecorder.isTypeSupported('video/webm')) {
-        mimeType = 'video/webm';
-      } else if (MediaRecorder.isTypeSupported('video/mp4')) {
-        mimeType = 'video/mp4';
-      } else {
-        console.warn('[Recording] No supported codec found, using default');
-      }
-
-      // Initialize MediaRecorder
-      const options = {
-        mimeType: mimeType,
-        videoBitsPerSecond: 2500000, // 2.5 Mbps
-      };
-
-      console.log('[Recording] Initializing MediaRecorder with:', options);
-
-      try {
-        mediaRecorderRef.current = new MediaRecorder(stream, options);
-        recordedChunksRef.current = [];
-        console.log('[Recording] MediaRecorder created successfully');
-      } catch (recorderError) {
-        console.error('[Recording] Failed to create MediaRecorder:', recorderError);
-        // Try with default options
-        try {
-          mediaRecorderRef.current = new MediaRecorder(stream);
-          recordedChunksRef.current = [];
-          console.log('[Recording] MediaRecorder created with default options');
-        } catch (defaultError) {
-          console.error('[Recording] Failed to create MediaRecorder with default options:', defaultError);
-          setError('Failed to initialize recording: ' + defaultError.message);
-          return;
-        }
-      }
-
-      mediaRecorderRef.current.ondataavailable = (event) => {
-        if (event.data && event.data.size > 0) {
-          recordedChunksRef.current.push(event.data);
-          console.log('[Recording] Chunk received:', {
-            size: event.data.size,
-            totalChunks: recordedChunksRef.current.length,
-            totalSize: recordedChunksRef.current.reduce((sum, chunk) => sum + chunk.size, 0),
-          });
-        } else {
-          console.warn('[Recording] Empty or invalid chunk received');
-        }
-      };
-
-      mediaRecorderRef.current.onstop = () => {
-        console.log('[Recording] Recording stopped. Total chunks:', recordedChunksRef.current.length);
-      };
-
-      mediaRecorderRef.current.onerror = (event) => {
-        console.error('[Recording Error]:', event.error);
-        setError('Recording error: ' + event.error.message);
-      };
-
-      // Start recording
-      try {
-        if (mediaRecorderRef.current.state !== 'inactive') {
-          console.warn('[Recording] MediaRecorder is not inactive. Current state:', mediaRecorderRef.current.state);
-          setError('Recording is already active or in an invalid state.');
-          return;
-        }
-
-        // Start recording with 1 second intervals
-        mediaRecorderRef.current.start(1000);
-        setIsRecording(true);
-        console.log('[Recording] MediaRecorder.start() called');
-
-        // Verify recording started after a short delay
-        setTimeout(() => {
-          if (!mediaRecorderRef.current) {
-            console.error('[Recording] MediaRecorder is null');
-            setIsRecording(false);
-            setError('Recording failed - MediaRecorder is null');
-            return;
-          }
-
-          if (mediaRecorderRef.current.state === 'recording') {
-            console.log('[Recording] ✅ Local recording started successfully', {
-              state: mediaRecorderRef.current.state,
-              mimeType: mediaRecorderRef.current.mimeType,
-            });
-          } else {
-            console.error('[Recording] ❌ Recording failed to start. State:', mediaRecorderRef.current.state);
-            setIsRecording(false);
-            setError('Recording failed to start. State: ' + mediaRecorderRef.current.state);
-          }
-        }, 300);
-      } catch (startError) {
-        console.error('[Recording] Error starting MediaRecorder:', startError);
-        setIsRecording(false);
-        setError('Failed to start recording: ' + startError.message);
-      }
-    } catch (err) {
-      console.error('[Start Recording Error]:', err);
-      setError('Failed to start recording: ' + err.message);
-    }
-  };
-
-  // Stop local recording and upload to server
-  const stopLocalRecording = async () => {
-    return new Promise((resolve, reject) => {
-      // Check if recording was actually started
-      if (!mediaRecorderRef.current) {
-        console.warn('[Recording] MediaRecorder not initialized');
-        resolve(null);
-        return;
-      }
-
-      if (!isRecording) {
-        console.warn('[Recording] Recording was not active');
-        resolve(null);
-        return;
-      }
-
-      // Check recorder state
-      if (mediaRecorderRef.current.state === 'inactive') {
-        console.warn('[Recording] MediaRecorder is already inactive');
-        resolve(null);
-        return;
-      }
-
-      try {
-        // Set up onstop handler before stopping
-        mediaRecorderRef.current.onstop = async () => {
-          try {
-            console.log('[Recording] MediaRecorder stopped. Processing chunks...');
-            console.log('[Recording] Total chunks:', recordedChunksRef.current.length);
-
-            // Wait a bit for any pending chunks
-            await new Promise(resolve => setTimeout(resolve, 100));
-
-            const totalSize = recordedChunksRef.current.reduce((sum, chunk) => sum + (chunk?.size || 0), 0);
-            console.log('[Recording] Total size:', totalSize, 'bytes', totalSize > 0 ? `(${(totalSize / (1024 * 1024)).toFixed(2)} MB)` : '');
-
-            if (recordedChunksRef.current.length === 0 || totalSize === 0) {
-              console.error('[Recording] ❌ No recording chunks available - recording failed');
-              resolve(null);
-              return;
-            }
-
-            // Create blob from recorded chunks
-            const blob = new Blob(recordedChunksRef.current, {
-              type: mediaRecorderRef.current.mimeType || 'video/webm',
-            });
-
-            console.log('[Recording] Recording blob created:', {
-              size: blob.size,
-              type: blob.type,
-              sizeInMB: (blob.size / (1024 * 1024)).toFixed(2),
-              chunks: recordedChunksRef.current.length,
-            });
-
-            // Create file from blob
-            let normalizedMimeType = blob.type;
-            if (blob.type.includes('webm')) {
-              normalizedMimeType = 'video/webm';
-            } else if (blob.type.includes('mp4')) {
-              normalizedMimeType = 'video/mp4';
-            }
-
-            const fileExtension = blob.type.includes('webm') ? 'webm' : 'mp4';
-            const filename = `recording_${id}_${Date.now()}.${fileExtension}`;
-            const file = new File([blob], filename, { type: normalizedMimeType });
-
-            console.log('[Recording] File created for upload:', {
-              filename,
-              size: file.size,
-              type: file.type,
-            });
-
-            // Upload recording to server
-            try {
-              console.log('[Recording] Starting upload...');
-              const uploadResponse = await liveClassAPI.uploadRecording(id, file);
-              console.log('[Recording] Upload response received:', uploadResponse);
-
-              if (uploadResponse.success) {
-                console.log('[Recording] ✅ Recording uploaded successfully:', uploadResponse.data.s3Url);
-                resolve(uploadResponse.data);
-              } else {
-                console.error('[Recording] Upload failed:', uploadResponse.message);
-                reject(new Error(uploadResponse.message || 'Upload failed'));
-              }
-            } catch (uploadError) {
-              console.error('[Recording] Upload error:', uploadError);
-              reject(uploadError);
-            }
-          } catch (err) {
-            console.error('[Recording] Error processing recording:', err);
-            reject(err);
-          }
-        };
-
-        // Stop the recorder
-        if (mediaRecorderRef.current.state === 'recording') {
-          mediaRecorderRef.current.stop();
-          setIsRecording(false);
-        } else {
-          console.warn('[Recording] MediaRecorder is not in recording state:', mediaRecorderRef.current.state);
-          resolve(null);
-        }
-      } catch (stopError) {
-        console.error('[Recording] Error stopping MediaRecorder:', stopError);
-        setIsRecording(false);
-        reject(stopError);
-      }
-    });
-  };
 
 
   // Handle user published
@@ -1473,7 +1359,7 @@ const LiveClassRoom = () => {
 
       if (nextDevice) {
         console.log('[Camera Switch] Starting camera switch to:', nextDevice.label || nextDevice.deviceId);
-        
+
         // Store reference to old track
         const oldVideoTrack = localVideoTrackRef.current;
         const wasVideoEnabled = oldVideoTrack.enabled;
@@ -1848,6 +1734,248 @@ const LiveClassRoom = () => {
     }
   };
 
+
+
+  // Start local recording
+  const startLocalRecording = async (skipBackendCall = false) => {
+    try {
+      if (!localVideoTrackRef.current || !localAudioTrackRef.current) {
+        throw new Error('Audio/Video tracks not ready');
+      }
+
+      const stream = new MediaStream();
+      if (localVideoTrackRef.current) stream.addTrack(localVideoTrackRef.current.getMediaStreamTrack());
+      if (localAudioTrackRef.current) stream.addTrack(localAudioTrackRef.current.getMediaStreamTrack());
+      // Make sure we have a video track if available, else just audio?
+      // For class recording, video is expected.
+
+      const options = { mimeType: 'video/webm;codecs=vp8,opus' };
+      if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+        delete options.mimeType; // use default
+      }
+
+      mediaRecorderRef.current = new MediaRecorder(stream, options.mimeType ? options : undefined);
+      // Don't rely on memory only, simple buffer for immediate logic
+      recordedChunksRef.current = [];
+
+      mediaRecorderRef.current.ondataavailable = async (e) => {
+        if (e.data && e.data.size > 0) {
+          recordedChunksRef.current.push(e.data);
+          // Save to IndexedDB for persistence
+          await saveChunkToDB(id, e.data);
+        }
+      };
+
+      mediaRecorderRef.current.start(1000); // 1s chunks
+
+      // Start timer tracking
+      recordingStartTimeRef.current = Date.now();
+
+      // Call Backend to update status (Only if not skipping)
+      if (!skipBackendCall) {
+        await liveClassAPI.startRecording(id);
+      }
+
+      setRecordingStatus('recording');
+      console.log('[Recording] Local MediaRecorder started and synced');
+
+    } catch (err) {
+      console.error('[Recording] Start failed:', err);
+      setRecordingStatus('idle');
+      alert('Failed to start recording: ' + err.message);
+    }
+  };
+
+  // Stop local recording
+  const stopLocalRecording = async () => {
+    return new Promise((resolve) => {
+      // If inactive, just cleanup
+      if (!mediaRecorderRef.current) {
+        setRecordingStatus('idle');
+        resolve();
+        return;
+      }
+
+      setRecordingStatus('processing');
+
+      // We need to stop the recorder first to get final chunk
+      // We need to stop the recorder first to get final chunk
+      const finishUpload = async () => {
+        // Prevent upload if component is unmounted (e.g. leaving class)
+        // This ensures we don't create "Partial Recordings".
+        // The chunks stay in IDB and will be merged on next session join.
+        if (!isComponentMounted.current) {
+          console.log('[Recording] Component unmounted, skipping upload. Chunks preserved in DB.');
+          return;
+        }
+
+        try {
+          // Get all chunks from DB (Persisted source of truth)
+          const persistedChunks = await getChunksFromDB(id);
+          // Fallback to ref if DB fails or is empty (rare in this flow)
+          const finalChunks = persistedChunks.length > 0 ? persistedChunks : recordedChunksRef.current;
+
+          if (finalChunks.length === 0) {
+            console.warn('[Recording] No chunks found to upload');
+            setRecordingStatus('idle');
+            resolve();
+            return;
+          }
+
+          const blob = new Blob(finalChunks, { type: 'video/webm' });
+          const file = new File([blob], `recording_${id}_${Date.now()}.webm`, { type: 'video/webm' });
+
+          // Calculate duration
+          let sessionDuration = 0;
+          if (recordingStartTimeRef.current) {
+            sessionDuration = (Date.now() - recordingStartTimeRef.current) / 1000;
+            recordingStartTimeRef.current = null;
+          }
+          const totalDuration = Math.round(accumulatedDurationRef.current + sessionDuration);
+          accumulatedDurationRef.current = totalDuration; // Update Ref
+          await saveDurationToDB(id, totalDuration); // Persist
+
+          console.log('[Recording] Uploading to server...', file.size, 'Duration:', totalDuration);
+          const response = await liveClassAPI.uploadRecording(id, file, totalDuration);
+
+          if (response.success) {
+            console.log('[Recording] Upload complete');
+            alert('Recording uploaded successfully!');
+            // Clear DB after successful upload
+            await clearChunksFromDB(id);
+            setRecordingStatus('idle');
+            resolve(response.data);
+          } else {
+            throw new Error(response.message || 'Upload failed');
+          }
+        } catch (err) {
+          console.error('[Recording] Upload failed:', err);
+          alert('Failed to upload recording: ' + err.message);
+          setRecordingStatus('idle'); // Or 'failed'
+          resolve();
+        }
+      };
+
+      if (mediaRecorderRef.current.state !== 'inactive') {
+        mediaRecorderRef.current.onstop = finishUpload;
+        mediaRecorderRef.current.stop();
+      } else {
+        finishUpload();
+      }
+    });
+  };
+
+  const handleStartRecording = () => {
+    startLocalRecording();
+  };
+
+  const handleStopRecording = async () => {
+    await stopLocalRecording(); // Uploads and finalizes
+    // Backend status is updated by uploadRecording, but we could explicitly stop if needed.
+    // Assuming uploadRecording sets 'completed'.
+  };
+
+  // Pause local recording
+  const handlePauseRecording = async () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+      mediaRecorderRef.current.pause();
+
+      // Track duration
+      if (recordingStartTimeRef.current) {
+        accumulatedDurationRef.current += (Date.now() - recordingStartTimeRef.current) / 1000;
+        recordingStartTimeRef.current = null;
+        await saveDurationToDB(id, accumulatedDurationRef.current);
+      }
+
+      setRecordingStatus('paused');
+      try {
+        await liveClassAPI.pauseRecording(id);
+      } catch (err) {
+        console.error('Failed to sync pause status', err);
+      }
+    }
+  };
+
+  // Resume local recording
+  const handleResumeRecording = async () => {
+    // If recorder exists and paused (simple resume)
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'paused') {
+      mediaRecorderRef.current.resume();
+
+      recordingStartTimeRef.current = Date.now();
+
+      setRecordingStatus('recording');
+      try {
+        await liveClassAPI.resumeRecording(id);
+      } catch (err) {
+        console.error('Failed to sync resume status', err);
+      }
+    }
+    // If recorder missing but status was paused (Rejoin scenario)
+    else if (!mediaRecorderRef.current && recordingStatus === 'paused') {
+      // Start new recorder instance (Skip start API, we call resume API below)
+      await startLocalRecording(true);
+
+      // Update backend status to paused -> recording (semantic update)
+      await liveClassAPI.resumeRecording(id);
+
+      // setRecordingStatus('recording'); // startLocalRecording does this
+      console.log('[Recording] Resumed');
+    }
+  };
+
+  // Check for existing recording state on mount
+  useEffect(() => {
+    const checkRecordingState = async () => {
+      if (!liveClass) return;
+
+      // Sync valid status from backend
+      if (liveClass.recording?.status === 'recording' || liveClass.recording?.status === 'paused') {
+        console.log('[Recording] Found active session:', liveClass.recording.status);
+
+        // Check if we have local chunks
+        const chunks = await getChunksFromDB(id);
+        if (chunks.length > 0) {
+          console.log(`[Recording] Found ${chunks.length} local chunks. Ready to resume.`);
+          recordedChunksRef.current = chunks;
+
+          // Restore Duration
+          const duration = await getDurationFromDB(id);
+          accumulatedDurationRef.current = duration;
+          console.log('[Recording] Restored Duration:', duration);
+
+          setRecordingStatus(liveClass.recording.status);
+
+          // If status is 'recording', we must RESUME capture
+          if (liveClass.recording.status === 'recording') {
+            console.log('[Recording] Resuming capture for active session...');
+            // We call startLocalRecording directly. It will append to IDB.
+            // Skip backend call as it's already status='recording'
+            startLocalRecording(true).catch(err => console.error('Failed to auto-resume:', err));
+          }
+        } else {
+          // Status is active but no local data.
+          // This implies different device or cache cleared.
+          console.warn('[Recording] Active session on server but no local data found.');
+          // We can't really "Resume". We must start fresh or warn user.
+          // For now, reset to idle to allow fresh start, or set 'paused' but warn?
+          // Best: Set 'paused' but with empty buffer.
+          // If they Resume -> New chunks added. Final file = New chunks only.
+          // Old chunks are lost on different device.
+          // BUT user asked for "app hta de ... vps se open ... resume". IndexedDB persists this!
+          // So safe.
+          if (liveClass.recording.status === 'paused') {
+            setRecordingStatus('paused');
+          } else if (liveClass.recording.status === 'recording') {
+            // Active recording but app was closed.
+            setRecordingStatus('paused'); // Show "Resume" option rather than auto-start
+          }
+        }
+      }
+    };
+    checkRecordingState();
+  }, [liveClass?.recording?.status, id]);
+
   // End class
   const handleEndClass = async () => {
     if (window.confirm('Are you sure you want to end this class? All students will be disconnected.')) {
@@ -1860,20 +1988,11 @@ const LiveClassRoom = () => {
           return;
         }
 
-        // Stop recording first if it's active (don't wait for upload to complete)
-        if (isRecording && mediaRecorderRef.current) {
-          console.log('[End Class] Stopping recording before ending class...');
+        // If recording is active, stop it first
+        if (recordingStatus === 'recording') {
+          console.log('[End Class] Stopping cloud recording before ending class...');
           try {
-            // Stop recording but don't wait for upload - do it in background
-            stopLocalRecording().then((uploadResult) => {
-              if (uploadResult && uploadResult.s3Url) {
-                console.log('[End Class] ✅ Recording uploaded successfully:', uploadResult.s3Url);
-              } else {
-                console.warn('[End Class] Recording stopped but upload result is empty');
-              }
-            }).catch((recordingError) => {
-              console.error('[End Class] Error stopping/uploading recording:', recordingError);
-            });
+            await handleStopRecording();
           } catch (recordingError) {
             console.error('[End Class] Error stopping recording:', recordingError);
             // Continue with ending class even if recording stop fails
@@ -1902,16 +2021,6 @@ const LiveClassRoom = () => {
   // Cleanup
   const cleanup = async () => {
     try {
-      // Stop recording if active
-      if (isRecording && mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
-        try {
-          console.log('[Cleanup] Stopping recording...');
-          await stopLocalRecording();
-        } catch (recordingError) {
-          console.error('[Cleanup] Error stopping recording:', recordingError);
-        }
-      }
-
       // Leave socket room
       if (socketRef.current) {
         socketRef.current.removeAllListeners();
@@ -2266,6 +2375,43 @@ const LiveClassRoom = () => {
           >
             <RiCameraSwitchLine className="text-xl" />
           </button>
+          {recordingStatus === 'idle' || recordingStatus === 'processing' ? (
+            <button
+              onClick={handleStartRecording}
+              className="p-3 rounded-full bg-gray-700 hover:bg-gray-600 flex items-center gap-2"
+              title="Start recording"
+              disabled={recordingStatus === 'starting'}
+            >
+              <FiCircle className="text-xl text-red-500" />
+              {recordingStatus === 'starting' && <span className="text-xs">Starting...</span>}
+            </button>
+          ) : recordingStatus === 'stopping' ? (
+            <button disabled className="p-3 rounded-full bg-red-600 opacity-50 flex items-center gap-2">
+              <FiSquare className="text-xl fill-white" />
+              <span className="text-xs">Stopping...</span>
+            </button>
+          ) : (
+            <>
+              {/* Pause/Resume Button */}
+              <button
+                onClick={recordingStatus === 'recording' ? handlePauseRecording : handleResumeRecording}
+                className="p-3 rounded-full bg-gray-700 hover:bg-gray-600"
+                title={recordingStatus === 'recording' ? "Pause recording" : "Resume recording"}
+              >
+                {recordingStatus === 'recording' ? <FiPause className="text-xl" /> : <FiPlay className="text-xl" />}
+              </button>
+
+              {/* Stop Button */}
+              <button
+                onClick={handleStopRecording}
+                className={`p-3 rounded-full bg-red-600 hover:bg-red-700 flex items-center gap-2 ${recordingStatus === 'recording' ? 'animate-pulse' : ''}`}
+                title="Stop recording"
+              >
+                <FiSquare className="text-xl fill-white" />
+                <span className="text-xs">REC</span>
+              </button>
+            </>
+          )}
           <button
             onClick={handleEndClass}
             className="p-3 rounded-full bg-red-600 hover:bg-red-700"

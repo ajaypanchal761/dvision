@@ -21,7 +21,11 @@ const {
   getLiveClass,
   uploadRecording,
   getStudentRecordings,
-  getRecording
+  getRecording,
+  startRecording,
+  stopRecording,
+  pauseRecording,
+  resumeRecording
 } = require('../controllers/liveClassController');
 const { protect, authorize } = require('../middlewares/auth');
 const { uploadRecording: uploadRecordingMiddleware } = require('../middlewares/upload');
@@ -49,6 +53,11 @@ router.get('/teacher/live-classes/assigned-options', protect, authorize('teacher
 router.post('/teacher/live-classes', protect, authorize('teacher'), createLiveClass);
 router.put('/teacher/live-classes/:id/start', protect, authorize('teacher'), startLiveClass);
 router.put('/teacher/live-classes/:id/end', protect, authorize('teacher'), endLiveClass);
+// Manual recording control routes
+router.post('/teacher/live-classes/:id/recording/start', protect, authorize('teacher'), startRecording);
+router.post('/teacher/live-classes/:id/recording/stop', protect, authorize('teacher'), stopRecording);
+router.post('/teacher/live-classes/:id/recording/pause', protect, authorize('teacher'), pauseRecording);
+router.post('/teacher/live-classes/:id/recording/resume', protect, authorize('teacher'), resumeRecording);
 // Upload recording route with error handling
 router.post('/teacher/live-classes/:id/upload-recording', protect, authorize('teacher'), (req, res, next) => {
   uploadRecordingMiddleware(req, res, (err) => {

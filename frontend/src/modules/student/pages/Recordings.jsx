@@ -191,7 +191,13 @@ const Recordings = () => {
         <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4">
           <div className="bg-gray-900 rounded-xl p-4 max-w-4xl w-full">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-white font-bold text-lg">{selectedRecording.title}</h3>
+              <div className="flex flex-col gap-1">
+                <h3 className="text-white font-bold text-lg">{selectedRecording.title}</h3>
+                <div className="flex items-center gap-2 text-gray-400 text-sm">
+                  <FiClock size={14} />
+                  <span>Duration: {formatDuration(selectedRecording.duration)}</span>
+                </div>
+              </div>
               <button
                 onClick={() => {
                   setSelectedRecording(null);

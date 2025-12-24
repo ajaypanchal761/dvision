@@ -135,7 +135,7 @@ const liveClassSchema = new mongoose.Schema(
     recording: {
       status: {
         type: String,
-        enum: ['pending', 'recording', 'processing', 'uploading', 'completed', 'failed'],
+        enum: ['pending', 'recording', 'paused', 'processing', 'uploading', 'completed', 'failed'],
         default: 'pending'
       },
       resourceId: String,
