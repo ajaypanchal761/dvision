@@ -96,7 +96,7 @@ const FinalOTP = () => {
           // Navigate to agent dashboard on success
           navigate(ROUTES.AGENT_DASHBOARD);
         } else {
-          setError(response.message || 'Invalid OTP. Please try again.');
+          setError(response.message || 'Wrong/Invalid OTP');
         }
       } else {
         // Teacher OTP verification
@@ -123,7 +123,7 @@ const FinalOTP = () => {
           // Navigate to dashboard on success
           navigate(ROUTES.DASHBOARD);
         } else {
-          setError(response.message || 'Invalid OTP. Please try again.');
+          setError(response.message || 'Wrong/Invalid OTP');
         }
       }
     } catch (error) {
@@ -249,7 +249,7 @@ const FinalOTP = () => {
               className="h-28 sm:h-32 md:h-36 lg:h-40 w-auto object-contain"
             />
           </div>
-          
+
           {/* Title */}
           <div className="text-center mb-4 sm:mb-5 md:mb-6">
             <p className="text-black/80 text-xs sm:text-sm md:text-base mb-2">

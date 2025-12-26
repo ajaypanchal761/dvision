@@ -41,28 +41,28 @@ const EditQuiz = () => {
     const fetchAllData = async () => {
       try {
         setIsLoadingData(true)
-        
+
         const [classesResponse, subjectsResponse] = await Promise.all([
-          classAPI.getAll(),
-          subjectAPI.getAll()
+          classAPI.getAllWithoutPagination(),
+          subjectAPI.getAllWithoutPagination()
         ])
-        
+
         if (classesResponse.success && classesResponse.data?.classes) {
           const activeClasses = classesResponse.data.classes.filter(c => c.isActive)
           setAllClassesData(activeClasses)
-          
+
           // Separate regular and preparation classes
           const regularClasses = activeClasses.filter(c => c.type === 'regular')
           const prepClasses = activeClasses.filter(c => c.type === 'preparation')
-          
+
           // Extract unique boards from regular classes
           const uniqueBoards = [...new Set(regularClasses.map(c => c.board).filter(Boolean))].sort()
           setBoards(uniqueBoards)
-          
+
           // Set preparation classes
           setPreparationClasses(prepClasses)
         }
-        
+
         if (subjectsResponse.success && subjectsResponse.data?.subjects) {
           const activeSubjects = subjectsResponse.data.subjects.filter(s => s.isActive)
           setAllSubjectsData(activeSubjects)
@@ -93,19 +93,19 @@ const EditQuiz = () => {
         const response = await quizAPI.getById(id)
         if (response.success && response.data.quiz) {
           const quiz = response.data.quiz
-          
+
           // Check if deadline has passed
           if (isDeadlinePassed(quiz.deadline)) {
             alert('Cannot edit quiz after deadline has passed.')
             navigate('/admin/quizzes')
             return
           }
-          
+
           // Parse deadline if exists
           let deadlineDate = ''
           let deadlineTime = '12:00'
           let deadlineAmPm = 'AM'
-          
+
           if (quiz.deadline) {
             const deadline = new Date(quiz.deadline)
             deadlineDate = deadline.toISOString().split('T')[0]
@@ -115,7 +115,7 @@ const EditQuiz = () => {
             deadlineTime = `${String(hour12).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`
             deadlineAmPm = hours >= 12 ? 'PM' : 'AM'
           }
-          
+
           const quizClassId = quiz.classId?._id || quiz.classId
           setFormData({
             type: quiz.type || 'regular',
@@ -133,7 +133,7 @@ const EditQuiz = () => {
           // If it's a preparation quiz, fetch subjects for the selected classId
           if (quiz.type === 'preparation' && quizClassId) {
             try {
-              const subjectsResponse = await subjectAPI.getAll({ classId: quizClassId.toString() })
+              const subjectsResponse = await subjectAPI.getAllWithoutPagination({ classId: quizClassId.toString() })
               if (subjectsResponse.success && subjectsResponse.data?.subjects) {
                 const activeSubjects = subjectsResponse.data.subjects.filter(s => s.isActive)
                 setPreparationSubjects(activeSubjects)
@@ -142,7 +142,7 @@ const EditQuiz = () => {
               console.error('Error fetching preparation subjects on load:', err)
             }
           }
-          
+
           setQuestions(quiz.questions && quiz.questions.length > 0 ? quiz.questions : [
             {
               question: '',
@@ -174,7 +174,7 @@ const EditQuiz = () => {
       setAvailableClasses([])
       return
     }
-    
+
     if (!formData.board) {
       setAvailableClasses([])
       return
@@ -183,7 +183,7 @@ const EditQuiz = () => {
     const classesForBoard = allClassesData
       .filter(c => c.type === 'regular' && c.board === formData.board)
       .map(c => c.class)
-    
+
     const uniqueClasses = [...new Set(classesForBoard)].sort((a, b) => a - b)
     setAvailableClasses(uniqueClasses)
   }, [formData.type, formData.board, allClassesData])
@@ -194,13 +194,13 @@ const EditQuiz = () => {
       setAvailableSubjects([])
       return
     }
-    
+
     if (!formData.board || !formData.class) {
       setAvailableSubjects([])
       return
     }
 
-    const filteredSubjects = allSubjectsData.filter(s => 
+    const filteredSubjects = allSubjectsData.filter(s =>
       s.board === formData.board && s.class === parseInt(formData.class)
     )
     setAvailableSubjects(filteredSubjects)
@@ -219,11 +219,11 @@ const EditQuiz = () => {
 
     const fetchPreparationSubjects = async () => {
       try {
-        const response = await subjectAPI.getAll({ classId: formData.classId })
+        const response = await subjectAPI.getAllWithoutPagination({ classId: formData.classId })
         if (response.success && response.data?.subjects) {
           const activeSubjects = response.data.subjects.filter(s => s.isActive)
           setPreparationSubjects(activeSubjects)
-          
+
           // Reset subject if current subject is not available (but only if classId changed)
           if (formData.subjectId && !activeSubjects.find(s => s._id === formData.subjectId)) {
             setFormData(prev => ({ ...prev, subjectId: '' }))
@@ -320,14 +320,14 @@ const EditQuiz = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    
+
     if (!isFormValid()) {
       return
     }
 
     try {
       setSubmitting(true)
-      
+
       // Convert deadline to ISO datetime format
       let deadline = null
       if (formData.deadlineDate && formData.deadlineTime) {
@@ -360,6 +360,17 @@ const EditQuiz = () => {
       if (formData.type === 'regular') {
         quizData.classNumber = parseInt(formData.class)
         quizData.board = formData.board
+
+        // Find classId for regular class
+        const regularClass = allClassesData.find(c =>
+          c.type === 'regular' &&
+          c.board === formData.board &&
+          c.class === parseInt(formData.class)
+        )
+
+        if (regularClass) {
+          quizData.classId = regularClass._id
+        }
       } else if (formData.type === 'preparation') {
         quizData.classId = formData.classId
       }
@@ -453,8 +464,8 @@ const EditQuiz = () => {
                     required
                     value={formData.board}
                     onChange={(e) => {
-                      setFormData({ 
-                        ...formData, 
+                      setFormData({
+                        ...formData,
                         board: e.target.value,
                         class: '',
                         subjectId: ''
@@ -483,8 +494,8 @@ const EditQuiz = () => {
                     required
                     value={formData.classId}
                     onChange={(e) => {
-                      setFormData({ 
-                        ...formData, 
+                      setFormData({
+                        ...formData,
                         classId: e.target.value,
                         subjectId: ''
                       })
@@ -512,8 +523,8 @@ const EditQuiz = () => {
                     required
                     value={formData.class}
                     onChange={(e) => {
-                      setFormData({ 
-                        ...formData, 
+                      setFormData({
+                        ...formData,
                         class: e.target.value,
                         subjectId: ''
                       })

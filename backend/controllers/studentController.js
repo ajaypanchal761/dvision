@@ -390,7 +390,7 @@ exports.sendOTP = asyncHandler(async (req, res) => {
       : 'OTP sent successfully to your phone number',
     data: {
       phone: phone.replace(/\d(?=\d{4})/g, '*'),
-      expiresIn: `${process.env.OTP_EXPIRY_MINUTES || 5} minutes`,
+      expiresIn: `${process.env.OTP_EXPIRY_MINUTES || 2} minutes`,
       isTest: isTestNumber
     }
   });
@@ -462,7 +462,7 @@ exports.verifyOTP = asyncHandler(async (req, res) => {
 
   res.status(200).json({
     success: true,
-    message: wasUnverified ? 'Registration verified successfully' : 'Login successful',
+    message: wasUnverified ? 'Account Created Successfully' : 'Login successful',
     data: {
       student: {
         _id: student._id,
@@ -579,7 +579,7 @@ exports.resendOTP = asyncHandler(async (req, res) => {
       : 'OTP resent successfully',
     data: {
       phone: phone.replace(/\d(?=\d{4})/g, '*'),
-      expiresIn: `${process.env.OTP_EXPIRY_MINUTES || 5} minutes`,
+      expiresIn: `${process.env.OTP_EXPIRY_MINUTES || 2} minutes`,
       isTest: isTestNumber
     }
   });

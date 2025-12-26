@@ -35,6 +35,8 @@ const RegistrationForm = () => {
   const [allClassesData, setAllClassesData] = useState([]);
   const [loadingClasses, setLoadingClasses] = useState(true);
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [emailError, setEmailError] = useState('');
+  const [passwordError, setPasswordError] = useState('');
 
   useEffect(() => {
     // Check if phone number is coming from login page
@@ -198,9 +200,18 @@ const RegistrationForm = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setEmailError('');
+    setPasswordError('');
 
     if (!isFormValid()) {
       setError('Please fill all required fields');
+      return;
+    }
+
+    // Email Validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email)) {
+      setEmailError('Email address is not correct , please enter a valid email address.');
       return;
     }
 
@@ -256,13 +267,13 @@ const RegistrationForm = () => {
 
       // Validate password
       if (!formData.password || formData.password.length < 6) {
-        setError('Password must be at least 6 characters long');
+        setPasswordError('Password must be at least 6 characters long');
         setIsLoading(false);
         return;
       }
 
       if (formData.password !== formData.confirmPassword) {
-        setError('Passwords do not match');
+        setPasswordError('Passwords do not match');
         setIsLoading(false);
         return;
       }
@@ -320,7 +331,7 @@ const RegistrationForm = () => {
   return (
     <div className="min-h-screen w-full bg-white flex flex-col">
       {/* Single Box with Left Straight and Right Curved */}
-      <div 
+      <div
         className="bg-[var(--app-dark-blue)] text-white h-20 sm:h-24 md:h-28 relative overflow-hidden"
         style={{
           borderBottomRightRadius: '300px',
@@ -328,41 +339,41 @@ const RegistrationForm = () => {
       >
         {/* Animated Waves Pattern */}
         <div className="absolute bottom-0 left-0 w-full h-8 sm:h-10 md:h-12 overflow-hidden">
-          <svg 
+          <svg
             className="absolute bottom-0 w-full h-full"
-            viewBox="0 0 1200 120" 
+            viewBox="0 0 1200 120"
             preserveAspectRatio="none"
           >
-            <path 
-              d="M0,60 Q300,20 600,60 T1200,60 L1200,120 L0,120 Z" 
+            <path
+              d="M0,60 Q300,20 600,60 T1200,60 L1200,120 L0,120 Z"
               fill="rgba(255,255,255,0.1)"
             >
-              <animate 
-                attributeName="d" 
-                values="M0,60 Q300,20 600,60 T1200,60 L1200,120 L0,120 Z;M0,60 Q300,40 600,60 T1200,60 L1200,120 L0,120 Z;M0,60 Q300,20 600,60 T1200,60 L1200,120 L0,120 Z" 
-                dur="3s" 
+              <animate
+                attributeName="d"
+                values="M0,60 Q300,20 600,60 T1200,60 L1200,120 L0,120 Z;M0,60 Q300,40 600,60 T1200,60 L1200,120 L0,120 Z;M0,60 Q300,20 600,60 T1200,60 L1200,120 L0,120 Z"
+                dur="3s"
                 repeatCount="indefinite"
               />
             </path>
-            <path 
-              d="M0,80 Q300,40 600,80 T1200,80 L1200,120 L0,120 Z" 
+            <path
+              d="M0,80 Q300,40 600,80 T1200,80 L1200,120 L0,120 Z"
               fill="rgba(255,255,255,0.05)"
             >
-              <animate 
-                attributeName="d" 
-                values="M0,80 Q300,40 600,80 T1200,80 L1200,120 L0,120 Z;M0,80 Q300,60 600,80 T1200,80 L1200,120 L0,120 Z;M0,80 Q300,40 600,80 T1200,80 L1200,120 L0,120 Z" 
-                dur="4s" 
+              <animate
+                attributeName="d"
+                values="M0,80 Q300,40 600,80 T1200,80 L1200,120 L0,120 Z;M0,80 Q300,60 600,80 T1200,80 L1200,120 L0,120 Z;M0,80 Q300,40 600,80 T1200,80 L1200,120 L0,120 Z"
+                dur="4s"
                 repeatCount="indefinite"
               />
             </path>
           </svg>
         </div>
-        
+
         {/* Decorative Circles */}
         <div className="absolute top-3 right-6 w-16 h-16 sm:w-20 sm:h-20 bg-white/10 rounded-full blur-xl"></div>
         <div className="absolute top-8 right-16 w-12 h-12 sm:w-16 sm:h-16 bg-white/5 rounded-full blur-lg"></div>
         <div className="absolute bottom-6 left-10 w-20 h-20 sm:w-24 sm:h-24 bg-white/10 rounded-full blur-xl"></div>
-        
+
         <div className="pt-5 sm:pt-6 md:pt-8 px-4 sm:px-6 md:px-8 relative z-10">
           <div className="flex items-center gap-2 sm:gap-3">
             <button
@@ -385,7 +396,7 @@ const RegistrationForm = () => {
           <div className="absolute bottom-1/4 right-1/4 w-60 h-60 sm:w-80 sm:h-80 bg-[var(--app-teal)]/5 rounded-full blur-3xl"></div>
           <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-72 h-72 sm:w-96 sm:h-96 bg-[var(--app-dark-blue)]/3 rounded-full blur-3xl"></div>
         </div>
-        
+
         {/* Registration Form Card */}
         <div className="w-full max-w-md relative z-10">
           <div className="bg-white rounded-xl sm:rounded-2xl md:rounded-3xl p-3 sm:p-4 md:p-6 shadow-2xl border border-gray-200">
@@ -393,285 +404,328 @@ const RegistrationForm = () => {
               Enter your profile details!
             </h3>
 
-          <form onSubmit={handleSubmit} autoComplete="off" noValidate className="space-y-3 sm:space-y-4 md:space-y-5">
-            {/* Error Message */}
-            {error && (
-              <div className="bg-red-50 border border-red-200 text-red-700 px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 rounded-lg sm:rounded-xl text-[10px] sm:text-xs md:text-sm">
-                {error}
-              </div>
-            )}
-
-            {/* Full Name */}
-            <div>
-              <label className="block text-[10px] sm:text-xs md:text-sm font-medium text-[var(--app-black)] mb-1 sm:mb-1.5 md:mb-2">
-                Full Name
-              </label>
-              <div className="relative">
-                <div className="absolute left-2 sm:left-3 top-1/2 transform -translate-y-1/2">
-                  <FiUser className="text-[var(--app-black)]/50 text-sm sm:text-base md:text-lg" />
+            <form onSubmit={handleSubmit} autoComplete="off" noValidate className="space-y-3 sm:space-y-4 md:space-y-5">
+              {/* Error Message */}
+              {error && !error.includes('Password') && !error.includes('Email') && (
+                <div className="bg-red-50 border border-red-200 text-red-700 px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 rounded-lg sm:rounded-xl text-[10px] sm:text-xs md:text-sm">
+                  {error}
                 </div>
-                <input
-                  type="text"
-                  placeholder="Enter your name"
-                  value={formData.fullName}
-                  onChange={(e) => handleInputChange('fullName', e.target.value)}
-                  className="w-full pl-8 sm:pl-10 md:pl-12 pr-2 sm:pr-3 md:pr-4 py-2 sm:py-2.5 md:py-3 rounded-lg sm:rounded-xl border-2 border-gray-300 bg-white focus:outline-none transition-all text-xs sm:text-sm md:text-base text-[var(--app-black)] placeholder:text-gray-400"
-                  required
-                />
-              </div>
-            </div>
+              )}
 
-            {/* Mobile Number */}
-            <div>
-              <label className="block text-[10px] sm:text-xs md:text-sm font-medium text-[var(--app-black)] mb-1 sm:mb-1.5 md:mb-2">
-                Mobile Number
-              </label>
-              <div className="relative flex items-stretch">
-                <div className="relative flex-shrink-0">
+              {/* Full Name */}
+              <div>
+                <label className="block text-[10px] sm:text-xs md:text-sm font-medium text-[var(--app-black)] mb-1 sm:mb-1.5 md:mb-2">
+                  Full Name
+                </label>
+                <div className="relative">
+                  <div className="absolute left-2 sm:left-3 top-1/2 transform -translate-y-1/2">
+                    <FiUser className="text-[var(--app-black)]/50 text-sm sm:text-base md:text-lg" />
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="Enter your name"
+                    value={formData.fullName}
+                    onChange={(e) => handleInputChange('fullName', e.target.value)}
+                    className={`w-full pl-8 sm:pl-10 md:pl-12 pr-2 sm:pr-3 md:pr-4 py-2 sm:py-2.5 md:py-3 rounded-lg sm:rounded-xl border-2 bg-white focus:outline-none transition-all text-xs sm:text-sm md:text-base text-[var(--app-black)] placeholder:text-gray-400 ${formData.fullName
+                        ? 'border-[var(--app-dark-blue)] ring-1 ring-[var(--app-dark-blue)]/20'
+                        : 'border-gray-300 focus:border-[var(--app-dark-blue)]'
+                      }`}
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Mobile Number */}
+              <div>
+                <label className="block text-[10px] sm:text-xs md:text-sm font-medium text-[var(--app-black)] mb-1 sm:mb-1.5 md:mb-2">
+                  Mobile Number
+                </label>
+                <div className="relative flex items-stretch">
+                  <div className="relative flex-shrink-0">
+                    <button
+                      type="button"
+                      className={`flex items-center justify-center gap-1 sm:gap-1.5 px-1.5 sm:px-2 md:px-3 h-full rounded-l-lg sm:rounded-l-xl border-2 border-r-0 bg-white hover:bg-gray-50 transition-colors min-h-[40px] sm:min-h-[44px] md:min-h-[48px] w-auto ${formData.mobileNumber
+                          ? 'border-[var(--app-dark-blue)]'
+                          : 'border-gray-300'
+                        }`}
+                    >
+                      <span className="text-[var(--app-black)]/70 font-medium text-[10px] sm:text-xs md:text-sm whitespace-nowrap">
+                        {selectedCountryCode}
+                      </span>
+                    </button>
+                  </div>
+                  <input
+                    type="tel"
+                    placeholder="Enter your mobile number"
+                    value={formData.mobileNumber}
+                    onChange={(e) => {
+                      const value = e.target.value.replace(/\D/g, '').slice(0, 15);
+                      handleInputChange('mobileNumber', value);
+                    }}
+                    className={`flex-1 pl-2 sm:pl-3 md:pl-4 pr-2 sm:pr-3 md:pr-4 py-2 sm:py-2.5 md:py-3 rounded-r-lg sm:rounded-r-xl border-2 bg-white focus:outline-none transition-all text-xs sm:text-sm md:text-base text-[var(--app-black)] placeholder:text-gray-400 h-full min-h-[40px] sm:min-h-[44px] md:min-h-[48px] ${formData.mobileNumber
+                        ? 'border-[var(--app-dark-blue)] ring-1 ring-[var(--app-dark-blue)]/20'
+                        : 'border-gray-300 focus:border-[var(--app-dark-blue)] focus:ring-2 focus:ring-[var(--app-dark-blue)]/20'
+                      }`}
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Email */}
+              <div>
+                <label className="block text-[10px] sm:text-xs md:text-sm font-medium text-[var(--app-black)] mb-1 sm:mb-1.5 md:mb-2">
+                  Email
+                </label>
+                <div className="relative">
+                  <div className="absolute left-2 sm:left-3 top-1/2 transform -translate-y-1/2">
+                    <FiMail className="text-[var(--app-black)]/50 text-sm sm:text-base md:text-lg" />
+                  </div>
+                  <input
+                    type="email"
+                    placeholder="Enter your email"
+                    value={formData.email}
+                    onChange={(e) => {
+                      handleInputChange('email', e.target.value);
+                      if (emailError) setEmailError('');
+                    }}
+                    onBlur={(e) => {
+                      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                      if (e.target.value && !emailRegex.test(e.target.value)) {
+                        setEmailError('Email address is not correct , please enter a valid email address.');
+                      }
+                    }}
+                    className={`w-full pl-8 sm:pl-10 md:pl-12 pr-2 sm:pr-3 md:pr-4 py-2 sm:py-2.5 md:py-3 rounded-lg sm:rounded-xl border-2 bg-white focus:outline-none transition-all text-xs sm:text-sm md:text-base text-[var(--app-black)] placeholder:text-gray-400 ${emailError
+                        ? 'border-red-500 focus:border-red-500'
+                        : 'border-gray-300 focus:border-[var(--app-dark-blue)] focus:ring-2 focus:ring-[var(--app-dark-blue)]/20'
+                      }`}
+                    required
+                  />
+                </div>
+                {emailError && (
+                  <p className="text-red-500 text-[10px] sm:text-xs mt-1">{emailError}</p>
+                )}
+              </div>
+
+              {/* Board Dropdown - First */}
+              <div>
+                <label className="block text-[10px] sm:text-xs md:text-sm font-medium text-[var(--app-black)] mb-1 sm:mb-1.5 md:mb-2">
+                  Board
+                </label>
+                <div className="relative">
                   <button
                     type="button"
-                    className="flex items-center justify-center gap-1 sm:gap-1.5 px-1.5 sm:px-2 md:px-3 h-full rounded-l-lg sm:rounded-l-xl border-2 border-r-0 border-gray-300 bg-white hover:bg-gray-50 transition-colors min-h-[40px] sm:min-h-[44px] md:min-h-[48px] w-auto"
+                    onClick={() => {
+                      setShowBoardDropdown(!showBoardDropdown);
+                      setShowClassDropdown(false);
+                    }}
+                    className="w-full flex items-center justify-between px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 rounded-lg sm:rounded-xl border-2 border-gray-300 bg-white hover:bg-gray-50 focus:border-[var(--app-dark-blue)] focus:ring-2 focus:ring-[var(--app-dark-blue)]/20 transition-colors text-left min-h-[40px] sm:min-h-[44px] md:min-h-[48px]"
                   >
-                    <span className="text-[var(--app-black)]/70 font-medium text-[10px] sm:text-xs md:text-sm whitespace-nowrap">
-                      {selectedCountryCode}
-                    </span>
+                    <div className="flex items-center gap-1.5 sm:gap-2 md:gap-3">
+                      <span className="text-[var(--app-black)]/50 text-sm sm:text-base md:text-lg">🏢</span>
+                      <span className={`text-xs sm:text-sm md:text-base ${formData.board ? 'text-[var(--app-black)]' : 'text-[var(--app-black)]/50'}`}>
+                        {formData.board || 'Select Board'}
+                      </span>
+                    </div>
+                    <FiChevronDown className="text-[var(--app-black)]/50 text-sm sm:text-base md:text-lg" />
                   </button>
-                </div>
-                <input
-                  type="tel"
-                  placeholder="Enter your mobile number"
-                  value={formData.mobileNumber}
-                  onChange={(e) => {
-                    const value = e.target.value.replace(/\D/g, '').slice(0, 15);
-                    handleInputChange('mobileNumber', value);
-                  }}
-                  className="flex-1 pl-2 sm:pl-3 md:pl-4 pr-2 sm:pr-3 md:pr-4 py-2 sm:py-2.5 md:py-3 rounded-r-lg sm:rounded-r-xl border-2 border-gray-300 bg-white focus:outline-none focus:border-[var(--app-dark-blue)] focus:ring-2 focus:ring-[var(--app-dark-blue)]/20 transition-all text-xs sm:text-sm md:text-base text-[var(--app-black)] placeholder:text-gray-400 h-full min-h-[40px] sm:min-h-[44px] md:min-h-[48px]"
-                  required
-                />
-              </div>
-            </div>
-
-            {/* Email */}
-            <div>
-              <label className="block text-[10px] sm:text-xs md:text-sm font-medium text-[var(--app-black)] mb-1 sm:mb-1.5 md:mb-2">
-                Email
-              </label>
-              <div className="relative">
-                <div className="absolute left-2 sm:left-3 top-1/2 transform -translate-y-1/2">
-                  <FiMail className="text-[var(--app-black)]/50 text-sm sm:text-base md:text-lg" />
-                </div>
-                <input
-                  type="email"
-                  placeholder="Enter your email"
-                  value={formData.email}
-                  onChange={(e) => handleInputChange('email', e.target.value)}
-                  className="w-full pl-8 sm:pl-10 md:pl-12 pr-2 sm:pr-3 md:pr-4 py-2 sm:py-2.5 md:py-3 rounded-lg sm:rounded-xl border-2 border-gray-300 bg-white focus:outline-none focus:border-[var(--app-dark-blue)] focus:ring-2 focus:ring-[var(--app-dark-blue)]/20 transition-all text-xs sm:text-sm md:text-base text-[var(--app-black)] placeholder:text-gray-400"
-                  required
-                />
-              </div>
-            </div>
-
-            {/* Board Dropdown - First */}
-            <div>
-              <label className="block text-[10px] sm:text-xs md:text-sm font-medium text-[var(--app-black)] mb-1 sm:mb-1.5 md:mb-2">
-                Board
-              </label>
-              <div className="relative">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowBoardDropdown(!showBoardDropdown);
-                    setShowClassDropdown(false);
-                  }}
-                  className="w-full flex items-center justify-between px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 rounded-lg sm:rounded-xl border-2 border-gray-300 bg-white hover:bg-gray-50 focus:border-[var(--app-dark-blue)] focus:ring-2 focus:ring-[var(--app-dark-blue)]/20 transition-colors text-left min-h-[40px] sm:min-h-[44px] md:min-h-[48px]"
-                >
-                  <div className="flex items-center gap-1.5 sm:gap-2 md:gap-3">
-                    <span className="text-[var(--app-black)]/50 text-sm sm:text-base md:text-lg">🏢</span>
-                    <span className={`text-xs sm:text-sm md:text-base ${formData.board ? 'text-[var(--app-black)]' : 'text-[var(--app-black)]/50'}`}>
-                      {formData.board || 'Select Board'}
-                    </span>
-                  </div>
-                  <FiChevronDown className="text-[var(--app-black)]/50 text-sm sm:text-base md:text-lg" />
-                </button>
-                {showBoardDropdown && (
-                  <>
-                    <div className="fixed inset-0 z-10" onClick={() => setShowBoardDropdown(false)} />
-                    <div className="absolute top-full left-0 right-0 mt-1 bg-white border-2 border-gray-300 rounded-lg sm:rounded-xl shadow-2xl z-20 max-h-48 sm:max-h-60 overflow-y-auto">
-                      {loadingClasses ? (
-                        <div className="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 text-center">
-                          <span className="text-xs sm:text-sm md:text-base text-[var(--app-black)]/50">Loading...</span>
-                        </div>
-                      ) : boards.length === 0 ? (
-                        <div className="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 text-center">
-                          <span className="text-xs sm:text-sm md:text-base text-[var(--app-black)]/50">No boards available</span>
-                        </div>
-                      ) : (
-                        boards.map((board) => (
-                          <button
-                            key={board}
-                            type="button"
-                            onClick={() => {
-                              handleInputChange('board', board);
-                              setShowBoardDropdown(false);
-                            }}
-                            className={`w-full flex items-center gap-1.5 sm:gap-2 md:gap-3 px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 hover:bg-gray-50 transition-colors ${formData.board === board ? 'bg-gray-100' : ''
-                              }`}
-                          >
-                            <span className="text-xs sm:text-sm md:text-base text-[var(--app-black)] font-medium">{board}</span>
-                          </button>
-                        ))
-                      )}
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
-
-            {/* Class Dropdown - After Board Selection */}
-            <div>
-              <label className="block text-[10px] sm:text-xs md:text-sm font-medium text-[var(--app-black)] mb-1 sm:mb-1.5 md:mb-2">
-                Class
-              </label>
-              <div className="relative">
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (!formData.board) {
-                      setShowBoardDropdown(true);
-                      return;
-                    }
-                    setShowClassDropdown(!showClassDropdown);
-                    setShowBoardDropdown(false);
-                  }}
-                  disabled={!formData.board}
-                  className={`w-full flex items-center justify-between px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 rounded-lg sm:rounded-xl border-2 border-gray-300 bg-white hover:bg-gray-50 focus:border-[var(--app-dark-blue)] focus:ring-2 focus:ring-[var(--app-dark-blue)]/20 transition-colors text-left min-h-[40px] sm:min-h-[44px] md:min-h-[48px] ${!formData.board ? 'opacity-50 cursor-not-allowed' : ''
-                    }`}
-                >
-                  <div className="flex items-center gap-1.5 sm:gap-2 md:gap-3">
-                    <span className="text-[var(--app-black)]/50 text-sm sm:text-base md:text-lg">🎓</span>
-                    <span className={`text-xs sm:text-sm md:text-base ${formData.class ? 'text-[var(--app-black)]' : 'text-[var(--app-black)]/50'}`}>
-                      {formData.class || (formData.board ? 'Select Class' : 'Select Board First')}
-                    </span>
-                  </div>
-                  <FiChevronDown className="text-[var(--app-black)]/50 text-sm sm:text-base md:text-lg" />
-                </button>
-                {showClassDropdown && formData.board && (
-                  <>
-                    <div className="fixed inset-0 z-10" onClick={() => setShowClassDropdown(false)} />
-                    <div className="absolute top-full left-0 right-0 mt-1 bg-white border-2 border-gray-300 rounded-lg sm:rounded-xl shadow-2xl z-20 max-h-48 sm:max-h-60 overflow-y-auto">
-                      {loadingClasses ? (
-                        <div className="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 text-center">
-                          <span className="text-xs sm:text-sm md:text-base text-[var(--app-black)]/50">Loading...</span>
-                        </div>
-                      ) : availableClasses.length === 0 ? (
-                        <div className="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 text-center">
-                          <span className="text-xs sm:text-sm md:text-base text-[var(--app-black)]/50">
-                            {formData.board ? `No classes available for ${formData.board}` : 'No classes available'}
-                          </span>
-                        </div>
-                      ) : (
-                        availableClasses.map((cls) => (
-                          <button
-                            key={cls}
-                            type="button"
-                            onClick={() => {
-                              handleInputChange('class', cls);
-                              setShowClassDropdown(false);
-                            }}
-                            className={`w-full flex items-center gap-1.5 sm:gap-2 md:gap-3 px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 hover:bg-gray-50 transition-colors ${formData.class === cls ? 'bg-gray-100' : ''
-                              }`}
-                          >
-                            <span className="text-xs sm:text-sm md:text-base text-[var(--app-black)] font-medium">{cls}</span>
-                          </button>
-                        ))
-                      )}
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
-
-            {/* Password */}
-            <div>
-              <label className="block text-[10px] sm:text-xs md:text-sm font-medium text-[var(--app-black)] mb-1 sm:mb-1.5 md:mb-2">
-                Password <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="password"
-                placeholder="Enter your password (min 6 characters)"
-                value={formData.password}
-                onChange={(e) => handleInputChange('password', e.target.value)}
-                className="w-full px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 rounded-lg sm:rounded-xl border-2 border-gray-300 bg-white focus:outline-none focus:border-[var(--app-dark-blue)] focus:ring-2 focus:ring-[var(--app-dark-blue)]/20 transition-all text-xs sm:text-sm md:text-base text-[var(--app-black)] placeholder:text-gray-400"
-                required
-                minLength={6}
-              />
-            </div>
-
-            {/* Confirm Password */}
-            <div>
-              <label className="block text-[10px] sm:text-xs md:text-sm font-medium text-[var(--app-black)] mb-1 sm:mb-1.5 md:mb-2">
-                Confirm Password <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="password"
-                placeholder="Confirm your password"
-                value={formData.confirmPassword}
-                onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
-                className="w-full px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 rounded-lg sm:rounded-xl border-2 border-gray-300 bg-white focus:outline-none focus:border-[var(--app-dark-blue)] focus:ring-2 focus:ring-[var(--app-dark-blue)]/20 transition-all text-xs sm:text-sm md:text-base text-[var(--app-black)] placeholder:text-gray-400"
-                required
-                minLength={6}
-              />
-              {formData.password && formData.confirmPassword && formData.password !== formData.confirmPassword && (
-                <p className="text-red-500 text-[10px] sm:text-xs mt-1">Passwords do not match</p>
-              )}
-            </div>
-
-            {/* Profile Photo Upload */}
-            <div className="pt-2 sm:pt-3 md:pt-4">
-              <p className="text-[10px] sm:text-xs md:text-sm text-[var(--app-black)]/70 mb-1.5 sm:mb-2 md:mb-3 text-center">
-                Upload your profile photo (Optional)
-              </p>
-              <div className="flex justify-center">
-                <label className="cursor-pointer">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleProfilePhotoChange}
-                    className="hidden"
-                  />
-                  <div className="w-20 h-20 sm:w-24 sm:h-24 md:w-32 md:h-32 rounded-full border-2 sm:border-4 border-dashed border-gray-300 flex items-center justify-center bg-gray-100 hover:bg-gray-200 transition-colors">
-                    {profilePhotoPreview ? (
-                      <img
-                        src={profilePhotoPreview}
-                        alt="Profile preview"
-                        className="w-full h-full rounded-full object-cover"
-                      />
-                    ) : (
-                      <div className="text-center">
-                        <FiCamera className="text-gray-500 text-xl sm:text-2xl md:text-3xl mx-auto mb-0.5 sm:mb-1 md:mb-2" />
-                        <p className="text-[9px] sm:text-[10px] md:text-xs text-gray-600 font-medium">Click to Upload</p>
+                  {showBoardDropdown && (
+                    <>
+                      <div className="fixed inset-0 z-10" onClick={() => setShowBoardDropdown(false)} />
+                      <div className="absolute top-full left-0 right-0 mt-1 bg-white border-2 border-gray-300 rounded-lg sm:rounded-xl shadow-2xl z-20 max-h-48 sm:max-h-60 overflow-y-auto">
+                        {loadingClasses ? (
+                          <div className="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 text-center">
+                            <span className="text-xs sm:text-sm md:text-base text-[var(--app-black)]/50">Loading...</span>
+                          </div>
+                        ) : boards.length === 0 ? (
+                          <div className="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 text-center">
+                            <span className="text-xs sm:text-sm md:text-base text-[var(--app-black)]/50">No boards available</span>
+                          </div>
+                        ) : (
+                          boards.map((board) => (
+                            <button
+                              key={board}
+                              type="button"
+                              onClick={() => {
+                                handleInputChange('board', board);
+                                setShowBoardDropdown(false);
+                              }}
+                              className={`w-full flex items-center gap-1.5 sm:gap-2 md:gap-3 px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 hover:bg-gray-50 transition-colors ${formData.board === board ? 'bg-gray-100' : ''
+                                }`}
+                            >
+                              <span className="text-xs sm:text-sm md:text-base text-[var(--app-black)] font-medium">{board}</span>
+                            </button>
+                          ))
+                        )}
                       </div>
-                    )}
-                  </div>
-                </label>
+                    </>
+                  )}
+                </div>
               </div>
-            </div>
 
-            {/* Continue Button */}
-            <button
-              type="submit"
-              disabled={!isFormValid() || isLoading}
-              className="w-full bg-[var(--app-dark-blue)] text-white py-2 sm:py-2.5 md:py-3 lg:py-3.5 rounded-lg sm:rounded-xl font-semibold text-sm sm:text-base md:text-lg hover:opacity-90 transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed mt-3 sm:mt-4 md:mt-6"
-            >
-              {isLoading ? 'Sending OTP...' : 'Continue'}
-            </button>
-          </form>
+              {/* Class Dropdown - After Board Selection */}
+              <div>
+                <label className="block text-[10px] sm:text-xs md:text-sm font-medium text-[var(--app-black)] mb-1 sm:mb-1.5 md:mb-2">
+                  Class
+                </label>
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!formData.board) {
+                        setShowBoardDropdown(true);
+                        return;
+                      }
+                      setShowClassDropdown(!showClassDropdown);
+                      setShowBoardDropdown(false);
+                    }}
+                    disabled={!formData.board}
+                    className={`w-full flex items-center justify-between px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 rounded-lg sm:rounded-xl border-2 border-gray-300 bg-white hover:bg-gray-50 focus:border-[var(--app-dark-blue)] focus:ring-2 focus:ring-[var(--app-dark-blue)]/20 transition-colors text-left min-h-[40px] sm:min-h-[44px] md:min-h-[48px] ${!formData.board ? 'opacity-50 cursor-not-allowed' : ''
+                      }`}
+                  >
+                    <div className="flex items-center gap-1.5 sm:gap-2 md:gap-3">
+                      <span className="text-[var(--app-black)]/50 text-sm sm:text-base md:text-lg">🎓</span>
+                      <span className={`text-xs sm:text-sm md:text-base ${formData.class ? 'text-[var(--app-black)]' : 'text-[var(--app-black)]/50'}`}>
+                        {formData.class || (formData.board ? 'Select Class' : 'Select Board First')}
+                      </span>
+                    </div>
+                    <FiChevronDown className="text-[var(--app-black)]/50 text-sm sm:text-base md:text-lg" />
+                  </button>
+                  {showClassDropdown && formData.board && (
+                    <>
+                      <div className="fixed inset-0 z-10" onClick={() => setShowClassDropdown(false)} />
+                      <div className="absolute top-full left-0 right-0 mt-1 bg-white border-2 border-gray-300 rounded-lg sm:rounded-xl shadow-2xl z-20 max-h-48 sm:max-h-60 overflow-y-auto">
+                        {loadingClasses ? (
+                          <div className="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 text-center">
+                            <span className="text-xs sm:text-sm md:text-base text-[var(--app-black)]/50">Loading...</span>
+                          </div>
+                        ) : availableClasses.length === 0 ? (
+                          <div className="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 text-center">
+                            <span className="text-xs sm:text-sm md:text-base text-[var(--app-black)]/50">
+                              {formData.board ? `No classes available for ${formData.board}` : 'No classes available'}
+                            </span>
+                          </div>
+                        ) : (
+                          availableClasses.map((cls) => (
+                            <button
+                              key={cls}
+                              type="button"
+                              onClick={() => {
+                                handleInputChange('class', cls);
+                                setShowClassDropdown(false);
+                              }}
+                              className={`w-full flex items-center gap-1.5 sm:gap-2 md:gap-3 px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 hover:bg-gray-50 transition-colors ${formData.class === cls ? 'bg-gray-100' : ''
+                                }`}
+                            >
+                              <span className="text-xs sm:text-sm md:text-base text-[var(--app-black)] font-medium">{cls}</span>
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* Password */}
+              <div>
+                <label className="block text-[10px] sm:text-xs md:text-sm font-medium text-[var(--app-black)] mb-1 sm:mb-1.5 md:mb-2">
+                  Password <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="password"
+                  placeholder="Enter your password (min 6 characters)"
+                  value={formData.password}
+                  onChange={(e) => {
+                    handleInputChange('password', e.target.value);
+                    if (passwordError) setPasswordError('');
+                  }}
+                  className={`w-full px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 rounded-lg sm:rounded-xl border-2 bg-white focus:outline-none transition-all text-xs sm:text-sm md:text-base text-[var(--app-black)] placeholder:text-gray-400 ${passwordError
+                      ? 'border-red-500 focus:border-red-500'
+                      : 'border-gray-300 focus:border-[var(--app-dark-blue)] focus:ring-2 focus:ring-[var(--app-dark-blue)]/20'
+                    }`}
+                  required
+                  minLength={6}
+                />
+              </div>
+
+              {/* Confirm Password */}
+              <div>
+                <label className="block text-[10px] sm:text-xs md:text-sm font-medium text-[var(--app-black)] mb-1 sm:mb-1.5 md:mb-2">
+                  Confirm Password <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="password"
+                  placeholder="Confirm your password"
+                  value={formData.confirmPassword}
+                  onChange={(e) => {
+                    handleInputChange('confirmPassword', e.target.value);
+                    if (passwordError) setPasswordError('');
+                  }}
+                  className={`w-full px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 rounded-lg sm:rounded-xl border-2 bg-white focus:outline-none transition-all text-xs sm:text-sm md:text-base text-[var(--app-black)] placeholder:text-gray-400 ${passwordError
+                      ? 'border-red-500 focus:border-red-500'
+                      : 'border-gray-300 focus:border-[var(--app-dark-blue)] focus:ring-2 focus:ring-[var(--app-dark-blue)]/20'
+                    }`}
+                  required
+                  minLength={6}
+                />
+                {formData.password && formData.confirmPassword && formData.password !== formData.confirmPassword && (
+                  <p className="text-red-500 text-[10px] sm:text-xs mt-1">Passwords do not match</p>
+                )}
+              </div>
+
+              {/* Profile Photo Upload */}
+              <div className="pt-2 sm:pt-3 md:pt-4">
+                <p className="text-[10px] sm:text-xs md:text-sm text-[var(--app-black)]/70 mb-1.5 sm:mb-2 md:mb-3 text-center">
+                  Upload your profile photo (Optional)
+                </p>
+                <div className="flex justify-center">
+                  <label className="cursor-pointer">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleProfilePhotoChange}
+                      className="hidden"
+                    />
+                    <div className="w-20 h-20 sm:w-24 sm:h-24 md:w-32 md:h-32 rounded-full border-2 sm:border-4 border-dashed border-gray-300 flex items-center justify-center bg-gray-100 hover:bg-gray-200 transition-colors">
+                      {profilePhotoPreview ? (
+                        <img
+                          src={profilePhotoPreview}
+                          alt="Profile preview"
+                          className="w-full h-full rounded-full object-cover"
+                        />
+                      ) : (
+                        <div className="text-center">
+                          <FiCamera className="text-gray-500 text-xl sm:text-2xl md:text-3xl mx-auto mb-0.5 sm:mb-1 md:mb-2" />
+                          <p className="text-[9px] sm:text-[10px] md:text-xs text-gray-600 font-medium">Click to Upload</p>
+                        </div>
+                      )}
+                    </div>
+                  </label>
+                </div>
+              </div>
+
+              {/* Password Validation Error Display */}
+              {passwordError && (
+                <div className="bg-red-50 border border-red-200 text-red-700 px-2 sm:px-3 md:px-4 py-2 rounded-lg text-[10px] sm:text-xs md:text-sm text-center">
+                  {passwordError}
+                </div>
+              )}
+
+              {/* Continue Button */}
+              <button
+                type="submit"
+                disabled={!isFormValid() || isLoading}
+                className="w-full bg-[var(--app-dark-blue)] text-white py-2 sm:py-2.5 md:py-3 lg:py-3.5 rounded-lg sm:rounded-xl font-semibold text-sm sm:text-base md:text-lg hover:opacity-90 transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed mt-3 sm:mt-4 md:mt-6"
+              >
+                {isLoading ? 'Sending OTP...' : 'Continue'}
+              </button>
+            </form>
           </div>
         </div>
       </div>
 
       {/* Bottom Colored Pattern */}
-      <div 
+      <div
         className="bg-[var(--app-dark-blue)] h-12 sm:h-14 md:h-16 relative mt-auto overflow-hidden"
         style={{
           borderTopLeftRadius: '300px',
@@ -679,36 +733,36 @@ const RegistrationForm = () => {
       >
         {/* Animated Waves Pattern */}
         <div className="absolute top-0 left-0 w-full h-full overflow-hidden">
-          <svg 
+          <svg
             className="absolute top-0 w-full h-full"
-            viewBox="0 0 1200 120" 
+            viewBox="0 0 1200 120"
             preserveAspectRatio="none"
           >
-            <path 
-              d="M0,40 Q300,80 600,40 T1200,40 L1200,0 L0,0 Z" 
+            <path
+              d="M0,40 Q300,80 600,40 T1200,40 L1200,0 L0,0 Z"
               fill="rgba(255,255,255,0.1)"
             >
-              <animate 
-                attributeName="d" 
-                values="M0,40 Q300,80 600,40 T1200,40 L1200,0 L0,0 Z;M0,40 Q300,60 600,40 T1200,40 L1200,0 L0,0 Z;M0,40 Q300,80 600,40 T1200,40 L1200,0 L0,0 Z" 
-                dur="3s" 
+              <animate
+                attributeName="d"
+                values="M0,40 Q300,80 600,40 T1200,40 L1200,0 L0,0 Z;M0,40 Q300,60 600,40 T1200,40 L1200,0 L0,0 Z;M0,40 Q300,80 600,40 T1200,40 L1200,0 L0,0 Z"
+                dur="3s"
                 repeatCount="indefinite"
               />
             </path>
-            <path 
-              d="M0,20 Q300,60 600,20 T1200,20 L1200,0 L0,0 Z" 
+            <path
+              d="M0,20 Q300,60 600,20 T1200,20 L1200,0 L0,0 Z"
               fill="rgba(255,255,255,0.05)"
             >
-              <animate 
-                attributeName="d" 
-                values="M0,20 Q300,60 600,20 T1200,20 L1200,0 L0,0 Z;M0,20 Q300,40 600,20 T1200,20 L1200,0 L0,0 Z;M0,20 Q300,60 600,20 T1200,20 L1200,0 L0,0 Z" 
-                dur="4s" 
+              <animate
+                attributeName="d"
+                values="M0,20 Q300,60 600,20 T1200,20 L1200,0 L0,0 Z;M0,20 Q300,40 600,20 T1200,20 L1200,0 L0,0 Z;M0,20 Q300,60 600,20 T1200,20 L1200,0 L0,0 Z"
+                dur="4s"
                 repeatCount="indefinite"
               />
             </path>
           </svg>
         </div>
-        
+
         {/* Decorative Circles */}
         <div className="absolute bottom-3 left-6 w-16 h-16 sm:w-20 sm:h-20 bg-white/10 rounded-full blur-xl"></div>
         <div className="absolute bottom-8 left-16 w-12 h-12 sm:w-16 sm:h-16 bg-white/5 rounded-full blur-lg"></div>
@@ -769,8 +823,3 @@ const RegistrationForm = () => {
 };
 
 export default RegistrationForm;
-
-
-
-
-

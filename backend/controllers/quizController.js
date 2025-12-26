@@ -90,6 +90,30 @@ exports.createQuiz = asyncHandler(async (req, res) => {
   if (quizType === 'regular') {
     quizData.classNumber = classNumber;
     quizData.board = board.trim();
+
+    // Handle classId for regular quiz
+    if (classId) {
+      // If classId provided, validate it matches
+      const checkClass = await Class.findById(classId);
+      if (checkClass && checkClass.type === 'regular' &&
+        checkClass.class === parseInt(classNumber) &&
+        checkClass.board === board.trim()) {
+        quizData.classId = classId;
+      }
+    }
+
+    // If classId not set yet (not provided or invalid), try to find it
+    if (!quizData.classId) {
+      const regularClass = await Class.findOne({
+        type: 'regular',
+        class: parseInt(classNumber),
+        board: board.trim(),
+        isActive: true
+      });
+      if (regularClass) {
+        quizData.classId = regularClass._id;
+      }
+    }
   } else if (quizType === 'preparation') {
     quizData.classId = classId;
   }
@@ -138,6 +162,7 @@ exports.getAllQuizzes = asyncHandler(async (req, res) => {
 
     // Check active subscriptions from both sources
     const now = new Date();
+    const SubscriptionPlan = require('../models/SubscriptionPlan');
 
     // Get from activeSubscriptions array
     const activeSubsFromArray = (student.activeSubscriptions || []).filter(sub =>
@@ -159,80 +184,147 @@ exports.getAllQuizzes = asyncHandler(async (req, res) => {
         }
       });
 
-    // Check for active regular subscription
+    // Check if student has valid active REGULAR subscription for their CURRENT class/board
+    const normalizedBoard = student.board ? student.board.trim() : student.board;
+    const normalizedClass = parseInt(student.class);
+
     const hasActiveClassSubscription = activePayments.some(payment =>
       payment.subscriptionPlanId &&
       payment.subscriptionPlanId.type === 'regular' &&
-      payment.subscriptionPlanId.board === student.board &&
+      payment.subscriptionPlanId.board === normalizedBoard &&
       payment.subscriptionPlanId.classes &&
-      payment.subscriptionPlanId.classes.includes(student.class)
+      payment.subscriptionPlanId.classes.includes(normalizedClass)
     ) || activeSubsFromArray.some(sub =>
       sub.type === 'regular' &&
-      sub.board === student.board &&
-      sub.class === student.class
+      sub.board === normalizedBoard &&
+      sub.class === normalizedClass
     );
 
-    // Get preparation class IDs from active preparation subscriptions
-    const prepClassIdsFromPayments = activePayments
-      .filter(payment =>
-        payment.subscriptionPlanId &&
-        payment.subscriptionPlanId.type === 'preparation' &&
-        payment.subscriptionPlanId.classId
-      )
-      .map(payment => payment.subscriptionPlanId.classId._id || payment.subscriptionPlanId.classId);
+    // Collect Preparation Plan criteria (Class IDs)
+    const prepClassIdsSet = new Set();
 
-    const prepClassIdsFromArray = activeSubsFromArray
-      .filter(sub => sub.type === 'preparation' && sub.classId)
-      .map(sub => {
-        const classId = sub.classId._id || sub.classId;
-        return classId ? classId.toString() : null;
-      })
-      .filter(Boolean);
+    // From Payments
+    activePayments.forEach(payment => {
+      const plan = payment.subscriptionPlanId;
+      if (plan && plan.type === 'preparation' && plan.classId) {
+        const id = plan.classId._id || plan.classId;
+        if (id) prepClassIdsSet.add(id.toString());
+      }
+    });
 
-    // Combine both sources and remove duplicates
-    const allPrepClassIds = [...new Set([
-      ...prepClassIdsFromPayments.map(id => id.toString()),
-      ...prepClassIdsFromArray
-    ])];
+    // From Array Subs
+    activeSubsFromArray.forEach(sub => {
+      if (sub.type === 'preparation' && sub.classId) {
+        const id = sub.classId._id || sub.classId;
+        if (id) prepClassIdsSet.add(id.toString());
+      }
+    });
 
-    // Convert to ObjectIds for MongoDB query
-    const preparationClassIds = allPrepClassIds
+    const preparationClassIds = Array.from(prepClassIdsSet)
       .filter(id => mongoose.Types.ObjectId.isValid(id))
       .map(id => new mongoose.Types.ObjectId(id));
 
     // Build queries for both types
-    const regularQuery = { ...query };
-    const preparationQuery = { ...query };
+    // Note: query already contains { isActive: true }
 
+    // Find the Class ID for the student's regular profile class
+    let studentClassId = null;
     if (hasActiveClassSubscription) {
-      regularQuery.classNumber = student.class;
-      regularQuery.board = student.board;
+      const studentClassDoc = await Class.findOne({
+        type: 'regular',
+        class: normalizedClass,
+        board: normalizedBoard,
+        isActive: true
+      });
+      if (studentClassDoc) {
+        studentClassId = studentClassDoc._id;
+      }
     }
 
-    if (preparationClassIds.length > 0) {
-      preparationQuery.classId = { $in: preparationClassIds };
+    const regularQuery = {
+      ...query
+    };
+
+    // If student has active sub and we found the class ID
+    if (hasActiveClassSubscription && studentClassId) {
+      // Match either by specific classId OR (legacy) by board+number if classId is missing
+      regularQuery.$or = [
+        { classId: studentClassId },
+        { classId: { $exists: false }, classNumber: normalizedClass, board: normalizedBoard }
+      ];
+    } else {
+      // Fallback if class ID lookup failed but sub exists (should rely on board/number)
+      regularQuery.classNumber = normalizedClass;
+      regularQuery.board = normalizedBoard;
     }
 
-    // Fetch both types of quizzes
-    const regularQuizzes = hasActiveClassSubscription
-      ? await Quiz.find(regularQuery)
+    const preparationQuery = {
+      ...query,
+      classId: { $in: preparationClassIds }
+    };
+
+    // Fetch Regular Quizzes ONLY if student has active subscription for their profile class
+    let regularQuizzes = [];
+    if (hasActiveClassSubscription) {
+      regularQuizzes = await Quiz.find(regularQuery)
         .sort({ createdAt: -1 })
         .populate('subjectId', 'name')
         .populate('createdBy', 'name email')
-        .select('-__v')
-      : [];
+        .select('-__v');
+    }
 
-    const preparationQuizzes = preparationClassIds.length > 0
-      ? await Quiz.find(preparationQuery)
+    // Fetch Preparation Quizzes if criteria exist
+    let preparationQuizzes = [];
+    if (preparationClassIds.length > 0) {
+      preparationQuizzes = await Quiz.find(preparationQuery)
         .sort({ createdAt: -1 })
         .populate('subjectId', 'name')
         .populate('classId', 'name classCode')
         .populate('createdBy', 'name email')
-        .select('-__v')
-      : [];
+        .select('-__v');
+    }
 
     // Combine both types
-    const quizzes = [...regularQuizzes, ...preparationQuizzes];
+    let quizzes = [...regularQuizzes, ...preparationQuizzes];
+
+    // Filter by status if requested (for students)
+    if (req.query.status && req.query.status !== 'all') {
+      const QuizSubmission = require('../models/QuizSubmission');
+      const studentId = req.user._id;
+      const now = new Date();
+
+      // Get submissions for these quizzes
+      const quizIds = quizzes.map(q => q._id);
+      const submissions = await QuizSubmission.find({
+        studentId: studentId,
+        quizId: { $in: quizIds }
+      }).select('quizId');
+
+      const submittedQuizIds = new Set(submissions.map(s => s.quizId.toString()));
+
+      quizzes = quizzes.filter(q => {
+        const isSubmitted = submittedQuizIds.has(q._id.toString());
+        const isExpired = q.deadline && new Date(q.deadline) <= now;
+
+        if (req.query.status === 'submitted') {
+          return isSubmitted;
+        } else if (req.query.status === 'expired') {
+          return !isSubmitted && isExpired;
+        } else if (req.query.status === 'available') {
+          return !isSubmitted && !isExpired;
+        }
+        return true;
+      });
+    }
+
+    // Apply pagination manually since we combined two queries
+    const page = parseInt(req.query.page, 10) || 1;
+    const limit = parseInt(req.query.limit, 10) || 10;
+    const startIndex = (page - 1) * limit;
+    const endIndex = page * limit;
+    const total = quizzes.length;
+
+    quizzes = quizzes.slice(startIndex, endIndex);
 
     // For students, remove correct answers from questions
     const quizzesToSend = quizzes.map(quiz => {
@@ -249,6 +341,9 @@ exports.getAllQuizzes = asyncHandler(async (req, res) => {
     return res.status(200).json({
       success: true,
       count: quizzesToSend.length,
+      total,
+      page,
+      pages: Math.ceil(total / limit),
       data: {
         quizzes: quizzesToSend,
         hasActiveClassSubscription,
@@ -399,20 +494,20 @@ exports.getQuizById = asyncHandler(async (req, res) => {
 
     // Check if quiz is regular type
     if (quiz.type === 'regular' || (quiz.classNumber && quiz.board)) {
-      // Check if student has active regular subscription for their class
-      const hasActiveClassSubscription = activePayments.some(payment =>
+      // Check if student has active regular subscription for THIS quiz's class/board
+      const hasMatchingSubscription = activePayments.some(payment =>
         payment.subscriptionPlanId &&
         payment.subscriptionPlanId.type === 'regular' &&
-        payment.subscriptionPlanId.board === student.board &&
+        payment.subscriptionPlanId.board === quiz.board &&
         payment.subscriptionPlanId.classes &&
-        payment.subscriptionPlanId.classes.includes(student.class)
+        payment.subscriptionPlanId.classes.includes(quiz.classNumber)
       ) || activeSubsFromArray.some(sub =>
         sub.type === 'regular' &&
-        sub.board === student.board &&
-        sub.class === student.class
+        sub.board === quiz.board &&
+        sub.class === quiz.classNumber
       );
 
-      if (quiz.classNumber === student.class && quiz.board === student.board && hasActiveClassSubscription) {
+      if (hasMatchingSubscription) {
         hasAccess = true;
       }
     }
@@ -516,8 +611,42 @@ exports.updateQuiz = asyncHandler(async (req, res) => {
     if (board !== undefined) {
       quiz.board = board.trim();
     }
-    // Clear preparation-specific fields
-    quiz.classId = undefined;
+
+    // Handle classId for regular quiz
+    if (classId) {
+      // Validate provided classId
+      const checkClass = await Class.findById(classId);
+      if (checkClass && checkClass.type === 'regular' &&
+        checkClass.class === (classNumber || quiz.classNumber) &&
+        checkClass.board === (board || quiz.board)) {
+        quiz.classId = classId;
+      }
+    } else {
+      // If classId not explicitly provided, but class/board might have changed, try to look it up
+      // Or if it was missing before
+      if ((classNumber || board || !quiz.classId)) {
+        const targetClass = classNumber || quiz.classNumber;
+        const targetBoard = board || quiz.board;
+
+        const regularClass = await Class.findOne({
+          type: 'regular',
+          class: targetClass,
+          board: targetBoard,
+          isActive: true
+        });
+
+        if (regularClass) {
+          quiz.classId = regularClass._id;
+        } else {
+          // If we can't find a matching class doc, we might want to clear the old classId 
+          // if it no longer matches (though this edge case is rare if referential integrity is good)
+          // For now, let's just keep strict: if no class doc found, maybe set classId to undefined? 
+          // But existing behavior allowed no classId. Let's stick to setting it if found.
+          // If data is inconsistent, maybe better to safeguard.
+          // quiz.classId = undefined; // Optional: clear if invalid
+        }
+      }
+    }
   } else if (quizType === 'preparation') {
     if (classId !== undefined) {
       // Validate preparation class exists
@@ -658,11 +787,16 @@ exports.getStudentQuizStatistics = asyncHandler(async (req, res) => {
     throw new ErrorResponse('Student class or board not found', 404);
   }
 
-  // Check active subscriptions (same logic as getAllQuizzes)
+  // Check active subscriptions from both sources
+  // const now = new Date(); // Aleady defined above
+  const SubscriptionPlan = require('../models/SubscriptionPlan');
+
+  // Get from activeSubscriptions array
   const activeSubsFromArray = (student.activeSubscriptions || []).filter(sub =>
     new Date(sub.endDate) >= now
   );
 
+  // Get from Payment records
   const activePayments = await Payment.find({
     studentId: student._id,
     status: 'completed',
@@ -677,123 +811,114 @@ exports.getStudentQuizStatistics = asyncHandler(async (req, res) => {
       }
     });
 
+  // Check if student has valid active REGULAR subscription for their CURRENT class/board
+  const normalizedBoard = student.board ? student.board.trim() : student.board;
+  const normalizedClass = parseInt(student.class);
+
   const hasActiveClassSubscription = activePayments.some(payment =>
     payment.subscriptionPlanId &&
     payment.subscriptionPlanId.type === 'regular' &&
-    payment.subscriptionPlanId.board === student.board &&
+    payment.subscriptionPlanId.board === normalizedBoard &&
     payment.subscriptionPlanId.classes &&
-    payment.subscriptionPlanId.classes.includes(student.class)
+    payment.subscriptionPlanId.classes.includes(normalizedClass)
   ) || activeSubsFromArray.some(sub =>
     sub.type === 'regular' &&
-    sub.board === student.board &&
-    sub.class === student.class
+    sub.board === normalizedBoard &&
+    sub.class === normalizedClass
   );
 
-  const prepClassIdsFromPayments = activePayments
-    .filter(payment =>
-      payment.subscriptionPlanId &&
-      payment.subscriptionPlanId.type === 'preparation' &&
-      payment.subscriptionPlanId.classId
-    )
-    .map(payment => payment.subscriptionPlanId.classId._id || payment.subscriptionPlanId.classId);
+  // Collect Preparation Plan criteria (Class IDs)
+  const prepClassIdsSet = new Set();
 
-  const prepClassIdsFromArray = activeSubsFromArray
-    .filter(sub => sub.type === 'preparation' && sub.classId)
-    .map(sub => {
-      const classId = sub.classId._id || sub.classId;
-      return classId ? classId.toString() : null;
-    })
-    .filter(Boolean);
+  // From Payments
+  activePayments.forEach(payment => {
+    const plan = payment.subscriptionPlanId;
+    if (plan && plan.type === 'preparation' && plan.classId) {
+      const id = plan.classId._id || plan.classId;
+      if (id) prepClassIdsSet.add(id.toString());
+    }
+  });
 
-  const mongoose = require('mongoose');
-  const allPrepClassIds = [...new Set([
-    ...prepClassIdsFromPayments.map(id => id.toString()),
-    ...prepClassIdsFromArray
-  ])];
+  // From Array Subs
+  activeSubsFromArray.forEach(sub => {
+    if (sub.type === 'preparation' && sub.classId) {
+      const id = sub.classId._id || sub.classId;
+      if (id) prepClassIdsSet.add(id.toString());
+    }
+  });
 
-  const preparationClassIds = allPrepClassIds
+  const preparationClassIds = Array.from(prepClassIdsSet)
     .filter(id => mongoose.Types.ObjectId.isValid(id))
     .map(id => new mongoose.Types.ObjectId(id));
 
-  const classIds = [];
+  // --- Fetch Quizzes ---
 
+  // 1. Regular Quizzes
+  let regularQuizzes = [];
   if (hasActiveClassSubscription) {
-    const classItem = await Class.findOne({
+    // Find Class ID for regular profile
+    const studentClassDoc = await Class.findOne({
       type: 'regular',
-      class: student.class,
-      board: student.board,
+      class: normalizedClass,
+      board: normalizedBoard,
       isActive: true
     });
-    if (classItem) {
-      classIds.push(classItem._id);
+
+    const regularQuery = { isActive: true };
+
+    if (studentClassDoc) {
+      regularQuery.$or = [
+        { classId: studentClassDoc._id },
+        { classId: { $exists: false }, classNumber: normalizedClass, board: normalizedBoard }
+      ];
+    } else {
+      regularQuery.classNumber = normalizedClass;
+      regularQuery.board = normalizedBoard;
     }
+
+    regularQuizzes = await Quiz.find(regularQuery).select('_id deadline');
   }
 
+  // 2. Preparation Quizzes
+  let preparationQuizzes = [];
   if (preparationClassIds.length > 0) {
-    classIds.push(...preparationClassIds);
+    preparationQuizzes = await Quiz.find({
+      isActive: true,
+      classId: { $in: preparationClassIds }
+    }).select('_id deadline');
   }
-
-  if (classIds.length === 0) {
-    return res.status(200).json({
-      success: true,
-      data: {
-        statistics: {
-          total: 0,
-          available: 0,
-          submitted: 0,
-          expired: 0
-        }
-      }
-    });
-  }
-
-  // Get all active quizzes for student's classes (same logic as getAllQuizzes)
-  const regularQuery = {
-    classNumber: student.class,
-    board: student.board,
-    isActive: true
-  };
-
-  const preparationQuery = {
-    classId: { $in: preparationClassIds },
-    isActive: true
-  };
-
-  const regularQuizzes = hasActiveClassSubscription
-    ? await Quiz.find(regularQuery)
-    : [];
-
-  const preparationQuizzes = preparationClassIds.length > 0
-    ? await Quiz.find(preparationQuery)
-    : [];
 
   const allQuizzes = [...regularQuizzes, ...preparationQuizzes];
 
-  // Get all submissions for this student
-  const submissions = await QuizSubmission.find({ studentId: studentId });
-  const submissionMap = new Map();
-  submissions.forEach(sub => {
-    submissionMap.set(sub.quizId.toString(), true);
-  });
-
-  // Calculate statistics
+  // Calculate Statistics
   const total = allQuizzes.length;
-  let available = 0;
-  let submitted = 0;
+
+  // Get submissions
+  const quizIds = allQuizzes.map(q => q._id);
+  const submissions = await QuizSubmission.find({
+    studentId: student._id,
+    quizId: { $in: quizIds }
+  }).select('quizId');
+
+  const submittedQuizIds = new Set(submissions.map(s => s.quizId.toString()));
+
+  const submitted = submittedQuizIds.size;
+
   let expired = 0;
+  let available = 0;
 
-  allQuizzes.forEach(quiz => {
-    const hasSubmitted = submissionMap.has(quiz._id.toString());
-    const deadlinePassed = quiz.deadline && new Date(quiz.deadline) <= now;
-
-    if (hasSubmitted) {
-      submitted++;
-    } else if (deadlinePassed) {
-      expired++;
-    } else {
-      available++;
+  allQuizzes.forEach(q => {
+    const isSubmitted = submittedQuizIds.has(q._id.toString());
+    if (!isSubmitted) {
+      // Check expiry
+      if (q.deadline && new Date(q.deadline) <= now) {
+        expired++;
+      } else {
+        available++;
+      }
     }
   });
+
 
   res.status(200).json({
     success: true,
@@ -806,5 +931,6 @@ exports.getStudentQuizStatistics = asyncHandler(async (req, res) => {
       }
     }
   });
+
 });
 

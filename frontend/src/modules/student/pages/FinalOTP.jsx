@@ -24,7 +24,7 @@ const FinalOTP = () => {
     // Get phone from sessionStorage
     const loginPhone = sessionStorage.getItem('login_phone');
     const registrationPhone = sessionStorage.getItem('registration_phone');
-    
+
     if (loginPhone) {
       setPhone(loginPhone);
       setIsRegistration(false);
@@ -57,7 +57,7 @@ const FinalOTP = () => {
 
   const handleVerify = async (e) => {
     e.preventDefault();
-    
+
     if (otp.length !== 6) {
       setError('Please enter complete 6-digit OTP');
       return;
@@ -69,16 +69,21 @@ const FinalOTP = () => {
     try {
       // Verify OTP (registration data already stored in backend)
       const result = await verifyOTP(phone, otp);
-      
+
       if (result.success) {
         // Clear sessionStorage
         sessionStorage.removeItem('login_phone');
         sessionStorage.removeItem('registration_phone');
-        
+
+        // Show success message for new registration
+        if (result.isNewUser || isRegistration) {
+          alert('Account Created Successfully');
+        }
+
         // Navigate to dashboard on success
         navigate(ROUTES.DASHBOARD);
       } else {
-        setError(result.message || 'Invalid OTP. Please try again.');
+        setError(result.message || 'Wrong/Invalid OTP');
       }
     } catch (error) {
       setError(error.message || 'Something went wrong. Please try again.');
@@ -93,7 +98,7 @@ const FinalOTP = () => {
 
     try {
       const result = await resendOTP(phone);
-      
+
       if (result.success) {
         // Show success message
         alert('OTP resent successfully!');
@@ -117,7 +122,7 @@ const FinalOTP = () => {
   return (
     <div className="min-h-screen w-full bg-white flex flex-col">
       {/* Header Section */}
-      <div 
+      <div
         className="bg-[var(--app-dark-blue)] text-white h-24 sm:h-28 md:h-32 relative overflow-hidden"
         style={{
           borderBottomRightRadius: '200px',
@@ -125,41 +130,41 @@ const FinalOTP = () => {
       >
         {/* Animated Waves Pattern */}
         <div className="absolute bottom-0 left-0 w-full h-12 sm:h-14 md:h-16 overflow-hidden">
-          <svg 
+          <svg
             className="absolute bottom-0 w-full h-full"
-            viewBox="0 0 1200 120" 
+            viewBox="0 0 1200 120"
             preserveAspectRatio="none"
           >
-            <path 
-              d="M0,60 Q300,20 600,60 T1200,60 L1200,120 L0,120 Z" 
+            <path
+              d="M0,60 Q300,20 600,60 T1200,60 L1200,120 L0,120 Z"
               fill="rgba(255,255,255,0.1)"
             >
-              <animate 
-                attributeName="d" 
-                values="M0,60 Q300,20 600,60 T1200,60 L1200,120 L0,120 Z;M0,60 Q300,40 600,60 T1200,60 L1200,120 L0,120 Z;M0,60 Q300,20 600,60 T1200,60 L1200,120 L0,120 Z" 
-                dur="3s" 
+              <animate
+                attributeName="d"
+                values="M0,60 Q300,20 600,60 T1200,60 L1200,120 L0,120 Z;M0,60 Q300,40 600,60 T1200,60 L1200,120 L0,120 Z;M0,60 Q300,20 600,60 T1200,60 L1200,120 L0,120 Z"
+                dur="3s"
                 repeatCount="indefinite"
               />
             </path>
-            <path 
-              d="M0,80 Q300,40 600,80 T1200,80 L1200,120 L0,120 Z" 
+            <path
+              d="M0,80 Q300,40 600,80 T1200,80 L1200,120 L0,120 Z"
               fill="rgba(255,255,255,0.05)"
             >
-              <animate 
-                attributeName="d" 
-                values="M0,80 Q300,40 600,80 T1200,80 L1200,120 L0,120 Z;M0,80 Q300,60 600,80 T1200,80 L1200,120 L0,120 Z;M0,80 Q300,40 600,80 T1200,80 L1200,120 L0,120 Z" 
-                dur="4s" 
+              <animate
+                attributeName="d"
+                values="M0,80 Q300,40 600,80 T1200,80 L1200,120 L0,120 Z;M0,80 Q300,60 600,80 T1200,80 L1200,120 L0,120 Z;M0,80 Q300,40 600,80 T1200,80 L1200,120 L0,120 Z"
+                dur="4s"
                 repeatCount="indefinite"
               />
             </path>
           </svg>
         </div>
-        
+
         {/* Decorative Circles */}
         <div className="absolute top-3 right-6 w-16 h-16 sm:w-20 sm:h-20 bg-white/10 rounded-full blur-xl"></div>
         <div className="absolute top-8 right-16 w-12 h-12 sm:w-16 sm:h-16 bg-white/5 rounded-full blur-lg"></div>
         <div className="absolute bottom-6 left-10 w-20 h-20 sm:w-24 sm:h-24 bg-white/10 rounded-full blur-xl"></div>
-        
+
         <div className="pt-5 sm:pt-6 md:pt-8 px-4 sm:px-6 md:px-8 relative z-10">
           <div className="flex items-center gap-2 sm:gap-3">
             <button
@@ -185,7 +190,7 @@ const FinalOTP = () => {
           <div className="absolute bottom-1/4 right-1/4 w-60 h-60 sm:w-80 sm:h-80 bg-[var(--app-teal)]/5 rounded-full blur-3xl"></div>
           <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-72 h-72 sm:w-96 sm:h-96 bg-[var(--app-dark-blue)]/3 rounded-full blur-3xl"></div>
         </div>
-        
+
         <div className="w-full max-w-sm sm:max-w-md relative z-10">
           {/* Logo */}
           <div className="mb-4 sm:mb-5 md:mb-6 flex justify-center">
@@ -195,7 +200,7 @@ const FinalOTP = () => {
               className="h-28 sm:h-32 md:h-36 lg:h-40 w-auto object-contain"
             />
           </div>
-          
+
           {/* Title */}
           <div className="text-center mb-4 sm:mb-5 md:mb-6">
             <p className="text-black/80 text-xs sm:text-sm md:text-base mb-2">
@@ -250,10 +255,10 @@ const FinalOTP = () => {
                 disabled={!isOtpComplete || isLoading}
                 className="w-full bg-[var(--app-dark-blue)] text-white py-3 sm:py-4 md:py-4.5 rounded-lg sm:rounded-xl font-semibold text-xs sm:text-sm md:text-base hover:opacity-90 transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {isLoading 
-                  ? 'Verifying...' 
-                  : isRegistration 
-                    ? 'Verify & Complete Registration' 
+                {isLoading
+                  ? 'Verifying...'
+                  : isRegistration
+                    ? 'Verify & Complete Registration'
                     : 'Verify & Login'}
               </button>
             </form>
@@ -262,7 +267,7 @@ const FinalOTP = () => {
       </div>
 
       {/* Bottom Colored Pattern */}
-      <div 
+      <div
         className="bg-[var(--app-dark-blue)] h-16 sm:h-20 md:h-24 relative mt-auto overflow-hidden"
         style={{
           borderTopLeftRadius: '300px',
@@ -270,36 +275,36 @@ const FinalOTP = () => {
       >
         {/* Animated Waves Pattern */}
         <div className="absolute top-0 left-0 w-full h-full overflow-hidden">
-          <svg 
+          <svg
             className="absolute top-0 w-full h-full"
-            viewBox="0 0 1200 120" 
+            viewBox="0 0 1200 120"
             preserveAspectRatio="none"
           >
-            <path 
-              d="M0,40 Q300,80 600,40 T1200,40 L1200,0 L0,0 Z" 
+            <path
+              d="M0,40 Q300,80 600,40 T1200,40 L1200,0 L0,0 Z"
               fill="rgba(255,255,255,0.1)"
             >
-              <animate 
-                attributeName="d" 
-                values="M0,40 Q300,80 600,40 T1200,40 L1200,0 L0,0 Z;M0,40 Q300,60 600,40 T1200,40 L1200,0 L0,0 Z;M0,40 Q300,80 600,40 T1200,40 L1200,0 L0,0 Z" 
-                dur="3s" 
+              <animate
+                attributeName="d"
+                values="M0,40 Q300,80 600,40 T1200,40 L1200,0 L0,0 Z;M0,40 Q300,60 600,40 T1200,40 L1200,0 L0,0 Z;M0,40 Q300,80 600,40 T1200,40 L1200,0 L0,0 Z"
+                dur="3s"
                 repeatCount="indefinite"
               />
             </path>
-            <path 
-              d="M0,20 Q300,60 600,20 T1200,20 L1200,0 L0,0 Z" 
+            <path
+              d="M0,20 Q300,60 600,20 T1200,20 L1200,0 L0,0 Z"
               fill="rgba(255,255,255,0.05)"
             >
-              <animate 
-                attributeName="d" 
-                values="M0,20 Q300,60 600,20 T1200,20 L1200,0 L0,0 Z;M0,20 Q300,40 600,20 T1200,20 L1200,0 L0,0 Z;M0,20 Q300,60 600,20 T1200,20 L1200,0 L0,0 Z" 
-                dur="4s" 
+              <animate
+                attributeName="d"
+                values="M0,20 Q300,60 600,20 T1200,20 L1200,0 L0,0 Z;M0,20 Q300,40 600,20 T1200,20 L1200,0 L0,0 Z;M0,20 Q300,60 600,20 T1200,20 L1200,0 L0,0 Z"
+                dur="4s"
                 repeatCount="indefinite"
               />
             </path>
           </svg>
         </div>
-        
+
         {/* Decorative Circles */}
         <div className="absolute bottom-3 left-6 w-16 h-16 sm:w-20 sm:h-20 bg-white/10 rounded-full blur-xl"></div>
         <div className="absolute bottom-8 left-16 w-12 h-12 sm:w-16 sm:h-16 bg-white/5 rounded-full blur-lg"></div>

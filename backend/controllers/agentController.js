@@ -137,7 +137,7 @@ exports.sendOTP = asyncHandler(async (req, res) => {
       : 'OTP sent successfully to your phone number'),
     data: {
       phone: phone.replace(/\d(?=\d{4})/g, '*'),
-      expiresIn: `${process.env.OTP_EXPIRY_MINUTES || 5} minutes`,
+      expiresIn: `${process.env.OTP_EXPIRY_MINUTES || 2} minutes`,
       isTest: isTestNumber
     }
   });
@@ -281,19 +281,19 @@ exports.updateMe = asyncHandler(async (req, res) => {
       agent.bankDetails = undefined;
     } else {
       // Check if agent already has bank details
-      const hasExistingBankDetails = agent.bankDetails && 
+      const hasExistingBankDetails = agent.bankDetails &&
         (agent.bankDetails.accountHolderName || agent.bankDetails.accountNumber);
-      
+
       // Check if trying to add new bank details (has accountHolderName or accountNumber in request)
       const isAddingNew = (bankDetails.accountHolderName || bankDetails.accountNumber);
-      
+
       // If agent already has bank details and trying to add new one (not update), prevent it
       if (hasExistingBankDetails && isAddingNew) {
         // Check if this is an update (same account number) or a new addition
-        const isUpdate = agent.bankDetails.accountNumber && 
-                         bankDetails.accountNumber && 
-                         agent.bankDetails.accountNumber === bankDetails.accountNumber;
-        
+        const isUpdate = agent.bankDetails.accountNumber &&
+          bankDetails.accountNumber &&
+          agent.bankDetails.accountNumber === bankDetails.accountNumber;
+
         if (!isUpdate) {
           throw new ErrorResponse('You already have bank details. Please delete existing bank details before adding new ones.', 400);
         }
@@ -303,7 +303,7 @@ exports.updateMe = asyncHandler(async (req, res) => {
       if (!agent.bankDetails) {
         agent.bankDetails = {};
       }
-      
+
       // Update bank details fields
       if (bankDetails.accountHolderName !== undefined) {
         agent.bankDetails.accountHolderName = bankDetails.accountHolderName || undefined;

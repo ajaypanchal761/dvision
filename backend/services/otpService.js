@@ -5,9 +5,9 @@ class OTPService {
   constructor() {
     this.apiKey = process.env.TWOFACTOR_API_KEY;
     this.baseURL = 'https://2factor.in/API/V1';
-    this.otpExpiry = parseInt(process.env.OTP_EXPIRY_MINUTES || '5') * 60; // Convert to seconds
+    this.otpExpiry = parseInt(process.env.OTP_EXPIRY_MINUTES || '2') * 60; // Convert to seconds
     this.resendCooldown = parseInt(process.env.OTP_RESEND_COOLDOWN_SECONDS || '60');
-    
+
     // Test numbers that should bypass SMS and use default OTP
     this.testNumbers = new Set([
       '9685974247',
@@ -27,7 +27,7 @@ class OTPService {
       '917610416911'
     ]);
     this.testOTP = '123456';
-    
+
     // Custom OTP mapping for specific phone numbers
     // Format: [phone_format, otp]
     // Note: The verification logic normalizes phone numbers and checks both full number and last 10 digits
@@ -37,7 +37,7 @@ class OTPService {
       ['917610416911', '110211'],      // With country code 91
       ['+917610416911', '110211']      // With +91 prefix
     ]);
-    
+
     // In-memory storage as fallback when Redis is not available
     this.memoryStore = new Map();
     this.memoryResendStore = new Map();
@@ -51,7 +51,7 @@ class OTPService {
   isTestNumber(phone) {
     // Normalize phone number (remove + and spaces)
     const normalized = phone.replace(/[\s\+]/g, '');
-    
+
     // Check if it ends with any test number
     for (const testNum of this.testNumbers) {
       const normalizedTest = testNum.replace(/[\s\+]/g, '');
@@ -59,7 +59,7 @@ class OTPService {
         return true;
       }
     }
-    
+
     // Also check last 10 digits
     const last10 = normalized.slice(-10);
     return ['9685974247', '6261096283', '6264560457', '9928193969', '7610416911'].includes(last10);
@@ -76,26 +76,26 @@ class OTPService {
       // Check if it's a test number
       if (this.isTestNumber(phone)) {
         console.log(`[TEST MODE] Bypassing SMS for test number: ${phone}`);
-        
+
         // Normalize phone number to check for custom OTP
         const normalized = phone.replace(/[\s\+]/g, '');
         const last10 = normalized.slice(-10);
-        
+
         // Check if this number has a custom OTP
         let customOTP = null;
         if (this.customOTPs.has(normalized) || this.customOTPs.has(last10)) {
           customOTP = this.customOTPs.get(normalized) || this.customOTPs.get(last10);
           console.log(`[TEST MODE] Custom OTP for ${phone}: ${customOTP}`);
         }
-        
+
         // Store test OTP session (no actual SMS sent)
         const testSessionId = `TEST_${Date.now()}_${phone}`;
         await this.storeOTPSession(phone, testSessionId, true); // true = isTest
-        
+
         return {
           success: true,
-          message: customOTP 
-            ? `OTP sent successfully (Test Mode - Use OTP: ${customOTP})` 
+          message: customOTP
+            ? `OTP sent successfully (Test Mode - Use OTP: ${customOTP})`
             : 'OTP sent successfully (Test Mode - Use OTP: 123456)',
           sessionId: testSessionId,
           isTest: true
@@ -107,7 +107,7 @@ class OTPService {
 
       // Build URL
       let url = `${this.baseURL}/${this.apiKey}/SMS/${formattedPhone}/AUTOGEN`;
-      
+
       // Add template name if provided
       if (templateName) {
         url = `${this.baseURL}/${this.apiKey}/SMS/${formattedPhone}/AUTOGEN/${templateName}`;
@@ -134,14 +134,14 @@ class OTPService {
       }
     } catch (error) {
       console.error('2Factor.in OTP Send Error:', error.response?.data || error.message);
-      
+
       if (error.response?.data) {
         throw new ErrorResponse(
           error.response.data.Details || 'Failed to send OTP. Please try again.',
           400
         );
       }
-      
+
       throw new ErrorResponse('Failed to send OTP. Please try again.', 500);
     }
   }
@@ -158,23 +158,23 @@ class OTPService {
       // Check if it's a test number
       if (this.isTestNumber(phone)) {
         console.log(`[TEST MODE] Verifying OTP for test number: ${phone}`);
-        
+
         // Normalize phone number to check for custom OTP
         const normalized = phone.replace(/[\s\+]/g, '');
         const last10 = normalized.slice(-10);
-        
+
         // Check if this number has a custom OTP
         let expectedOTP = this.testOTP; // Default test OTP
         if (this.customOTPs.has(normalized) || this.customOTPs.has(last10)) {
           expectedOTP = this.customOTPs.get(normalized) || this.customOTPs.get(last10);
           console.log(`[TEST MODE] Using custom OTP for ${phone}: ${expectedOTP}`);
         }
-        
+
         // For test numbers, accept the expected OTP (test OTP or custom OTP)
         if (otp === expectedOTP) {
           // Delete OTP session
           await this.deleteOTPSession(phone);
-          
+
           return {
             success: true,
             message: 'OTP verified successfully (Test Mode)'
@@ -182,8 +182,8 @@ class OTPService {
         } else {
           // Increment attempt count
           await this.incrementOTPAttempts(phone);
-          
-          throw new ErrorResponse('Invalid OTP. Please try again.', 400);
+
+          throw new ErrorResponse('Wrong/Invalid OTP', 400);
         }
       }
 
@@ -194,7 +194,7 @@ class OTPService {
       if (!sessionId) {
         sessionId = await this.getOTPSession(phone);
         if (!sessionId) {
-          throw new ErrorResponse('OTP session expired. Please request a new OTP.', 400);
+          throw new ErrorResponse('Wrong/Invalid OTP', 400);
         }
       }
 
@@ -215,7 +215,7 @@ class OTPService {
         await this.incrementOTPAttempts(phone);
 
         throw new ErrorResponse(
-          response.data.Details || 'Invalid OTP. Please try again.',
+          'Wrong/Invalid OTP',
           400
         );
       }

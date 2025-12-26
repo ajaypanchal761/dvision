@@ -32,29 +32,29 @@ const AddQuiz = () => {
     const fetchAllData = async () => {
       try {
         setIsLoadingData(true)
-        
+
         // Fetch all classes and subjects in parallel
         const [classesResponse, subjectsResponse] = await Promise.all([
-          classAPI.getAll(),
-          subjectAPI.getAll()
+          classAPI.getAllWithoutPagination(),
+          subjectAPI.getAllWithoutPagination()
         ])
-        
+
         if (classesResponse.success && classesResponse.data?.classes) {
           const activeClasses = classesResponse.data.classes.filter(c => c.isActive)
           setAllClassesData(activeClasses)
-          
+
           // Separate regular and preparation classes
           const regularClasses = activeClasses.filter(c => c.type === 'regular')
           const prepClasses = activeClasses.filter(c => c.type === 'preparation')
-          
+
           // Extract unique boards from regular classes
           const uniqueBoards = [...new Set(regularClasses.map(c => c.board).filter(Boolean))].sort()
           setBoards(uniqueBoards)
-          
+
           // Set preparation classes
           setPreparationClasses(prepClasses)
         }
-        
+
         if (subjectsResponse.success && subjectsResponse.data?.subjects) {
           const activeSubjects = subjectsResponse.data.subjects.filter(s => s.isActive)
           setAllSubjectsData(activeSubjects)
@@ -75,7 +75,7 @@ const AddQuiz = () => {
       setAvailableClasses([])
       return
     }
-    
+
     if (!formData.board) {
       setAvailableClasses([])
       setFormData(prev => ({ ...prev, class: '', subjectId: '' }))
@@ -87,10 +87,10 @@ const AddQuiz = () => {
     const classesForBoard = allClassesData
       .filter(c => c.type === 'regular' && c.board === formData.board)
       .map(c => c.class)
-    
+
     const uniqueClasses = [...new Set(classesForBoard)].sort((a, b) => a - b)
     setAvailableClasses(uniqueClasses)
-    
+
     // Reset class and subject if current class is not available for selected board
     if (formData.class && !uniqueClasses.includes(parseInt(formData.class))) {
       setFormData(prev => ({ ...prev, class: '', subjectId: '' }))
@@ -104,7 +104,7 @@ const AddQuiz = () => {
       setAvailableSubjects([])
       return
     }
-    
+
     if (!formData.board || !formData.class) {
       setAvailableSubjects([])
       setFormData(prev => ({ ...prev, subjectId: '' }))
@@ -112,12 +112,12 @@ const AddQuiz = () => {
     }
 
     // Filter subjects by board and class from already loaded data
-    const filteredSubjects = allSubjectsData.filter(s => 
+    const filteredSubjects = allSubjectsData.filter(s =>
       s.board === formData.board && s.class === parseInt(formData.class)
     )
-    
+
     setAvailableSubjects(filteredSubjects)
-    
+
     // Reset subject if current subject is not available for selected board and class
     if (formData.subjectId && !filteredSubjects.find(s => s._id === formData.subjectId)) {
       setFormData(prev => ({ ...prev, subjectId: '' }))
@@ -134,11 +134,11 @@ const AddQuiz = () => {
 
     const fetchPreparationSubjects = async () => {
       try {
-        const response = await subjectAPI.getAll({ classId: formData.classId })
+        const response = await subjectAPI.getAllWithoutPagination({ classId: formData.classId })
         if (response.success && response.data?.subjects) {
           const activeSubjects = response.data.subjects.filter(s => s.isActive)
           setPreparationSubjects(activeSubjects)
-          
+
           // Reset subject if current subject is not available
           if (formData.subjectId && !activeSubjects.find(s => s._id === formData.subjectId)) {
             setFormData(prev => ({ ...prev, subjectId: '' }))
@@ -192,9 +192,9 @@ const AddQuiz = () => {
       setQuestions([])
       return
     }
-    
+
     setFormData({ ...formData, numberOfQuestions: value })
-    
+
     // Generate questions array based on number
     const newQuestions = []
     for (let i = 0; i < num; i++) {
@@ -276,59 +276,84 @@ const AddQuiz = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    
-    if (!isFormValid()) {
-      return
-    }
+    setSubmitting(true)
 
     try {
-      setSubmitting(true)
-      
-      // Convert deadline to ISO datetime format
-      let deadline = null
-      if (formData.deadlineDate && formData.deadlineTime) {
-        const [hours, minutes] = formData.deadlineTime.split(':')
-        let hour24 = parseInt(hours)
-        if (formData.deadlineAmPm === 'PM' && hour24 !== 12) {
-          hour24 += 12
-        } else if (formData.deadlineAmPm === 'AM' && hour24 === 12) {
-          hour24 = 0
+      // Validate form
+      if (formData.type === 'regular') {
+        if (!formData.board || !formData.class || !formData.subjectId) {
+          alert('Please fill all required fields')
+          setSubmitting(false)
+          return
         }
-        const deadlineDateTime = new Date(`${formData.deadlineDate}T${String(hour24).padStart(2, '0')}:${minutes}`)
-        deadline = deadlineDateTime.toISOString()
+      } else {
+        if (!formData.classId || !formData.subjectId) {
+          alert('Please fill all required fields')
+          setSubmitting(false)
+          return
+        }
       }
 
-      // Prepare quiz data for backend
-      const quizData = {
-        name: formData.quizName.trim(),
+      if (questions.length === 0) {
+        alert('Please add at least one question')
+        setSubmitting(false)
+        return
+      }
+
+      const payload = {
+        name: formData.quizName,
         type: formData.type,
         subjectId: formData.subjectId,
-        isActive: formData.status === 'Active',
-        deadline: deadline,
         questions: questions.map(q => ({
-          question: q.question.trim(),
-          options: q.options.map(opt => opt.trim()),
-          correctAnswer: q.correctAnswer
-        }))
+          question: q.question,
+          options: q.options,
+          correctAnswer: parseInt(q.correctAnswer)
+        })),
+        isActive: formData.status === 'Active'
       }
 
-      // Add type-specific fields
+      // Add deadline if set
+      if (formData.deadlineDate && formData.deadlineTime) {
+        // Parse time (12h to 24h)
+        const [time, modifier] = [formData.deadlineTime, formData.deadlineAmPm];
+        let [hours, minutes] = time.split(':');
+        if (hours === '12') {
+          hours = modifier === 'PM' ? '12' : '00';
+        } else {
+          hours = modifier === 'PM' ? parseInt(hours, 10) + 12 : hours;
+        }
+
+        const deadline = new Date(`${formData.deadlineDate}T${hours}:${minutes}:00`);
+        payload.deadline = deadline.toISOString();
+      }
+
       if (formData.type === 'regular') {
-        quizData.classNumber = parseInt(formData.class)
-        quizData.board = formData.board
-      } else if (formData.type === 'preparation') {
-        quizData.classId = formData.classId
+        payload.board = formData.board
+        payload.classNumber = parseInt(formData.class)
+
+        // Find classId for regular class
+        const regularClass = allClassesData.find(c =>
+          c.type === 'regular' &&
+          c.board === formData.board &&
+          c.class === parseInt(formData.class)
+        )
+
+        if (regularClass) {
+          payload.classId = regularClass._id
+        }
+      } else {
+        payload.classId = formData.classId
       }
 
-      // Send to backend
-      const response = await quizAPI.create(quizData)
+      const response = await quizAPI.create(payload)
+
       if (response.success) {
-        alert('Quiz created successfully!')
+        alert('Quiz created successfully!') // Added success alert
         navigate('/admin/quizzes')
       }
-    } catch (error) {
-      console.error('Error creating quiz:', error)
-      alert(error.message || 'Failed to create quiz. Please try again.')
+    } catch (err) {
+      console.error('Error creating quiz:', err)
+      alert(err.response?.data?.message || 'Failed to create quiz')
     } finally {
       setSubmitting(false)
     }
@@ -385,182 +410,182 @@ const AddQuiz = () => {
                     className="w-full px-3 py-2 text-xs sm:text-sm border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-[#1e3a5f] focus:border-[#1e3a5f] outline-none transition-all duration-200"
                     placeholder="Enter quiz name"
                   />
-              </div>
-
-              {/* Board - Only for regular quizzes */}
-              {formData.type === 'regular' && (
-                <div>
-                  <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1.5 sm:mb-2">
-                    Board <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    required
-                    value={formData.board}
-                    onChange={(e) => {
-                      setFormData({ 
-                        ...formData, 
-                        board: e.target.value,
-                        class: '',
-                        subjectId: ''
-                      })
-                    }}
-                    disabled={isLoadingData}
-                    className="w-full px-3 py-2 text-xs sm:text-sm border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-[#1e3a5f] focus:border-[#1e3a5f] outline-none transition-all duration-200 bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
-                  >
-                    <option value="">Select Board</option>
-                    {boards.map((board) => (
-                      <option key={board} value={board}>
-                        {board}
-                      </option>
-                    ))}
-                  </select>
                 </div>
-              )}
 
-              {/* Preparation Class - Only for preparation quizzes */}
-              {formData.type === 'preparation' && (
-                <div>
-                  <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1.5 sm:mb-2">
-                    Preparation Class <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    required
-                    value={formData.classId}
-                    onChange={(e) => {
-                      setFormData({ 
-                        ...formData, 
-                        classId: e.target.value,
-                        subjectId: ''
-                      })
-                    }}
-                    disabled={isLoadingData || preparationClasses.length === 0}
-                    className="w-full px-3 py-2 text-xs sm:text-sm border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-[#1e3a5f] focus:border-[#1e3a5f] outline-none transition-all duration-200 bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
-                  >
-                    <option value="">Select Preparation Class</option>
-                    {preparationClasses.map((prepClass) => (
-                      <option key={prepClass._id} value={prepClass._id}>
-                        {prepClass.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              {/* Class - Only for regular quizzes */}
-              {formData.type === 'regular' && (
-                <div>
-                  <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1.5 sm:mb-2">
-                    Class <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    required
-                    value={formData.class}
-                    onChange={(e) => {
-                      setFormData({ 
-                        ...formData, 
-                        class: e.target.value,
-                        subjectId: ''
-                      })
-                    }}
-                    disabled={!formData.board || isLoadingData}
-                    className="w-full px-3 py-2 text-xs sm:text-sm border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-[#1e3a5f] focus:border-[#1e3a5f] outline-none transition-all duration-200 bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
-                  >
-                    <option value="">Select Class</option>
-                    {availableClasses.map((classNum) => (
-                      <option key={classNum} value={classNum}>
-                        Class {classNum}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              {/* Subject */}
-              <div>
-                <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1.5 sm:mb-2">
-                  Subject <span className="text-red-500">*</span>
-                </label>
-                {formData.type === 'regular' ? (
-                  <select
-                    required
-                    value={formData.subjectId}
-                    onChange={(e) => setFormData({ ...formData, subjectId: e.target.value })}
-                    disabled={!formData.class || isLoadingData || availableSubjects.length === 0}
-                    className="w-full px-3 py-2 text-xs sm:text-sm border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-[#1e3a5f] focus:border-[#1e3a5f] outline-none transition-all duration-200 bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
-                  >
-                    <option value="">{formData.class ? 'Select Subject' : 'Select Class First'}</option>
-                    {availableSubjects.map((subject) => (
-                      <option key={subject._id} value={subject._id}>
-                        {subject.name}
-                      </option>
-                    ))}
-                  </select>
-                ) : (
-                  <select
-                    required
-                    value={formData.subjectId}
-                    onChange={(e) => setFormData({ ...formData, subjectId: e.target.value })}
-                    disabled={!formData.classId || isLoadingData || preparationSubjects.length === 0}
-                    className="w-full px-3 py-2 text-xs sm:text-sm border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-[#1e3a5f] focus:border-[#1e3a5f] outline-none transition-all duration-200 bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
-                  >
-                    <option value="">{formData.classId ? 'Select Subject' : 'Select Preparation Class First'}</option>
-                    {preparationSubjects.map((subject) => (
-                      <option key={subject._id} value={subject._id}>
-                        {subject.name}
-                      </option>
-                    ))}
-                  </select>
+                {/* Board - Only for regular quizzes */}
+                {formData.type === 'regular' && (
+                  <div>
+                    <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1.5 sm:mb-2">
+                      Board <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      required
+                      value={formData.board}
+                      onChange={(e) => {
+                        setFormData({
+                          ...formData,
+                          board: e.target.value,
+                          class: '',
+                          subjectId: ''
+                        })
+                      }}
+                      disabled={isLoadingData}
+                      className="w-full px-3 py-2 text-xs sm:text-sm border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-[#1e3a5f] focus:border-[#1e3a5f] outline-none transition-all duration-200 bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    >
+                      <option value="">Select Board</option>
+                      {boards.map((board) => (
+                        <option key={board} value={board}>
+                          {board}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 )}
-              </div>
 
-              <div>
-                <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1.5 sm:mb-2">
-                  Status <span className="text-red-500">*</span>
-                </label>
-                <select
-                  required
-                  value={formData.status}
-                  onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                  className="w-full px-3 py-2 text-xs sm:text-sm border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-[#1e3a5f] focus:border-[#1e3a5f] outline-none transition-all duration-200 bg-white"
-                >
-                  <option value="Active">Active</option>
-                  <option value="Inactive">Inactive</option>
-                </select>
-              </div>
+                {/* Preparation Class - Only for preparation quizzes */}
+                {formData.type === 'preparation' && (
+                  <div>
+                    <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1.5 sm:mb-2">
+                      Preparation Class <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      required
+                      value={formData.classId}
+                      onChange={(e) => {
+                        setFormData({
+                          ...formData,
+                          classId: e.target.value,
+                          subjectId: ''
+                        })
+                      }}
+                      disabled={isLoadingData || preparationClasses.length === 0}
+                      className="w-full px-3 py-2 text-xs sm:text-sm border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-[#1e3a5f] focus:border-[#1e3a5f] outline-none transition-all duration-200 bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    >
+                      <option value="">Select Preparation Class</option>
+                      {preparationClasses.map((prepClass) => (
+                        <option key={prepClass._id} value={prepClass._id}>
+                          {prepClass.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
 
-              <div>
-                <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1.5 sm:mb-2">
-                  Deadline
-                </label>
-                <div className="flex gap-2 items-center">
-                  <input
-                    type="date"
-                    value={formData.deadlineDate}
-                    onChange={(e) => setFormData({ ...formData, deadlineDate: e.target.value })}
-                    className="w-32 sm:w-36 px-2 sm:px-3 py-2 text-xs sm:text-sm border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-[#1e3a5f] focus:border-[#1e3a5f] outline-none transition-all duration-200"
-                    placeholder="Select Date"
-                  />
-                  <input
-                    type="time"
-                    value={formData.deadlineTime}
-                    onChange={(e) => setFormData({ ...formData, deadlineTime: e.target.value })}
-                    className="w-28 sm:w-32 md:w-36 px-2 sm:px-3 py-2.5 sm:py-3 text-xs sm:text-sm md:text-base border-2 border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-dvision-blue focus:border-dvision-blue outline-none transition-all duration-200"
-                    placeholder="Select Time"
-                  />
+                {/* Class - Only for regular quizzes */}
+                {formData.type === 'regular' && (
+                  <div>
+                    <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1.5 sm:mb-2">
+                      Class <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      required
+                      value={formData.class}
+                      onChange={(e) => {
+                        setFormData({
+                          ...formData,
+                          class: e.target.value,
+                          subjectId: ''
+                        })
+                      }}
+                      disabled={!formData.board || isLoadingData}
+                      className="w-full px-3 py-2 text-xs sm:text-sm border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-[#1e3a5f] focus:border-[#1e3a5f] outline-none transition-all duration-200 bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    >
+                      <option value="">Select Class</option>
+                      {availableClasses.map((classNum) => (
+                        <option key={classNum} value={classNum}>
+                          Class {classNum}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {/* Subject */}
+                <div>
+                  <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1.5 sm:mb-2">
+                    Subject <span className="text-red-500">*</span>
+                  </label>
+                  {formData.type === 'regular' ? (
+                    <select
+                      required
+                      value={formData.subjectId}
+                      onChange={(e) => setFormData({ ...formData, subjectId: e.target.value })}
+                      disabled={!formData.class || isLoadingData || availableSubjects.length === 0}
+                      className="w-full px-3 py-2 text-xs sm:text-sm border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-[#1e3a5f] focus:border-[#1e3a5f] outline-none transition-all duration-200 bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    >
+                      <option value="">{formData.class ? 'Select Subject' : 'Select Class First'}</option>
+                      {availableSubjects.map((subject) => (
+                        <option key={subject._id} value={subject._id}>
+                          {subject.name}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <select
+                      required
+                      value={formData.subjectId}
+                      onChange={(e) => setFormData({ ...formData, subjectId: e.target.value })}
+                      disabled={!formData.classId || isLoadingData || preparationSubjects.length === 0}
+                      className="w-full px-3 py-2 text-xs sm:text-sm border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-[#1e3a5f] focus:border-[#1e3a5f] outline-none transition-all duration-200 bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    >
+                      <option value="">{formData.classId ? 'Select Subject' : 'Select Preparation Class First'}</option>
+                      {preparationSubjects.map((subject) => (
+                        <option key={subject._id} value={subject._id}>
+                          {subject.name}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1.5 sm:mb-2">
+                    Status <span className="text-red-500">*</span>
+                  </label>
                   <select
-                    value={formData.deadlineAmPm}
-                    onChange={(e) => setFormData({ ...formData, deadlineAmPm: e.target.value })}
-                    className="w-16 sm:w-20 px-2 sm:px-3 py-2.5 sm:py-3 text-xs sm:text-sm md:text-base border-2 border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-dvision-blue focus:border-dvision-blue outline-none transition-all duration-200 bg-white"
+                    required
+                    value={formData.status}
+                    onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                    className="w-full px-3 py-2 text-xs sm:text-sm border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-[#1e3a5f] focus:border-[#1e3a5f] outline-none transition-all duration-200 bg-white"
                   >
-                    <option value="AM">AM</option>
-                    <option value="PM">PM</option>
+                    <option value="Active">Active</option>
+                    <option value="Inactive">Inactive</option>
                   </select>
                 </div>
-                <p className="text-xs text-gray-500 mt-1">
-                  Select date and time for quiz deadline (optional)
-                </p>
+
+                <div>
+                  <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1.5 sm:mb-2">
+                    Deadline
+                  </label>
+                  <div className="flex gap-2 items-center">
+                    <input
+                      type="date"
+                      value={formData.deadlineDate}
+                      onChange={(e) => setFormData({ ...formData, deadlineDate: e.target.value })}
+                      className="w-32 sm:w-36 px-2 sm:px-3 py-2 text-xs sm:text-sm border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-[#1e3a5f] focus:border-[#1e3a5f] outline-none transition-all duration-200"
+                      placeholder="Select Date"
+                    />
+                    <input
+                      type="time"
+                      value={formData.deadlineTime}
+                      onChange={(e) => setFormData({ ...formData, deadlineTime: e.target.value })}
+                      className="w-28 sm:w-32 md:w-36 px-2 sm:px-3 py-2.5 sm:py-3 text-xs sm:text-sm md:text-base border-2 border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-dvision-blue focus:border-dvision-blue outline-none transition-all duration-200"
+                      placeholder="Select Time"
+                    />
+                    <select
+                      value={formData.deadlineAmPm}
+                      onChange={(e) => setFormData({ ...formData, deadlineAmPm: e.target.value })}
+                      className="w-16 sm:w-20 px-2 sm:px-3 py-2.5 sm:py-3 text-xs sm:text-sm md:text-base border-2 border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-dvision-blue focus:border-dvision-blue outline-none transition-all duration-200 bg-white"
+                    >
+                      <option value="AM">AM</option>
+                      <option value="PM">PM</option>
+                    </select>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Select date and time for quiz deadline (optional)
+                  </p>
+                </div>
               </div>
-            </div>
             </div>
 
             {/* Questions Section */}

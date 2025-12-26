@@ -138,12 +138,14 @@ const SubscriptionPlans = () => {
           return sub.plan?.type === 'regular' &&
             sub.plan?.board === userBoard &&
             sub.plan?.classes?.includes(parseInt(userClass)) &&
-            new Date(sub.endDate) > new Date();
+            new Date(sub.endDate) > new Date() &&
+            sub.plan?.duration !== 'demo';
         }) || (user?.subscription?.status === 'active' &&
           user?.subscription?.plan?.type === 'regular' &&
           user?.subscription?.plan?.board === userBoard &&
           user?.subscription?.plan?.classes?.includes(parseInt(userClass)) &&
-          new Date(user.subscription.endDate) > new Date());
+          new Date(user.subscription.endDate) > new Date() &&
+          user?.subscription?.plan?.duration !== 'demo');
 
         if (hasConflictingSubscription) {
           conflictMessage = `You already have an active subscription for ${userBoard} Class ${userClass}. Please wait until your current subscription expires before subscribing to another plan for the same class.`;
@@ -159,7 +161,8 @@ const SubscriptionPlans = () => {
             const subPrepClassId = sub.plan.classId._id || sub.plan.classId;
             return subPrepClassId &&
               subPrepClassId.toString() === planPrepClassId.toString() &&
-              new Date(sub.endDate) > new Date();
+              new Date(sub.endDate) > new Date() &&
+              sub.plan?.duration !== 'demo';
           });
 
           if (hasConflictingSubscription) {
@@ -440,27 +443,32 @@ const SubscriptionPlans = () => {
 
                       if (planType === 'regular') {
                         // Check if student has active regular subscription for their class
+                        // exclude DEMO plans from blocking new subscriptions
                         hasActiveSubscriptionForPlan = user?.activeSubscriptions?.some(sub => {
                           return sub.plan?.type === 'regular' &&
                             sub.plan?.board === userBoard &&
                             sub.plan?.classes?.includes(parseInt(userClass)) &&
-                            new Date(sub.endDate) > new Date();
+                            new Date(sub.endDate) > new Date() &&
+                            sub.plan?.duration !== 'demo';
                         }) || (user?.subscription?.status === 'active' &&
                           user?.subscription?.plan?.type === 'regular' &&
                           user?.subscription?.plan?.board === userBoard &&
                           user?.subscription?.plan?.classes?.includes(parseInt(userClass)) &&
-                          new Date(user.subscription.endDate) > new Date());
+                          new Date(user.subscription.endDate) > new Date() &&
+                          user?.subscription?.plan?.duration !== 'demo');
 
                         existingSubscription = user?.activeSubscriptions?.find(sub => {
                           return sub.plan?.type === 'regular' &&
                             sub.plan?.board === userBoard &&
                             sub.plan?.classes?.includes(parseInt(userClass)) &&
-                            new Date(sub.endDate) > new Date();
+                            new Date(sub.endDate) > new Date() &&
+                            sub.plan?.duration !== 'demo';
                         }) || (user?.subscription?.status === 'active' &&
                           user?.subscription?.plan?.type === 'regular' &&
                           user?.subscription?.plan?.board === userBoard &&
                           user?.subscription?.plan?.classes?.includes(parseInt(userClass)) &&
-                          new Date(user.subscription.endDate) > new Date() ? user.subscription : null);
+                          new Date(user.subscription.endDate) > new Date() &&
+                          user?.subscription?.plan?.duration !== 'demo' ? user.subscription : null);
                       } else if (planType === 'preparation') {
                         // For prep plans: Check if student has active subscription for this specific prep class
                         const prepClassId = plan.classId?._id || plan.classId;
@@ -469,7 +477,8 @@ const SubscriptionPlans = () => {
                             sub.plan?.classId &&
                             (sub.plan.classId._id?.toString() === prepClassId?.toString() ||
                               sub.plan.classId.toString() === prepClassId?.toString()) &&
-                            new Date(sub.endDate) > new Date();
+                            new Date(sub.endDate) > new Date() &&
+                            sub.plan?.duration !== 'demo';
                         });
 
                         existingSubscription = user?.activeSubscriptions?.find(sub => {
@@ -477,7 +486,8 @@ const SubscriptionPlans = () => {
                             sub.plan?.classId &&
                             (sub.plan.classId._id?.toString() === prepClassId?.toString() ||
                               sub.plan.classId.toString() === prepClassId?.toString()) &&
-                            new Date(sub.endDate) > new Date();
+                            new Date(sub.endDate) > new Date() &&
+                            sub.plan?.duration !== 'demo';
                         });
                       }
 

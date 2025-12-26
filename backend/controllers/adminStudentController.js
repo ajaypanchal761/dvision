@@ -10,9 +10,9 @@ const { uploadToCloudinary, deleteFromCloudinary } = require('../config/cloudina
 exports.getStudentStatistics = asyncHandler(async (req, res) => {
   // Get overall statistics (not filtered by search or pagination)
   const totalStudents = await Student.countDocuments({});
-  
+
   const activeStudents = await Student.countDocuments({ isActive: true });
-  
+
   // Count students with active subscriptions
   // A student has active subscription if:
   // 1. subscription.status === 'active' OR
@@ -21,7 +21,7 @@ exports.getStudentStatistics = asyncHandler(async (req, res) => {
   const studentsWithActiveSubs = await Student.countDocuments({
     $or: [
       { 'subscription.status': 'active' },
-      { 
+      {
         activeSubscriptions: {
           $elemMatch: {
             endDate: { $gte: now }
@@ -30,7 +30,7 @@ exports.getStudentStatistics = asyncHandler(async (req, res) => {
       }
     ]
   });
-  
+
   res.status(200).json({
     success: true,
     data: {
@@ -48,9 +48,9 @@ exports.getStudentStatistics = asyncHandler(async (req, res) => {
 // @access  Private/Admin
 exports.getAllStudents = asyncHandler(async (req, res) => {
   const { page = 1, limit = 10, search, class: classFilter, board, status } = req.query;
-  
+
   const query = {};
-  
+
   if (search) {
     query.$or = [
       { name: { $regex: search, $options: 'i' } },
@@ -58,28 +58,28 @@ exports.getAllStudents = asyncHandler(async (req, res) => {
       { phone: { $regex: search, $options: 'i' } }
     ];
   }
-  
+
   if (classFilter) {
     query.class = parseInt(classFilter);
   }
-  
+
   if (board) {
     query.board = board;
   }
-  
+
   if (status) {
     query.isActive = status === 'active';
   }
-  
+
   const skip = (parseInt(page) - 1) * parseInt(limit);
-  
+
   const students = await Student.find(query)
     .sort({ createdAt: -1 })
     .skip(skip)
     .limit(parseInt(limit));
-  
+
   const total = await Student.countDocuments(query);
-  
+
   res.status(200).json({
     success: true,
     count: students.length,
@@ -97,11 +97,11 @@ exports.getAllStudents = asyncHandler(async (req, res) => {
 // @access  Private/Admin
 exports.getStudent = asyncHandler(async (req, res) => {
   const student = await Student.findById(req.params.id);
-  
+
   if (!student) {
     throw new ErrorResponse('Student not found', 404);
   }
-  
+
   res.status(200).json({
     success: true,
     data: {
@@ -126,20 +126,20 @@ exports.createStudent = asyncHandler(async (req, res) => {
     preparationPlanIds = [], // array of prep plan ids
     password
   } = req.body;
-  
+
   if (!name || !phone || !studentClass || !board) {
     throw new ErrorResponse('Please provide name, phone, class, and board', 400);
   }
-  
+
   // Check if student exists
   const existingStudent = await Student.findOne({ phone });
   if (existingStudent) {
     throw new ErrorResponse('Student with this phone number already exists', 400);
   }
-  
+
   let profileImageUrl = null;
   let profileImagePublicId = null;
-  
+
   // Upload profile image if provided
   if (profileImageBase64) {
     try {
@@ -154,7 +154,7 @@ exports.createStudent = asyncHandler(async (req, res) => {
       throw new ErrorResponse('Failed to upload profile image', 500);
     }
   }
-  
+
   // Validate password if provided
   if (password) {
     if (password.length < 6) {
@@ -278,7 +278,7 @@ exports.createStudent = asyncHandler(async (req, res) => {
   }
 
   const student = await Student.create(studentData);
-  
+
   res.status(201).json({
     success: true,
     message: 'Student created successfully',
@@ -305,9 +305,9 @@ exports.updateStudent = asyncHandler(async (req, res) => {
     removeSubscription,
     password
   } = req.body;
-  
+
   let student = await Student.findById(req.params.id);
-  
+
   if (!student) {
     throw new ErrorResponse('Student not found', 404);
   }
@@ -316,22 +316,22 @@ exports.updateStudent = asyncHandler(async (req, res) => {
   if (name !== undefined && (!name || !name.trim())) {
     throw new ErrorResponse('Name is required', 400);
   }
-  
+
   if (phone !== undefined && (!phone || !phone.trim())) {
     throw new ErrorResponse('Phone number is required', 400);
   }
-  
+
   if (board !== undefined && (!board || !board.trim())) {
     throw new ErrorResponse('Board is required', 400);
   }
-  
+
   if (studentClass !== undefined && studentClass !== null) {
     const classNum = parseInt(studentClass);
     if (isNaN(classNum) || classNum < 1 || classNum > 12) {
       throw new ErrorResponse('Class must be between 1 and 12', 400);
     }
   }
-  
+
   // Check if phone is being changed and if it's already taken
   if (phone !== undefined) {
     if (phone !== student.phone) {
@@ -342,21 +342,21 @@ exports.updateStudent = asyncHandler(async (req, res) => {
     }
     student.phone = phone;
   }
-  
+
   // Update name if provided
   if (name !== undefined) student.name = name;
-  
+
   // Update email if provided (can be empty string to clear email)
   if (email !== undefined) student.email = email || '';
-  
+
   // Update class if provided
   if (studentClass !== undefined && studentClass !== null) {
     student.class = parseInt(studentClass);
   }
-  
+
   // Update board if provided
   if (board !== undefined) student.board = board;
-  
+
   // Update isActive if provided
   if (isActive !== undefined) student.isActive = isActive;
 
@@ -367,7 +367,7 @@ exports.updateStudent = asyncHandler(async (req, res) => {
     }
     student.password = password; // Will be hashed by pre-save hook
   }
-  
+
   // Handle profile image update
   if (profileImageBase64) {
     // Delete old image if exists
@@ -383,7 +383,7 @@ exports.updateStudent = asyncHandler(async (req, res) => {
         // Continue even if deletion fails
       }
     }
-    
+
     // Upload new image
     try {
       const uploadResult = await uploadToCloudinary(profileImageBase64, {
@@ -398,7 +398,7 @@ exports.updateStudent = asyncHandler(async (req, res) => {
   }
 
   // Helper to compute start/end based on duration
-  const computeEndDate = (duration) => {
+  const computeEndDate = (duration, validityDays = null) => {
     const startDate = new Date();
     const endDate = new Date(startDate);
     switch (duration) {
@@ -408,8 +408,19 @@ exports.updateStudent = asyncHandler(async (req, res) => {
       case 'quarterly':
         endDate.setMonth(endDate.getMonth() + 3);
         break;
+      case 'half_yearly':
+        endDate.setMonth(endDate.getMonth() + 6);
+        break;
       case 'yearly':
         endDate.setFullYear(endDate.getFullYear() + 1);
+        break;
+      case 'demo':
+        if (validityDays && Number.isInteger(validityDays) && validityDays > 0) {
+          endDate.setDate(endDate.getDate() + validityDays);
+        } else {
+          // Default to 7 days if validityDays not provided
+          endDate.setDate(endDate.getDate() + 7);
+        }
         break;
       default:
         endDate.setMonth(endDate.getMonth() + 1);
@@ -501,9 +512,9 @@ exports.updateStudent = asyncHandler(async (req, res) => {
       student.activeSubscriptions = newActiveSubs;
     }
   }
-  
+
   await student.save();
-  
+
   res.status(200).json({
     success: true,
     message: 'Student updated successfully',
@@ -518,11 +529,11 @@ exports.updateStudent = asyncHandler(async (req, res) => {
 // @access  Private/Admin
 exports.deleteStudent = asyncHandler(async (req, res) => {
   const student = await Student.findById(req.params.id);
-  
+
   if (!student) {
     throw new ErrorResponse('Student not found', 404);
   }
-  
+
   // Delete profile image from Cloudinary if exists
   if (student.profileImage) {
     try {
@@ -535,9 +546,9 @@ exports.deleteStudent = asyncHandler(async (req, res) => {
       // Continue with student deletion even if image deletion fails
     }
   }
-  
+
   await student.deleteOne();
-  
+
   res.status(200).json({
     success: true,
     message: 'Student deleted successfully'

@@ -66,12 +66,12 @@ exports.sendOTP = asyncHandler(async (req, res) => {
 
   res.status(200).json({
     success: true,
-    message: result.message || (isTestNumber 
-      ? 'OTP sent successfully (Test Mode - Use OTP: 123456)' 
+    message: result.message || (isTestNumber
+      ? 'OTP sent successfully (Test Mode - Use OTP: 123456)'
       : 'OTP sent successfully to your phone number'),
     data: {
       phone: phone.replace(/\d(?=\d{4})/g, '*'),
-      expiresIn: `${process.env.OTP_EXPIRY_MINUTES || 5} minutes`,
+      expiresIn: `${process.env.OTP_EXPIRY_MINUTES || 2} minutes`,
       isTest: isTestNumber
     }
   });
@@ -209,12 +209,12 @@ exports.resendOTP = asyncHandler(async (req, res) => {
 
   res.status(200).json({
     success: true,
-    message: result.message || (isTestNumber 
-      ? 'OTP resent successfully (Test Mode - Use OTP: 123456)' 
+    message: result.message || (isTestNumber
+      ? 'OTP resent successfully (Test Mode - Use OTP: 123456)'
       : 'OTP resent successfully'),
     data: {
       phone: phone.replace(/\d(?=\d{4})/g, '*'),
-      expiresIn: `${process.env.OTP_EXPIRY_MINUTES || 5} minutes`,
+      expiresIn: `${process.env.OTP_EXPIRY_MINUTES || 2} minutes`,
       isTest: isTestNumber
     }
   });
@@ -277,11 +277,11 @@ exports.updateProfile = asyncHandler(async (req, res) => {
         .filter(subject => subject && typeof subject === 'string' && subject.trim().length > 0)
         .map(subject => subject.trim())
         .slice(0, 2); // Max 2 subjects
-      
+
       if (subjects.length > 2) {
         throw new ErrorResponse('Maximum 2 subjects can be assigned to a teacher', 400);
       }
-      
+
       teacher.subjects = processedSubjects;
     } else {
       teacher.subjects = [];
@@ -393,7 +393,7 @@ exports.checkTeacherExists = asyncHandler(async (req, res) => {
   // Normalize phone number - try to find teacher with or without country code
   // Remove + and leading country codes (like +91, +1, etc.)
   let normalizedPhone = phone.replace(/^\+/, ''); // Remove leading +
-  
+
   // Try to find teacher with the provided phone number first
   let teacher = await Teacher.findOne({ phone, isActive: true })
     .select('name phone email isActive');
