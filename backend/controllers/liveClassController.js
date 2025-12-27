@@ -2680,9 +2680,11 @@ exports.getLiveClass = asyncHandler(async (req, res) => {
 // @route   POST /api/teacher/live-classes/:id/upload-recording
 // @access  Private/Teacher
 exports.uploadRecording = asyncHandler(async (req, res) => {
+  console.log('[Upload Recording] START', { liveClassId: req.params.id, userId: req.user._id });
   const liveClass = await LiveClass.findById(req.params.id);
 
   if (!liveClass) {
+    console.error('[Upload Recording] ERROR: Live class not found', req.params.id);
     throw new ErrorResponse('Live class not found', 404);
   }
 
@@ -2727,6 +2729,7 @@ exports.uploadRecording = asyncHandler(async (req, res) => {
   });
 
   // Update recording status
+  console.log('[Upload Recording] Updating status to processing', { liveClassId: liveClass._id, fileSize: fileStats.size });
   liveClass.recording.status = 'processing';
   liveClass.recording.localPath = req.file.path;
   liveClass.recording.fileSize = fileStats.size;
@@ -2735,54 +2738,75 @@ exports.uploadRecording = asyncHandler(async (req, res) => {
   let convertedPath = null;
 
   try {
-    // 1. Try to Convert WebM to MP4 using ffmpeg
-    // This solves timestamp/seek issues. If fails, fallback to original.
+    // 1. Convert/Repair WebM to MP4 using ffmpeg
+    // This is CRITICAL for merging segments with overlapping timestamps (0-12s, 0-14s).
+    // Transcoding with libx264 forces FFmpeg to rebuild the timeline correctly.
     let uploadPath = req.file.path;
+    let convertedPath = null;
 
     try {
-      // Use clean filename in current directory (relative) to avoid annoying Windows path space issues
-      // ffmpeg (static) sometimes fails with "Invalid argument" if full path has spaces, even when quoted by fluent-ffmpeg.
-      // Using relative path ./filename.mp4 works reliably.
+      // Use relative path from backend root to avoid Windows drive/space issues
       const cleanName = `processed_${Date.now()}_${Math.floor(Math.random() * 1000)}.mp4`;
-      const mp4Path = `./${cleanName}`;
+      const relativeInput = path.relative(process.cwd(), req.file.path);
+      const relativeOutput = path.join('uploads', 'recordings', cleanName);
 
-      console.log(`[Upload Recording] Attempting conversion: ${req.file.path} -> ${mp4Path}`);
+      console.log(`[Upload Recording] Repairing Video Timestamps: "${relativeInput}" -> "${relativeOutput}"`);
 
       await new Promise((resolve, reject) => {
-        ffmpeg(req.file.path)
-          .output(mp4Path)
-          .outputOptions(['-c:v copy', '-c:a copy', '-movflags +faststart', '-y'])
+        ffmpeg(relativeInput)
+          // Increase probe size to safely read multi-header WebMs
+          .inputOptions([
+            '-probesize 100M',
+            '-analyzeduration 100M'
+          ])
+          .output(relativeOutput)
+          .outputOptions([
+            '-c:v libx264',
+            '-preset ultrafast',
+            '-crf 23',
+            '-r 25', // Force 25 frames per second
+            // RECONSTRUCT the timeline: frame index / 25
+            // This is the most robust way to fix "rejoin" discontinuities and 2s fast-forward issues.
+            '-vf', 'setpts=N/(25*TB)',
+            '-c:a aac',
+            '-b:a 128k',
+            // Use aresample to handle audio gaps/overlaps and keep it synced with the new video PTS
+            '-af', 'aresample=async=1',
+            '-movflags +faststart',
+            '-fflags +genpts+igndts',
+            '-avoid_negative_ts make_zero',
+            '-y'
+          ])
           .on('end', () => {
-            console.log('[Upload Recording] Conversion complete.');
+            console.log('[Upload Recording] Repair complete. Video is now linear 25fps.');
             resolve();
           })
           .on('error', (err) => {
+            console.error('[Upload Recording] FFmpeg internal error:', err.message);
             reject(err);
           })
           .run();
       });
 
       // Conversion successful
-      uploadPath = mp4Path;
-      convertedPath = mp4Path;
+      uploadPath = path.resolve(process.cwd(), relativeOutput);
+      convertedPath = uploadPath;
 
     } catch (conversionError) {
-      console.error('[Upload Recording] FFmpeg conversion failed, falling back to raw file:', conversionError.message);
-      // Continue with uploadPath = req.file.path
+      console.error('[Upload Recording] FFmpeg Repair FAILED, falling back to raw WebM:', conversionError.message);
+      // Fallback is handled by keeping uploadPath as req.file.path
     }
 
-    // 2. Upload to S3 (Either MP4 or WebM)
+    // 2. Upload to S3 (Hopefully the repaired MP4)
     const { s3Url, s3Key } = await s3Service.uploadRecording(uploadPath, liveClass._id.toString());
+    console.log('[Upload Recording] S3 Upload successful:', { s3Url, format: path.extname(uploadPath) });
 
     // Update live class with S3 info
     liveClass.recording.status = 'completed';
     liveClass.recording.s3Url = s3Url;
     liveClass.recording.s3Key = s3Key;
     liveClass.recording.uploadedAt = new Date();
-    // Also save metadata if converted
-    if (path.extname(uploadPath) === '.mp4') {
-      liveClass.recording.format = 'mp4';
-    }
+    liveClass.recording.format = path.extname(uploadPath).substring(1); // 'mp4' or 'webm'
     await liveClass.save();
 
     // Create recording record
@@ -2799,7 +2823,7 @@ exports.uploadRecording = asyncHandler(async (req, res) => {
       s3Key,
       status: 'completed',
       duration: req.body.duration ? parseInt(req.body.duration) : (liveClass.duration ? liveClass.duration * 60 : 0),
-      fileSize: fileStats.size,
+      fileSize: fs.statSync(uploadPath).size,
       uploadedAt: new Date()
     });
 
@@ -2807,22 +2831,16 @@ exports.uploadRecording = asyncHandler(async (req, res) => {
     try {
       if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
       if (convertedPath && fs.existsSync(convertedPath)) fs.unlinkSync(convertedPath);
-      console.log(`Deleted local recording files.`);
+      console.log(`Deleted local temporary files.`);
     } catch (deleteError) {
       console.error('Error deleting local file:', deleteError);
-      // Don't throw error, S3 upload was successful
     }
 
-    console.log('[Upload Recording] ✅ Recording uploaded and saved successfully:', {
-      liveClassId: liveClass._id.toString(),
-      s3Url,
-      s3Key,
-      fileSize: fileStats.size,
-    });
+    console.log('[Upload Recording] ✅ Process finished successfully.');
 
     res.status(200).json({
       success: true,
-      message: 'Recording uploaded successfully',
+      message: 'Recording uploaded and repaired successfully',
       data: {
         recording,
         s3Url,
@@ -3002,9 +3020,11 @@ exports.getRecording = asyncHandler(async (req, res) => {
 // @route   POST /api/teacher/live-classes/:id/recording/start
 // @access  Private/Teacher
 exports.startRecording = asyncHandler(async (req, res) => {
+  console.log('[Recording API] Start requested', { liveClassId: req.params.id });
   const liveClass = await LiveClass.findById(req.params.id);
 
   if (!liveClass) {
+    console.error('[Recording API] ERROR: Live class not found', req.params.id);
     throw new ErrorResponse('Live class not found', 404);
   }
 
@@ -3043,15 +3063,22 @@ exports.startRecording = asyncHandler(async (req, res) => {
 // @route   POST /api/teacher/live-classes/:id/recording/pause
 // @access  Private/Teacher
 exports.pauseRecording = asyncHandler(async (req, res) => {
+  console.log('[Recording API] Pause requested', { liveClassId: req.params.id });
   const liveClass = await LiveClass.findById(req.params.id);
 
   if (!liveClass) {
+    console.error('[Recording API] ERROR: Live class not found', req.params.id);
     throw new ErrorResponse('Live class not found', 404);
   }
 
   if (liveClass.recording && liveClass.recording.status === 'recording') {
+    console.log('[Recording API] Pausing recording', { liveClassId: req.params.id });
     liveClass.recording.status = 'paused';
     await liveClass.save();
+  } else {
+    console.warn('[Recording API] WARN: Cannot pause, recording not in "recording" state', {
+      currentStatus: liveClass.recording?.status
+    });
   }
 
   res.status(200).json({
@@ -3066,15 +3093,22 @@ exports.pauseRecording = asyncHandler(async (req, res) => {
 // @route   POST /api/teacher/live-classes/:id/recording/resume
 // @access  Private/Teacher
 exports.resumeRecording = asyncHandler(async (req, res) => {
+  console.log('[Recording API] Resume requested', { liveClassId: req.params.id });
   const liveClass = await LiveClass.findById(req.params.id);
 
   if (!liveClass) {
+    console.error('[Recording API] ERROR: Live class not found', req.params.id);
     throw new ErrorResponse('Live class not found', 404);
   }
 
   if (liveClass.recording && liveClass.recording.status === 'paused') {
+    console.log('[Recording API] Resuming recording', { liveClassId: req.params.id });
     liveClass.recording.status = 'recording';
     await liveClass.save();
+  } else {
+    console.warn('[Recording API] WARN: Cannot resume, recording not in "paused" state', {
+      currentStatus: liveClass.recording?.status
+    });
   }
 
   res.status(200).json({

@@ -49,15 +49,23 @@ const initDB = () => {
 };
 
 const saveChunkToDB = async (classId, blob) => {
-
   try {
     const db = await initDB();
+    const count = await new Promise((resolve) => {
+      const tx = db.transaction([STORE_NAME], 'readonly');
+      const store = tx.objectStore(STORE_NAME);
+      const req = store.count();
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => resolve(0);
+    });
+
     return new Promise((resolve, reject) => {
       const tx = db.transaction([STORE_NAME], 'readwrite');
       const store = tx.objectStore(STORE_NAME);
       const item = {
         classId,
         blob,
+        sequence: count + 1,
         timestamp: Date.now()
       };
       store.add(item);
@@ -80,7 +88,7 @@ const getChunksFromDB = async (classId) => {
         const allItems = request.result;
         const classItems = allItems
           .filter(item => item.classId === classId)
-          .sort((a, b) => a.timestamp - b.timestamp)
+          .sort((a, b) => (a.sequence || 0) - (b.sequence || 0) || a.timestamp - b.timestamp)
           .map(item => item.blob);
         resolve(classItems);
       };
@@ -340,6 +348,12 @@ const LiveClassRoom = () => {
 
     // Handle browser close/refresh race condition
     const handleBeforeUnload = () => {
+      // Save duration if we are recording
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording' && recordingStartTimeRef.current) {
+        const sessionDuration = (Date.now() - recordingStartTimeRef.current) / 1000;
+        saveDurationToDB(id, accumulatedDurationRef.current + sessionDuration);
+      }
+
       isComponentMounted.current = false;
       if (mediaRecorderRef.current) {
         mediaRecorderRef.current.onstop = null;
@@ -370,6 +384,12 @@ const LiveClassRoom = () => {
         console.log('Unmounting: Disabling upload on stop');
         mediaRecorderRef.current.onstop = null;
       }
+      // Save duration if we are recording
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording' && recordingStartTimeRef.current) {
+        const sessionDuration = (Date.now() - recordingStartTimeRef.current) / 1000;
+        saveDurationToDB(id, accumulatedDurationRef.current + sessionDuration);
+      }
+
       cleanup();
       if (chromeHideTimerRef.current) {
         clearTimeout(chromeHideTimerRef.current);

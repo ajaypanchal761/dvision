@@ -107,10 +107,12 @@ class S3Service {
    */
   async uploadRecording(localPath, liveClassId) {
     const timestamp = Date.now();
-    const fileName = `recording_${liveClassId}_${timestamp}.mp4`;
+    const ext = path.extname(localPath) || '.mp4';
+    const fileName = `recording_${liveClassId}_${timestamp}${ext}`;
     const s3Key = `${this.recordingsFolder}/${liveClassId}/${fileName}`;
+    const contentType = ext === '.webm' ? 'video/webm' : 'video/mp4';
 
-    return await this.uploadFile(localPath, s3Key, 'video/mp4');
+    return await this.uploadFile(localPath, s3Key, contentType);
   }
 
   /**
