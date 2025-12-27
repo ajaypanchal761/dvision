@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import Sidebar from '../Sidebar/Sidebar'
 import { notificationAPI } from '../../services/api'
 
@@ -11,6 +11,12 @@ const Layout = ({ children }) => {
   })
   const [unreadCount, setUnreadCount] = useState(0)
   const navigate = useNavigate()
+  const location = useLocation()
+
+  // Scroll to top on route change
+  useEffect(() => {
+    window.scrollTo(0, 0)
+  }, [location.pathname])
 
   useEffect(() => {
     const handleStorageChange = (e) => {
@@ -18,18 +24,18 @@ const Layout = ({ children }) => {
         setSidebarCollapsed(e.newValue ? JSON.parse(e.newValue) : false)
       }
     }
-    
+
     // Listen for storage events (from other tabs)
     window.addEventListener('storage', handleStorageChange)
-    
+
     // Listen for custom event from Sidebar component
     const handleCustomStorageChange = () => {
       const saved = localStorage.getItem('sidebarCollapsed')
       setSidebarCollapsed(saved ? JSON.parse(saved) : false)
     }
-    
+
     window.addEventListener('sidebarToggle', handleCustomStorageChange)
-    
+
     return () => {
       window.removeEventListener('storage', handleStorageChange)
       window.removeEventListener('sidebarToggle', handleCustomStorageChange)
@@ -75,9 +81,8 @@ const Layout = ({ children }) => {
       <Sidebar isOpen={sidebarOpen} setIsOpen={setSidebarOpen} isCollapsed={sidebarCollapsed} />
 
       {/* Main Content - Responsive padding adjusts for sidebar */}
-      <div className={`flex-1 flex flex-col w-full transition-all duration-300 ease-in-out ${
-        sidebarCollapsed ? 'lg:pl-20' : 'lg:pl-72'
-      }`}>
+      <div className={`flex-1 flex flex-col w-full transition-all duration-300 ease-in-out ${sidebarCollapsed ? 'lg:pl-20' : 'lg:pl-72'
+        }`}>
         {/* Top Header */}
         <header className="bg-gradient-to-r from-[#1e3a5f] to-[#2a4a6f] shadow-lg border-b border-white/10 sticky top-0 z-30">
           <div className="px-4 sm:px-6 lg:px-8">
@@ -120,7 +125,7 @@ const Layout = ({ children }) => {
               {/* Right Side Actions */}
               <div className="flex items-center space-x-3 sm:space-x-4">
                 {/* Notifications */}
-                <button 
+                <button
                   onClick={() => navigate('/admin/my-notifications')}
                   className="p-2 rounded-lg text-white/90 hover:text-white hover:bg-white/15 transition-all duration-200 relative active:scale-95"
                   title="Notifications"

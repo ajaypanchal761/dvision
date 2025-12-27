@@ -354,6 +354,11 @@ exports.getAllQuizzes = asyncHandler(async (req, res) => {
     // For admins and teachers, use query parameters
     const { page = 1, limit = 10, search } = req.query;
 
+    // Filter by creator for teachers
+    if (isTeacher) {
+      query.createdBy = req.user._id;
+    }
+
     if (classNumber) {
       query.classNumber = parseInt(classNumber);
     }
@@ -366,8 +371,8 @@ exports.getAllQuizzes = asyncHandler(async (req, res) => {
     // Add search functionality
     if (search) {
       query.$or = [
-        { name: { $regex: search, $options: 'i' } }, // Changed title to name as per schema
-        { description: { $regex: search, $options: 'i' } }
+        { name: { $regex: search.trim(), $options: 'i' } }, // Changed title to name as per schema
+        { description: { $regex: search.trim(), $options: 'i' } }
       ];
     }
 

@@ -81,10 +81,10 @@ const AgentReferrals = () => {
   const getMonthOptions = () => {
     const options = []
     const now = new Date()
-    
+
     // If we have month-wise breakdown, include those months
     const breakdownMonths = new Set(monthWiseBreakdown.map(item => item.month))
-    
+
     // Generate last 24 months
     for (let i = 0; i < 24; i++) {
       const date = new Date(now.getFullYear(), now.getMonth() - i, 1)
@@ -92,7 +92,7 @@ const AgentReferrals = () => {
       const label = date.toLocaleDateString('en-IN', { year: 'numeric', month: 'long' })
       options.push({ value, label })
     }
-    
+
     // Add any months from breakdown that aren't in the last 24 months
     monthWiseBreakdown.forEach(item => {
       if (!options.find(opt => opt.value === item.month)) {
@@ -102,7 +102,7 @@ const AgentReferrals = () => {
         options.push({ value: item.month, label })
       }
     })
-    
+
     // Sort by value (newest first)
     return options.sort((a, b) => b.value.localeCompare(a.value))
   }
@@ -202,22 +202,22 @@ const AgentReferrals = () => {
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-2 sm:px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    <th className="px-2 sm:px-3 py-2 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
                       Student Details
                     </th>
-                    <th className="px-2 sm:px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider hidden sm:table-cell">
+                    <th className="px-2 sm:px-3 py-2 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider hidden sm:table-cell">
                       Class & Board
                     </th>
-                    <th className="px-2 sm:px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider hidden md:table-cell">
+                    <th className="px-2 sm:px-3 py-2 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider hidden md:table-cell">
                       Plan
                     </th>
-                    <th className="px-2 sm:px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    <th className="px-2 sm:px-3 py-2 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
                       Amount
                     </th>
-                    <th className="px-2 sm:px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider hidden lg:table-cell">
-                      Date
+                    <th className="px-2 sm:px-3 py-2 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider hidden lg:table-cell">
+                      Subscription Date
                     </th>
-                    <th className="px-2 sm:px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    <th className="px-2 sm:px-3 py-2 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
                       Status
                     </th>
                   </tr>
@@ -240,7 +240,7 @@ const AgentReferrals = () => {
                   ) : (
                     referrals.map((referral) => (
                       <tr key={referral._id} className="hover:bg-gray-50 transition-all duration-200">
-                        <td className="px-2 sm:px-3 py-2">
+                        <td className="px-2 sm:px-3 py-2 text-center">
                           <div className="text-xs font-semibold text-gray-900">
                             {referral.studentId?.name || 'N/A'}
                           </div>
@@ -253,7 +253,7 @@ const AgentReferrals = () => {
                             </div>
                           )}
                         </td>
-                        <td className="px-2 sm:px-3 py-2 whitespace-nowrap hidden sm:table-cell">
+                        <td className="px-2 sm:px-3 py-2 whitespace-nowrap hidden sm:table-cell text-center">
                           <div className="text-xs text-gray-600">
                             {referral.studentId?.class ? `Class ${referral.studentId.class}` : 'N/A'}
                           </div>
@@ -263,29 +263,28 @@ const AgentReferrals = () => {
                             </div>
                           )}
                         </td>
-                        <td className="px-2 sm:px-3 py-2 whitespace-nowrap hidden md:table-cell">
+                        <td className="px-2 sm:px-3 py-2 whitespace-nowrap hidden md:table-cell text-center">
                           <div className="text-xs text-gray-600">
                             {referral.subscriptionPlanId?.name || 'N/A'}
                           </div>
                         </td>
-                        <td className="px-2 sm:px-3 py-2 whitespace-nowrap">
+                        <td className="px-2 sm:px-3 py-2 whitespace-nowrap text-center">
                           <div className="text-xs font-semibold text-gray-900">
                             {formatCurrency(referral.amount)}
                           </div>
                         </td>
-                        <td className="px-2 sm:px-3 py-2 whitespace-nowrap hidden lg:table-cell">
+                        <td className="px-2 sm:px-3 py-2 whitespace-nowrap hidden lg:table-cell text-center">
                           <div className="text-xs text-gray-600">
                             {formatDate(referral.subscriptionDate)}
                           </div>
                         </td>
-                        <td className="px-2 sm:px-3 py-2 whitespace-nowrap">
-                          <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                            referral.status === 'paid'
+                        <td className="px-2 sm:px-3 py-2 whitespace-nowrap text-center">
+                          <span className={`px-2 py-1 text-xs font-semibold rounded-full ${referral.status === 'paid'
                               ? 'bg-green-100 text-green-800'
                               : referral.status === 'completed'
-                              ? 'bg-blue-100 text-blue-800'
-                              : 'bg-yellow-100 text-yellow-800'
-                          }`}>
+                                ? 'bg-blue-100 text-blue-800'
+                                : 'bg-yellow-100 text-yellow-800'
+                            }`}>
                             {referral.status || 'N/A'}
                           </span>
                         </td>

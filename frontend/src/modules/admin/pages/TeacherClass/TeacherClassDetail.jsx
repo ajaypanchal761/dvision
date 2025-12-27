@@ -112,10 +112,10 @@ const TeacherClassDetail = () => {
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-3 sm:px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Name</th>
-                    <th className="px-3 sm:px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Phone</th>
-                    <th className="px-3 sm:px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Joined</th>
-                    <th className="px-3 sm:px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Left</th>
+                    <th className="px-3 sm:px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">Name</th>
+                    <th className="px-3 sm:px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">Phone</th>
+                    <th className="px-3 sm:px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">Joined Date & Time</th>
+                    <th className="px-3 sm:px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">Left Date & Time</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-100">
@@ -134,12 +134,12 @@ const TeacherClassDetail = () => {
                   ) : (
                     students.map((s) => (
                       <tr key={s.userId} className="hover:bg-gray-50">
-                        <td className="px-3 sm:px-4 py-3 whitespace-nowrap font-semibold text-gray-900">{s.name}</td>
-                        <td className="px-3 sm:px-4 py-3 whitespace-nowrap text-sm text-gray-700 flex items-center gap-2">
+                        <td className="px-3 sm:px-4 py-3 whitespace-nowrap font-semibold text-gray-900 text-center">{s.name}</td>
+                        <td className="px-3 sm:px-4 py-3 whitespace-nowrap text-sm text-gray-700 flex items-center gap-2 justify-center">
                           <FiPhone className="text-gray-400" /> {s.phone}
                         </td>
-                        <td className="px-3 sm:px-4 py-3 whitespace-nowrap text-sm text-gray-700">{formatDateTime(s.joinedAt)}</td>
-                        <td className="px-3 sm:px-4 py-3 whitespace-nowrap text-sm text-gray-700">{s.leftAt ? formatDateTime(s.leftAt) : 'In class / —'}</td>
+                        <td className="px-3 sm:px-4 py-3 whitespace-nowrap text-sm text-gray-700 text-center">{formatDateTime(s.joinedAt)}</td>
+                        <td className="px-3 sm:px-4 py-3 whitespace-nowrap text-sm text-gray-700 text-center">{s.leftAt ? formatDateTime(s.leftAt) : 'In class / —'}</td>
                       </tr>
                     ))
                   )}

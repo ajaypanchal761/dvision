@@ -46,8 +46,18 @@ export const saveFcmTokenToBackend = async (fcmToken) => {
       return;
     }
 
+    // Check if token is already saved to backend to prevent redundant calls
+    const lastSavedToken = localStorage.getItem('sent_fcm_token');
+    if (lastSavedToken === fcmToken) {
+      console.log('FCM token already up to date on backend');
+      return;
+    }
+
     await studentAPI.updateFcmToken(fcmToken, 'web');
     console.log('FCM token saved to backend');
+
+    // Save to local storage to prevent future redundant calls
+    localStorage.setItem('sent_fcm_token', fcmToken);
 
     // Clear pending token if exists
     localStorage.removeItem('pending_fcm_token');
@@ -101,6 +111,10 @@ export const setupForegroundMessageListener = () => {
           window.open(url, '_blank');
           notification.close();
         };
+      } else {
+        // Fallback for when browser notifications are not supported or blocked
+        // But app is active
+        alert(`${payload.notification?.title || 'Notification'}\n\n${payload.notification?.body || ''}`);
       }
     })
     .catch((error) => {

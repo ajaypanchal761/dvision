@@ -3,6 +3,7 @@ const ReferralRecord = require('../models/ReferralRecord');
 const Student = require('../models/Student');
 const asyncHandler = require('../utils/asyncHandler');
 const ErrorResponse = require('../utils/errorResponse');
+const sendEmail = require('../utils/sendEmail');
 
 // @desc    Create new agent (Admin only)
 // @route   POST /api/admin/agents
@@ -35,6 +36,39 @@ exports.createAgent = asyncHandler(async (req, res) => {
     isPhoneVerified: false // Will be verified on first login
   });
 
+  // Send welcome email
+  if (email) {
+    try {
+      const webLink = process.env.WEB_URL || 'https://dvisionacademy.com';
+      const appLink = process.env.APP_URL || 'https://play.google.com/store/apps/details?id=com.dvisionacademy';
+
+      const message = `
+        <h1>Welcome to Dvision Academy!</h1>
+        <p>Hello ${name},</p>
+        <p>Your Agent account has been created successfully.</p>
+        
+        <h2>Login Credentials</h2>
+        <p><strong>Phone:</strong> ${phone}</p>
+        <p>You can login using OTP sent to your registered phone number.</p>
+        
+        <h2>Access Links</h2>
+        <p><strong>Web:</strong> <a href="${webLink}">${webLink}</a></p>
+        <p><strong>App:</strong> <a href="${appLink}">Download App</a></p>
+        
+        <p>Regards,<br>Dvision Academy Team</p>
+      `;
+
+      await sendEmail({
+        to: email,
+        subject: 'Welcome to Dvision Academy - Login Details',
+        html: message
+      });
+    } catch (error) {
+      console.error('Failed to send welcome email:', error);
+      // Continue execution
+    }
+  }
+
   res.status(201).json({
     success: true,
     message: 'Agent created successfully',
@@ -58,7 +92,7 @@ exports.getAgentStatistics = asyncHandler(async (req, res) => {
   const totalAgents = await Agent.countDocuments({});
   const activeAgents = await Agent.countDocuments({ isActive: true });
   const inactiveAgents = await Agent.countDocuments({ isActive: false });
-  
+
   res.status(200).json({
     success: true,
     data: {
@@ -81,9 +115,9 @@ exports.getAllAgents = asyncHandler(async (req, res) => {
 
   if (search) {
     query.$or = [
-      { name: { $regex: search, $options: 'i' } },
-      { email: { $regex: search, $options: 'i' } },
-      { phone: { $regex: search, $options: 'i' } }
+      { name: { $regex: search.trim(), $options: 'i' } },
+      { email: { $regex: search.trim(), $options: 'i' } },
+      { phone: { $regex: search.trim(), $options: 'i' } }
     ];
   }
 

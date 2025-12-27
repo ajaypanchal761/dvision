@@ -11,7 +11,7 @@ const Courses = () => {
   const [searchTerm, setSearchTerm] = useState('')
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
-  
+
   // Pagination state
   const [pagination, setPagination] = useState({
     page: 1,
@@ -19,7 +19,7 @@ const Courses = () => {
     total: 0,
     count: 0
   })
-  
+
   // Statistics state
   const [statistics, setStatistics] = useState({
     totalCourses: 0,
@@ -52,12 +52,12 @@ const Courses = () => {
         page,
         limit: 10
       }
-      if (searchTerm) params.search = searchTerm
+      if (searchTerm) params.search = searchTerm.trim()
 
       const response = await courseAPI.getAll(params)
       if (response.success && response.data?.courses) {
         setCourses(response.data.courses)
-        
+
         // Update pagination
         setPagination({
           page: response.page || 1,
@@ -90,7 +90,7 @@ const Courses = () => {
     }, 500)
     return () => clearTimeout(timer)
   }, [searchTerm])
-  
+
   // Handle page change
   const handlePageChange = (newPage) => {
     if (newPage >= 1 && newPage <= pagination.pages) {
@@ -241,31 +241,31 @@ const Courses = () => {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-2 sm:px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  <th className="px-2 sm:px-3 py-2 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
                     Course Title
                   </th>
-                  <th className="px-2 sm:px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  <th className="px-2 sm:px-3 py-2 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
                     Type
                   </th>
-                  <th className="px-2 sm:px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider hidden sm:table-cell">
+                  <th className="px-2 sm:px-3 py-2 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider hidden sm:table-cell">
                     Board
                   </th>
-                  <th className="px-2 sm:px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  <th className="px-2 sm:px-3 py-2 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
                     Class
                   </th>
-                  <th className="px-2 sm:px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider hidden md:table-cell">
+                  <th className="px-2 sm:px-3 py-2 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider hidden md:table-cell">
                     Subject
                   </th>
-                  <th className="px-2 sm:px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider hidden lg:table-cell">
+                  <th className="px-2 sm:px-3 py-2 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider hidden lg:table-cell">
                     Chapters
                   </th>
-                  <th className="px-2 sm:px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  <th className="px-2 sm:px-3 py-2 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
                     Status
                   </th>
-                  <th className="px-2 sm:px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider hidden xl:table-cell">
+                  <th className="px-2 sm:px-3 py-2 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider hidden xl:table-cell">
                     Created Date
                   </th>
-                  <th className="px-2 sm:px-3 py-2 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  <th className="px-2 sm:px-3 py-2 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
                     Actions
                   </th>
                 </tr>
@@ -288,26 +288,26 @@ const Courses = () => {
                 ) : (
                   filteredCourses.map((course) => (
                     <tr key={course._id} className="hover:bg-gray-50 transition-all duration-200">
-                      <td className="px-2 sm:px-3 py-2">
+                      <td className="px-2 sm:px-3 py-2 text-center">
                         <div className="text-xs font-semibold text-gray-900">{course.title}</div>
                         {course.description && (
-                          <div className="text-[10px] text-gray-500 mt-1 max-w-xs truncate hidden sm:block" title={course.description}>
+                          <div className="text-[10px] text-gray-500 mt-1 max-w-xs truncate hidden sm:block mx-auto" title={course.description}>
                             {course.description}
                           </div>
                         )}
                       </td>
-                      <td className="px-2 sm:px-3 py-2 whitespace-nowrap">
+                      <td className="px-2 sm:px-3 py-2 whitespace-nowrap text-center">
                         <span className={`px-2 py-0.5 inline-flex text-[10px] sm:text-xs font-semibold rounded-lg ${course.type === 'preparation'
-                            ? 'bg-purple-100 text-purple-700'
-                            : 'bg-blue-100 text-blue-700'
+                          ? 'bg-purple-100 text-purple-700'
+                          : 'bg-blue-100 text-blue-700'
                           }`}>
                           {course.type === 'preparation' ? 'Preparation' : 'Regular'}
                         </span>
                       </td>
-                      <td className="px-2 sm:px-3 py-2 whitespace-nowrap hidden sm:table-cell">
+                      <td className="px-2 sm:px-3 py-2 whitespace-nowrap hidden sm:table-cell text-center">
                         <div className="text-xs text-gray-600">{course.board || '-'}</div>
                       </td>
-                      <td className="px-2 sm:px-3 py-2 whitespace-nowrap">
+                      <td className="px-2 sm:px-3 py-2 whitespace-nowrap text-center">
                         {course.type === 'preparation' ? (
                           <div className="text-xs font-semibold text-gray-900">
                             {course.classId?.name || 'N/A'}
@@ -316,29 +316,29 @@ const Courses = () => {
                           <div className="text-xs font-semibold text-gray-900">Class {course.class}</div>
                         )}
                       </td>
-                      <td className="px-2 sm:px-3 py-2 whitespace-nowrap hidden md:table-cell">
+                      <td className="px-2 sm:px-3 py-2 whitespace-nowrap hidden md:table-cell text-center">
                         <div className="text-xs text-gray-600">{course.subject}</div>
                       </td>
-                      <td className="px-2 sm:px-3 py-2 whitespace-nowrap hidden lg:table-cell">
+                      <td className="px-2 sm:px-3 py-2 whitespace-nowrap hidden lg:table-cell text-center">
                         <span className="px-2 py-0.5 inline-flex text-[10px] sm:text-xs font-medium rounded-lg bg-blue-100 text-blue-700">
                           {course.chapters?.length || 0} Chapters
                         </span>
                       </td>
-                      <td className="px-2 sm:px-3 py-2 whitespace-nowrap">
+                      <td className="px-2 sm:px-3 py-2 whitespace-nowrap text-center">
                         <span className={`px-2 py-0.5 inline-flex text-[10px] sm:text-xs font-semibold rounded-lg ${course.status === 'Active'
-                            ? 'bg-green-100 text-green-700'
-                            : 'bg-red-100 text-red-700'
+                          ? 'bg-green-100 text-green-700'
+                          : 'bg-red-100 text-red-700'
                           }`}>
                           {course.status}
                         </span>
                       </td>
-                      <td className="px-2 sm:px-3 py-2 whitespace-nowrap hidden xl:table-cell">
+                      <td className="px-2 sm:px-3 py-2 whitespace-nowrap hidden xl:table-cell text-center">
                         <div className="text-[10px] sm:text-xs text-gray-500">
                           {course.createdAt ? new Date(course.createdAt).toLocaleDateString() : '-'}
                         </div>
                       </td>
-                      <td className="px-2 sm:px-3 py-2 whitespace-nowrap text-right text-xs font-medium">
-                        <div className="flex items-center justify-end space-x-1 sm:space-x-2">
+                      <td className="px-2 sm:px-3 py-2 whitespace-nowrap text-center text-xs font-medium">
+                        <div className="flex items-center justify-center space-x-1 sm:space-x-2">
                           <button
                             onClick={() => navigate(`/admin/courses/edit/${course._id}`)}
                             className="p-1.5 sm:p-2 text-[#1e3a5f] hover:bg-blue-50 rounded-lg transition-all duration-200"
@@ -365,7 +365,7 @@ const Courses = () => {
               </tbody>
             </table>
           </div>
-          
+
           {/* Pagination Controls */}
           {!isLoading && pagination.pages > 1 && (
             <div className="px-3 sm:px-4 py-3 sm:py-4 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-3">
@@ -380,11 +380,10 @@ const Courses = () => {
                 <button
                   onClick={() => handlePageChange(pagination.page - 1)}
                   disabled={pagination.page === 1}
-                  className={`px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-all ${
-                    pagination.page === 1
-                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                      : 'bg-[#1e3a5f] text-white hover:bg-[#2a4a6f]'
-                  }`}
+                  className={`px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-all ${pagination.page === 1
+                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                    : 'bg-[#1e3a5f] text-white hover:bg-[#2a4a6f]'
+                    }`}
                 >
                   Previous
                 </button>
@@ -404,11 +403,10 @@ const Courses = () => {
                       <button
                         key={pageNum}
                         onClick={() => handlePageChange(pageNum)}
-                        className={`px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-all ${
-                          pagination.page === pageNum
-                            ? 'bg-[#1e3a5f] text-white'
-                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                        }`}
+                        className={`px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-all ${pagination.page === pageNum
+                          ? 'bg-[#1e3a5f] text-white'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          }`}
                       >
                         {pageNum}
                       </button>
@@ -418,11 +416,10 @@ const Courses = () => {
                 <button
                   onClick={() => handlePageChange(pagination.page + 1)}
                   disabled={pagination.page === pagination.pages}
-                  className={`px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-all ${
-                    pagination.page === pagination.pages
-                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                      : 'bg-[#1e3a5f] text-white hover:bg-[#2a4a6f]'
-                  }`}
+                  className={`px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-all ${pagination.page === pagination.pages
+                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                    : 'bg-[#1e3a5f] text-white hover:bg-[#2a4a6f]'
+                    }`}
                 >
                   Next
                 </button>

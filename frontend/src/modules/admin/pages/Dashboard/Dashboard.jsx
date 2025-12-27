@@ -71,7 +71,10 @@ const Dashboard = () => {
             <div className="bg-white rounded-xl shadow-md border border-gray-200 p-4 sm:p-5 mb-4 sm:mb-6">
               <h2 className="text-base sm:text-lg font-bold text-gray-900 mb-3 sm:mb-4">Overview</h2>
               <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-                <div className="bg-gray-50 rounded-lg shadow-sm p-3 sm:p-4 border border-gray-100 hover:shadow-md transition-shadow">
+                <div
+                  onClick={() => navigate('/admin/students')}
+                  className="bg-gray-50 rounded-lg shadow-sm p-3 sm:p-4 border border-gray-100 hover:shadow-md transition-shadow cursor-pointer"
+                >
                   <div className="flex items-center justify-between">
                     <div className="flex-1 min-w-0">
                       <p className="text-gray-500 text-xs sm:text-sm font-medium">Total Students</p>
@@ -86,7 +89,10 @@ const Dashboard = () => {
                   </div>
                 </div>
 
-                <div className="bg-gray-50 rounded-lg shadow-sm p-3 sm:p-4 border border-gray-100 hover:shadow-md transition-shadow">
+                <div
+                  onClick={() => navigate('/admin/teachers')}
+                  className="bg-gray-50 rounded-lg shadow-sm p-3 sm:p-4 border border-gray-100 hover:shadow-md transition-shadow cursor-pointer"
+                >
                   <div className="flex items-center justify-between">
                     <div className="flex-1 min-w-0">
                       <p className="text-gray-500 text-xs sm:text-sm font-medium">Total Teachers</p>
@@ -101,7 +107,10 @@ const Dashboard = () => {
                   </div>
                 </div>
 
-                <div className="bg-gray-50 rounded-lg shadow-sm p-3 sm:p-4 border border-gray-100 hover:shadow-md transition-shadow">
+                <div
+                  onClick={() => navigate('/admin/classes')}
+                  className="bg-gray-50 rounded-lg shadow-sm p-3 sm:p-4 border border-gray-100 hover:shadow-md transition-shadow cursor-pointer"
+                >
                   <div className="flex items-center justify-between">
                     <div className="flex-1 min-w-0">
                       <p className="text-gray-500 text-xs sm:text-sm font-medium">Total Classes</p>
@@ -116,7 +125,10 @@ const Dashboard = () => {
                   </div>
                 </div>
 
-                <div className="bg-gray-50 rounded-lg shadow-sm p-3 sm:p-4 border border-gray-100 hover:shadow-md transition-shadow">
+                <div
+                  onClick={() => navigate('/admin/subscriptions')}
+                  className="bg-gray-50 rounded-lg shadow-sm p-3 sm:p-4 border border-gray-100 hover:shadow-md transition-shadow cursor-pointer"
+                >
                   <div className="flex items-center justify-between">
                     <div className="flex-1 min-w-0">
                       <p className="text-gray-500 text-xs sm:text-sm font-medium">Active Subscriptions</p>

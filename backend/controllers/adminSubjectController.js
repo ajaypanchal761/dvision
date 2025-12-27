@@ -73,7 +73,7 @@ exports.getAllSubjects = asyncHandler(async (req, res) => {
   // Add search functionality
   if (search) {
     query.$or = [
-      { name: { $regex: search, $options: 'i' } }
+      { name: { $regex: search.trim(), $options: 'i' } }
     ];
   }
 

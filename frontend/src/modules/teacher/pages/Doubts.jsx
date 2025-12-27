@@ -122,18 +122,7 @@ const Doubts = () => {
     }
   };
 
-  const handleStatusChange = async (doubtId, status) => {
-    try {
-      const response = await doubtAPI.updateDoubtStatus(doubtId, status);
-      if (response.success) {
-        await fetchDoubts();
-        alert('Status updated successfully!');
-      }
-    } catch (error) {
-      console.error('Error updating status:', error);
-      alert(error.message || 'Failed to update status. Please try again.');
-    }
-  };
+
 
   // Client-side filtering removed
   const filteredDoubts = doubts;
@@ -172,7 +161,7 @@ const Doubts = () => {
             />
           </div>
           <div className="flex gap-1.5 sm:gap-2 md:gap-3 flex-wrap">
-            {['all', 'Pending', 'Answered', 'Resolved'].map((status) => (
+            {['all', 'Pending', 'Resolved'].map((status) => (
               <button
                 key={status}
                 onClick={() => { setStatusFilter(status); setPage(1); }}
@@ -265,15 +254,7 @@ const Doubts = () => {
                           </span>
                           <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
                         </button>
-                        <select
-                          value={doubt.status}
-                          onChange={(e) => handleStatusChange(doubt._id, e.target.value)}
-                          className="px-2 sm:px-3 py-1.5 sm:py-2 rounded-md sm:rounded-lg border-2 border-gray-200 bg-white text-[10px] sm:text-xs font-bold text-gray-700 focus:outline-none focus:border-[var(--app-dark-blue)] focus:ring-2 focus:ring-[var(--app-dark-blue)]/20 cursor-pointer hover:border-[var(--app-dark-blue)]/50 transition-all shadow-sm hover:shadow-md"
-                        >
-                          <option value="Pending">Pending</option>
-                          <option value="Answered">Answered</option>
-                          <option value="Resolved">Resolved</option>
-                        </select>
+
                       </div>
                     </div>
 

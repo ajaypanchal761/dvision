@@ -8,7 +8,6 @@ const EditBanner = () => {
   const [formData, setFormData] = useState({
     title: '',
     description: '',
-    order: 0,
     status: 'Active',
   })
   const [imagePreview, setImagePreview] = useState('')
@@ -29,7 +28,7 @@ const EditBanner = () => {
           setFormData({
             title: banner.title || '',
             description: banner.description || '',
-            order: banner.order || 0,
+
             status: banner.isActive ? 'Active' : 'Inactive',
           })
           setImagePreview(banner.image || '')
@@ -73,7 +72,6 @@ const EditBanner = () => {
       const bannerData = {
         title: formData.title,
         description: formData.description || undefined,
-        order: parseInt(formData.order) || 0,
         isActive: formData.status === 'Active',
       }
 
@@ -83,7 +81,7 @@ const EditBanner = () => {
       }
 
       const response = await bannerAPI.update(id, bannerData)
-      
+
       if (response.success) {
         navigate('/admin/banners')
       } else {
@@ -143,90 +141,77 @@ const EditBanner = () => {
                     Banner Image <span className="text-red-500">*</span>
                   </label>
                   <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3">
-                  {imagePreview ? (
-                    <img src={imagePreview} alt="Preview" className="h-24 w-36 sm:h-28 sm:w-40 md:h-32 md:w-48 object-cover rounded-lg sm:rounded-xl border-2 border-gray-200" />
-                  ) : (
-                    <div className="h-24 w-36 sm:h-28 sm:w-40 md:h-32 md:w-48 bg-gray-100 rounded-lg sm:rounded-xl border-2 border-dashed border-gray-300 flex items-center justify-center">
-                      <svg className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                      </svg>
-                    </div>
-                  )}
-                  <label className="flex-1 w-full sm:w-auto cursor-pointer">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleImageChange}
-                      className="hidden"
-                      disabled={isLoading}
-                    />
-                    <div className="w-full sm:w-auto px-4 sm:px-6 py-2 text-xs sm:text-sm bg-gradient-to-r from-[#1e3a5f] to-[#2a4a6f] hover:from-[#2a4a6f] hover:to-[#1e3a5f] text-white rounded-lg font-semibold transition-all duration-200 text-center disabled:opacity-50">
-                      {imagePreview ? 'Change Image' : 'Upload Image'}
-                    </div>
+                    {imagePreview ? (
+                      <img src={imagePreview} alt="Preview" className="h-24 w-36 sm:h-28 sm:w-40 md:h-32 md:w-48 object-cover rounded-lg sm:rounded-xl border-2 border-gray-200" />
+                    ) : (
+                      <div className="h-24 w-36 sm:h-28 sm:w-40 md:h-32 md:w-48 bg-gray-100 rounded-lg sm:rounded-xl border-2 border-dashed border-gray-300 flex items-center justify-center">
+                        <svg className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                      </div>
+                    )}
+                    <label className="flex-1 w-full sm:w-auto cursor-pointer">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleImageChange}
+                        className="hidden"
+                        disabled={isLoading}
+                      />
+                      <div className="w-full sm:w-auto px-4 sm:px-6 py-2 text-xs sm:text-sm bg-gradient-to-r from-[#1e3a5f] to-[#2a4a6f] hover:from-[#2a4a6f] hover:to-[#1e3a5f] text-white rounded-lg font-semibold transition-all duration-200 text-center disabled:opacity-50">
+                        {imagePreview ? 'Change Image' : 'Upload Image'}
+                      </div>
+                    </label>
+                  </div>
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1.5 sm:mb-2">
+                    Title <span className="text-red-500">*</span>
                   </label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.title}
+                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                    className="w-full px-3 py-2 text-xs sm:text-sm border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-[#1e3a5f] focus:border-[#1e3a5f] outline-none transition-all duration-200"
+                    placeholder="Enter banner title"
+                    disabled={isLoading}
+                  />
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1.5 sm:mb-2">
+                    Description
+                  </label>
+                  <textarea
+                    value={formData.description}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    rows="3"
+                    className="w-full px-3 py-2 text-xs sm:text-sm border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-[#1e3a5f] focus:border-[#1e3a5f] outline-none transition-all duration-200"
+                    placeholder="Enter banner description"
+                    disabled={isLoading}
+                  />
+                </div>
+
+
+
+                <div>
+                  <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1.5 sm:mb-2">
+                    Status <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    required
+                    value={formData.status}
+                    onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                    className="w-full px-3 py-2 text-xs sm:text-sm border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-[#1e3a5f] focus:border-[#1e3a5f] outline-none transition-all duration-200 bg-white"
+                    disabled={isLoading}
+                  >
+                    <option value="Active">Active</option>
+                    <option value="Inactive">Inactive</option>
+                  </select>
                 </div>
               </div>
-
-              <div className="md:col-span-2">
-                <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1.5 sm:mb-2">
-                  Title <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={formData.title}
-                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  className="w-full px-3 py-2 text-xs sm:text-sm border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-[#1e3a5f] focus:border-[#1e3a5f] outline-none transition-all duration-200"
-                  placeholder="Enter banner title"
-                  disabled={isLoading}
-                />
-              </div>
-
-              <div className="md:col-span-2">
-                <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1.5 sm:mb-2">
-                  Description
-                </label>
-                <textarea
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  rows="3"
-                  className="w-full px-3 py-2 text-xs sm:text-sm border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-[#1e3a5f] focus:border-[#1e3a5f] outline-none transition-all duration-200"
-                  placeholder="Enter banner description"
-                  disabled={isLoading}
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1.5 sm:mb-2">
-                  Order
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  value={formData.order}
-                  onChange={(e) => setFormData({ ...formData, order: e.target.value })}
-                  className="w-full px-3 py-2 text-xs sm:text-sm border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-[#1e3a5f] focus:border-[#1e3a5f] outline-none transition-all duration-200"
-                  placeholder="0"
-                  disabled={isLoading}
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1.5 sm:mb-2">
-                  Status <span className="text-red-500">*</span>
-                </label>
-                <select
-                  required
-                  value={formData.status}
-                  onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                  className="w-full px-3 py-2 text-xs sm:text-sm border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-[#1e3a5f] focus:border-[#1e3a5f] outline-none transition-all duration-200 bg-white"
-                  disabled={isLoading}
-                >
-                  <option value="Active">Active</option>
-                  <option value="Inactive">Inactive</option>
-                </select>
-              </div>
-            </div>
             </div>
 
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2 sm:gap-3 pt-3 sm:pt-4">

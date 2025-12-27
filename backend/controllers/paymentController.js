@@ -903,7 +903,7 @@ exports.getAllPayments = asyncHandler(async (req, res, next) => {
 
   // Add search functionality - search in order IDs first
   if (search) {
-    const searchRegex = { $regex: search, $options: 'i' };
+    const searchRegex = { $regex: search.trim(), $options: 'i' };
     query.$or = [
       { cashfreeOrderId: searchRegex },
       { cashfreePaymentId: searchRegex }
@@ -917,7 +917,7 @@ exports.getAllPayments = asyncHandler(async (req, res, next) => {
   let studentSearchQuery = null;
   if (search) {
     const Student = require('../models/Student');
-    const searchRegex = { $regex: search, $options: 'i' };
+    const searchRegex = { $regex: search.trim(), $options: 'i' };
     const matchingStudents = await Student.find({
       $or: [
         { name: searchRegex },

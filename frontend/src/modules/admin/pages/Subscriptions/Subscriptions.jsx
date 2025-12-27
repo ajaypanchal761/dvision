@@ -13,7 +13,7 @@ const Subscriptions = () => {
   const [error, setError] = useState('')
   const [filterBoard, setFilterBoard] = useState('')
   const [filterDuration, setFilterDuration] = useState('')
-  
+
   // Pagination state
   const [pagination, setPagination] = useState({
     page: 1,
@@ -21,7 +21,7 @@ const Subscriptions = () => {
     total: 0,
     count: 0
   })
-  
+
   // Statistics state
   const [statistics, setStatistics] = useState({
     totalPlans: 0,
@@ -59,12 +59,12 @@ const Subscriptions = () => {
       }
       if (filterBoard) params.board = filterBoard
       if (filterDuration) params.duration = filterDuration
-      if (searchTerm) params.search = searchTerm
+      if (searchTerm) params.search = searchTerm.trim()
 
       const response = await subscriptionPlanAPI.getAll(params)
       if (response.success && response.data?.subscriptionPlans) {
         setSubscriptionPlans(response.data.subscriptionPlans)
-        
+
         // Update pagination
         setPagination({
           page: response.page || 1,
@@ -97,7 +97,7 @@ const Subscriptions = () => {
     }, 500)
     return () => clearTimeout(timer)
   }, [searchTerm, filterBoard, filterDuration])
-  
+
   // Handle page change
   const handlePageChange = (newPage) => {
     if (newPage >= 1 && newPage <= pagination.pages) {
@@ -288,31 +288,31 @@ const Subscriptions = () => {
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-2 sm:px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    <th className="px-2 sm:px-3 py-2 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
                       Type
                     </th>
-                    <th className="px-2 sm:px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    <th className="px-2 sm:px-3 py-2 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
                       Plan Name
                     </th>
-                    <th className="px-2 sm:px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    <th className="px-2 sm:px-3 py-2 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
                       Board / Class
                     </th>
-                    <th className="px-2 sm:px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider hidden sm:table-cell">
+                    <th className="px-2 sm:px-3 py-2 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider hidden sm:table-cell">
                       Classes / Info
                     </th>
-                    <th className="px-2 sm:px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider hidden md:table-cell">
+                    <th className="px-2 sm:px-3 py-2 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider hidden md:table-cell">
                       Duration
                     </th>
-                    <th className="px-2 sm:px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider hidden lg:table-cell">
+                    <th className="px-2 sm:px-3 py-2 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider hidden lg:table-cell">
                       Price
                     </th>
-                    <th className="px-2 sm:px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    <th className="px-2 sm:px-3 py-2 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
                       Status
                     </th>
-                    <th className="px-2 sm:px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider hidden xl:table-cell">
-                      Created
+                    <th className="px-2 sm:px-3 py-2 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider hidden xl:table-cell">
+                      Created Date
                     </th>
-                    <th className="px-2 sm:px-3 py-2 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    <th className="px-2 sm:px-3 py-2 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
                       Actions
                     </th>
                   </tr>
@@ -320,7 +320,7 @@ const Subscriptions = () => {
                 <tbody className="bg-white divide-y divide-gray-100">
                   {filteredPlans.length === 0 ? (
                     <tr>
-                      <td colSpan="8" className="px-3 sm:px-4 py-6 sm:py-8 text-center">
+                      <td colSpan="9" className="px-3 sm:px-4 py-6 sm:py-8 text-center">
                         <div className="flex flex-col items-center justify-center">
                           <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-gray-100 flex items-center justify-center mb-2 sm:mb-3">
                             <svg className="w-5 h-5 sm:w-6 sm:h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -337,18 +337,18 @@ const Subscriptions = () => {
                       const isPreparation = plan.type === 'preparation'
                       return (
                         <tr key={plan._id} className="hover:bg-gray-50 transition-all duration-200">
-                          <td className="px-2 sm:px-3 py-2 whitespace-nowrap">
+                          <td className="px-2 sm:px-3 py-2 whitespace-nowrap text-center">
                             <span className={`px-2 py-0.5 inline-flex text-[10px] sm:text-xs font-semibold rounded-lg ${isPreparation
-                                ? 'bg-purple-100 text-purple-700'
-                                : 'bg-blue-100 text-blue-700'
+                              ? 'bg-purple-100 text-purple-700'
+                              : 'bg-blue-100 text-blue-700'
                               }`}>
                               {isPreparation ? 'Prep' : 'Regular'}
                             </span>
                           </td>
-                          <td className="px-2 sm:px-3 py-2 whitespace-nowrap">
+                          <td className="px-2 sm:px-3 py-2 whitespace-nowrap text-center">
                             <div className="text-xs font-semibold text-gray-900">{plan.name}</div>
                           </td>
-                          <td className="px-2 sm:px-3 py-2 whitespace-nowrap">
+                          <td className="px-2 sm:px-3 py-2 whitespace-nowrap text-center">
                             {isPreparation ? (
                               plan.classId ? (
                                 <span className="px-2 py-0.5 inline-flex text-[10px] sm:text-xs font-medium rounded-lg bg-purple-100 text-purple-700">
@@ -365,7 +365,7 @@ const Subscriptions = () => {
                               </span>
                             )}
                           </td>
-                          <td className="px-2 sm:px-3 py-2 whitespace-nowrap hidden sm:table-cell">
+                          <td className="px-2 sm:px-3 py-2 whitespace-nowrap hidden sm:table-cell text-center">
                             <div className="text-xs text-gray-600">
                               {isPreparation
                                 ? (plan.classId
@@ -376,18 +376,18 @@ const Subscriptions = () => {
                               }
                             </div>
                           </td>
-                          <td className="px-2 sm:px-3 py-2 whitespace-nowrap hidden md:table-cell">
+                          <td className="px-2 sm:px-3 py-2 whitespace-nowrap hidden md:table-cell text-center">
                             <span className="px-2 py-0.5 inline-flex text-[10px] sm:text-xs font-medium rounded-lg bg-blue-100 text-blue-700 capitalize">
                               {plan.duration}
                             </span>
                           </td>
-                          <td className="px-2 sm:px-3 py-2 whitespace-nowrap hidden lg:table-cell">
+                          <td className="px-2 sm:px-3 py-2 whitespace-nowrap hidden lg:table-cell text-center">
                             <div className="text-xs font-semibold text-gray-900">{formatCurrency(plan.price)}</div>
                             {plan.originalPrice && plan.originalPrice > plan.price && (
                               <div className="text-[10px] text-gray-500 line-through">{formatCurrency(plan.originalPrice)}</div>
                             )}
                           </td>
-                          <td className="px-2 sm:px-3 py-2 whitespace-nowrap">
+                          <td className="px-2 sm:px-3 py-2 whitespace-nowrap text-center">
                             <span className={`px-2 py-0.5 inline-flex text-[10px] sm:text-xs font-semibold rounded-lg ${plan.isActive
                               ? 'bg-green-100 text-green-700'
                               : 'bg-red-100 text-red-700'
@@ -395,11 +395,11 @@ const Subscriptions = () => {
                               {plan.isActive ? 'Active' : 'Inactive'}
                             </span>
                           </td>
-                          <td className="px-2 sm:px-3 py-2 whitespace-nowrap hidden xl:table-cell">
+                          <td className="px-2 sm:px-3 py-2 whitespace-nowrap hidden xl:table-cell text-center">
                             <div className="text-[10px] sm:text-xs text-gray-500">{formatDate(plan.createdAt)}</div>
                           </td>
-                          <td className="px-2 sm:px-3 py-2 whitespace-nowrap text-right text-xs font-medium">
-                            <div className="flex items-center justify-end space-x-1 sm:space-x-2">
+                          <td className="px-2 sm:px-3 py-2 whitespace-nowrap text-center text-xs font-medium">
+                            <div className="flex items-center justify-center space-x-1 sm:space-x-2">
                               <button
                                 onClick={() => navigate(`/admin/subscriptions/edit/${plan._id}`)}
                                 className="p-1.5 sm:p-2 text-[#1e3a5f] hover:bg-blue-50 rounded-lg transition-all duration-200"
@@ -428,7 +428,7 @@ const Subscriptions = () => {
               </table>
             )}
           </div>
-          
+
           {/* Pagination Controls */}
           {!isLoading && pagination.pages > 1 && (
             <div className="px-3 sm:px-4 py-3 sm:py-4 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-3">
@@ -443,11 +443,10 @@ const Subscriptions = () => {
                 <button
                   onClick={() => handlePageChange(pagination.page - 1)}
                   disabled={pagination.page === 1}
-                  className={`px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-all ${
-                    pagination.page === 1
-                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                      : 'bg-[#1e3a5f] text-white hover:bg-[#2a4a6f]'
-                  }`}
+                  className={`px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-all ${pagination.page === 1
+                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                    : 'bg-[#1e3a5f] text-white hover:bg-[#2a4a6f]'
+                    }`}
                 >
                   Previous
                 </button>
@@ -467,11 +466,10 @@ const Subscriptions = () => {
                       <button
                         key={pageNum}
                         onClick={() => handlePageChange(pageNum)}
-                        className={`px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-all ${
-                          pagination.page === pageNum
-                            ? 'bg-[#1e3a5f] text-white'
-                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                        }`}
+                        className={`px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-all ${pagination.page === pageNum
+                          ? 'bg-[#1e3a5f] text-white'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          }`}
                       >
                         {pageNum}
                       </button>
@@ -481,11 +479,10 @@ const Subscriptions = () => {
                 <button
                   onClick={() => handlePageChange(pagination.page + 1)}
                   disabled={pagination.page === pagination.pages}
-                  className={`px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-all ${
-                    pagination.page === pagination.pages
-                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                      : 'bg-[#1e3a5f] text-white hover:bg-[#2a4a6f]'
-                  }`}
+                  className={`px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-all ${pagination.page === pagination.pages
+                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                    : 'bg-[#1e3a5f] text-white hover:bg-[#2a4a6f]'
+                    }`}
                 >
                   Next
                 </button>

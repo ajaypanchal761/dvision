@@ -411,6 +411,60 @@ const uploadBase64ToCloudinary = async (base64String) => {
   }
 };
 
+// @desc    Reset password (verify OTP and set new password)
+// @route   POST /api/student/reset-password
+// @access  Public
+exports.resetPassword = asyncHandler(async (req, res) => {
+  const { phone, otp, password } = req.body;
+
+  if (!phone || !otp || !password) {
+    throw new ErrorResponse('Please provide phone, OTP, and new password', 400);
+  }
+
+  if (password.length < 6) {
+    throw new ErrorResponse('Password must be at least 6 characters long', 400);
+  }
+
+  // Verify OTP
+  await otpService.verifyOTP(phone, otp);
+
+  // Find student
+  const student = await Student.findOne({ phone }).select('+password');
+  if (!student) {
+    throw new ErrorResponse('Student not found', 404);
+  }
+
+  // Update password
+  student.password = password;
+  // Mark phone as verified if it wasn't (edge case)
+  student.isPhoneVerified = true;
+  student.lastOtpSentAt = null;
+
+  await student.save();
+
+  // Generate token for auto-login
+  const token = generateToken(student._id, 'student');
+
+  res.status(200).json({
+    success: true,
+    message: 'Password reset successful',
+    data: {
+      token,
+      student: {
+        _id: student._id,
+        name: student.name,
+        phone: student.phone,
+        email: student.email,
+        class: student.class,
+        board: student.board,
+        isPhoneVerified: student.isPhoneVerified,
+        subscription: student.subscription,
+        profileImage: student.profileImage
+      }
+    }
+  });
+});
+
 // @desc    Verify OTP and complete login/registration
 // @route   POST /api/student/verify-otp
 // @access  Public
@@ -1110,6 +1164,54 @@ exports.updateFcmToken = asyncHandler(async (req, res) => {
       platform,
       tokenUpdated: true
     }
+  });
+});
+
+// @desc    Request a demo plan
+// @route   POST /api/student/request-demo
+// @access  Private
+exports.requestDemoPlan = asyncHandler(async (req, res) => {
+  const { planId, planName } = req.body;
+  const student = req.user;
+
+  if (!planId || !planName) {
+    throw new ErrorResponse('Plan ID and Name are required', 400);
+  }
+
+  // Create notification for admin
+  const notificationService = require('../services/notificationService');
+  const Admin = require('../models/Admin');
+
+  const notification = {
+    title: 'New Demo Plan Request',
+    body: `Student ${student.name} (${student.phone}) has requested the "${planName}" demo plan.`,
+    userType: 'admin',
+    type: 'demo_request',
+    data: {
+      studentId: student._id.toString(),
+      planId,
+      action: 'view_student'
+    }
+  };
+
+  // Find all active admins to send notification
+  const admins = await Admin.find({ isActive: { $ne: false } }).select('_id');
+  const adminIds = admins.map(a => a._id.toString());
+
+  if (adminIds.length > 0) {
+    await notificationService.sendToMultipleUsers(
+      adminIds,
+      'admin',
+      notification,
+      notification.data
+    );
+  } else {
+    console.warn('No admins found to notify about demo request.');
+  }
+
+  res.status(200).json({
+    success: true,
+    message: 'Demo request sent successfully'
   });
 });
 

@@ -22,6 +22,14 @@ const Login = () => {
   const [showCountryDropdown, setShowCountryDropdown] = useState(false);
   const [isInputFocused, setIsInputFocused] = useState(false);
 
+  // Forgot Password State
+  const [forgotPasswordMode, setForgotPasswordMode] = useState(false);
+  const [resetStep, setResetStep] = useState(1); // 1: Phone (if not already set), 2: OTP & New Password
+  const [otp, setOtp] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [isResending, setIsResending] = useState(false);
+
   // Popular country codes
   const countryCodes = [
     { code: '+91', country: 'India', countryCode: 'IN', flag: '🇮🇳' },
@@ -56,7 +64,7 @@ const Login = () => {
   const handlePhoneSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    
+
     if (!phone || phone.length < 10) {
       setError('Please enter a valid mobile number');
       return;
@@ -69,7 +77,7 @@ const Login = () => {
   const handleLogin = async (e) => {
     e.preventDefault();
     setError('');
-    
+
     if (!password || password.length < 6) {
       setError('Please enter a valid password (minimum 6 characters)');
       return;
@@ -85,10 +93,10 @@ const Login = () => {
       // Login student - POST API Call (with password)
       const { studentAPI } = await import('../services/api');
       console.log('[Login] Calling studentAPI.login...');
-      
+
       const result = await studentAPI.login(fullPhone, password);
       console.log('[Login] API Response:', result);
-      
+
       if (result.success) {
         console.log('[Login] Success! Logging in...');
         // Store token and user data
@@ -98,7 +106,7 @@ const Login = () => {
         if (result.data?.student) {
           localStorage.setItem('dvision_user', JSON.stringify(result.data.student));
         }
-        
+
         // Update AuthContext by fetching current user
         // This ensures the context is updated before navigation
         try {
@@ -128,15 +136,15 @@ const Login = () => {
         stack: error.stack,
         timestamp: new Date().toISOString()
       });
-      
+
       // Show user-friendly error message
       let errorMessage = error.message || 'Something went wrong. Please try again.';
-      
+
       // Add helpful hints for common errors
       if (error.message.includes('Network error') || error.message.includes('Failed to fetch')) {
         errorMessage += ' Please check your internet connection and ensure the backend server is running.';
       }
-      
+
       setError(errorMessage);
     } finally {
       setIsLoading(false);
@@ -144,10 +152,115 @@ const Login = () => {
     }
   };
 
+  const handleForgotPasswordRequest = async (e) => {
+    e.preventDefault();
+    setError('');
+
+    if (!phone || phone.length < 10) {
+      setError('Please enter a valid mobile number first');
+      return;
+    }
+
+    setIsLoading(true);
+    const fullPhone = `${selectedCountryCode}${phone}`;
+
+    try {
+      const { studentAPI } = await import('../services/api');
+
+      // Check if student exists first
+      const checkResult = await studentAPI.checkStudentExists(fullPhone);
+      if (!checkResult.data?.exists) {
+        setError('No account found with this phone number');
+        setIsLoading(false);
+        return;
+      }
+
+      // Send OTP
+      const result = await studentAPI.sendOTP(fullPhone);
+      if (result.success) {
+        setResetStep(2);
+        // Focus OTP input logic if needed
+      } else {
+        setError(result.message || 'Failed to send OTP');
+      }
+    } catch (error) {
+      setError(error.message || 'Failed to send OTP');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleResetPassword = async (e) => {
+    e.preventDefault();
+    setError('');
+
+    if (otp.length !== 6) {
+      setError('Please enter a valid 6-digit OTP');
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      setError('Password must be at least 6 characters');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setError('Passwords do not match');
+      return;
+    }
+
+    setIsLoading(true);
+    const fullPhone = `${selectedCountryCode}${phone}`;
+
+    try {
+      const { studentAPI } = await import('../services/api');
+      const result = await studentAPI.resetPassword(fullPhone, otp, newPassword);
+
+      if (result.success) {
+        // Auto login
+        if (result.data?.token) {
+          localStorage.setItem('dvision_token', result.data.token);
+        }
+        if (result.data?.student) {
+          localStorage.setItem('dvision_user', JSON.stringify(result.data.student));
+        }
+
+        // Redirect
+        window.location.href = ROUTES.DASHBOARD;
+      } else {
+        setError(result.message || 'Failed to reset password');
+      }
+    } catch (error) {
+      setError(error.message || 'Failed to reset password');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleResendOTP = async () => {
+    setIsResending(true);
+    setError('');
+    const fullPhone = `${selectedCountryCode}${phone}`;
+
+    try {
+      const { studentAPI } = await import('../services/api');
+      const result = await studentAPI.resendOTP(fullPhone);
+      if (result.success) {
+        alert('OTP resent successfully');
+      } else {
+        setError(result.message || 'Failed to resend OTP');
+      }
+    } catch (error) {
+      setError(error.message || 'Failed to resend OTP');
+    } finally {
+      setIsResending(false);
+    }
+  };
+
   return (
     <div className="min-h-screen w-full bg-white flex flex-col">
       {/* Single Box with Left Straight and Right Curved */}
-      <div 
+      <div
         className="bg-[var(--app-dark-blue)] text-white h-24 sm:h-28 md:h-32 relative overflow-hidden"
         style={{
           borderBottomRightRadius: '300px',
@@ -155,41 +268,41 @@ const Login = () => {
       >
         {/* Animated Waves Pattern */}
         <div className="absolute bottom-0 left-0 w-full h-12 sm:h-14 md:h-16 overflow-hidden">
-          <svg 
+          <svg
             className="absolute bottom-0 w-full h-full"
-            viewBox="0 0 1200 120" 
+            viewBox="0 0 1200 120"
             preserveAspectRatio="none"
           >
-            <path 
-              d="M0,60 Q300,20 600,60 T1200,60 L1200,120 L0,120 Z" 
+            <path
+              d="M0,60 Q300,20 600,60 T1200,60 L1200,120 L0,120 Z"
               fill="rgba(255,255,255,0.1)"
             >
-              <animate 
-                attributeName="d" 
-                values="M0,60 Q300,20 600,60 T1200,60 L1200,120 L0,120 Z;M0,60 Q300,40 600,60 T1200,60 L1200,120 L0,120 Z;M0,60 Q300,20 600,60 T1200,60 L1200,120 L0,120 Z" 
-                dur="3s" 
+              <animate
+                attributeName="d"
+                values="M0,60 Q300,20 600,60 T1200,60 L1200,120 L0,120 Z;M0,60 Q300,40 600,60 T1200,60 L1200,120 L0,120 Z;M0,60 Q300,20 600,60 T1200,60 L1200,120 L0,120 Z"
+                dur="3s"
                 repeatCount="indefinite"
               />
             </path>
-            <path 
-              d="M0,80 Q300,40 600,80 T1200,80 L1200,120 L0,120 Z" 
+            <path
+              d="M0,80 Q300,40 600,80 T1200,80 L1200,120 L0,120 Z"
               fill="rgba(255,255,255,0.05)"
             >
-              <animate 
-                attributeName="d" 
-                values="M0,80 Q300,40 600,80 T1200,80 L1200,120 L0,120 Z;M0,80 Q300,60 600,80 T1200,80 L1200,120 L0,120 Z;M0,80 Q300,40 600,80 T1200,80 L1200,120 L0,120 Z" 
-                dur="4s" 
+              <animate
+                attributeName="d"
+                values="M0,80 Q300,40 600,80 T1200,80 L1200,120 L0,120 Z;M0,80 Q300,60 600,80 T1200,80 L1200,120 L0,120 Z;M0,80 Q300,40 600,80 T1200,80 L1200,120 L0,120 Z"
+                dur="4s"
                 repeatCount="indefinite"
               />
             </path>
           </svg>
         </div>
-        
+
         {/* Decorative Circles */}
         <div className="absolute top-3 right-6 w-16 h-16 sm:w-20 sm:h-20 bg-white/10 rounded-full blur-xl"></div>
         <div className="absolute top-8 right-16 w-12 h-12 sm:w-16 sm:h-16 bg-white/5 rounded-full blur-lg"></div>
         <div className="absolute bottom-6 left-10 w-20 h-20 sm:w-24 sm:h-24 bg-white/10 rounded-full blur-xl"></div>
-        
+
         <div className="pt-5 sm:pt-6 md:pt-8 px-4 sm:px-6 md:px-8 relative z-10">
           <div>
             <p className="text-xs sm:text-sm md:text-base text-white/90 mb-0.5 sm:mb-1">Welcome back!</p>
@@ -207,7 +320,7 @@ const Login = () => {
           <div className="absolute bottom-1/4 right-1/4 w-60 h-60 sm:w-80 sm:h-80 bg-[var(--app-teal)]/5 rounded-full blur-3xl"></div>
           <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-72 h-72 sm:w-96 sm:h-96 bg-[var(--app-dark-blue)]/3 rounded-full blur-3xl"></div>
         </div>
-        
+
         <div className="w-full max-w-md relative z-10">
           {/* Logo */}
           <div className="mb-4 sm:mb-5 md:mb-6 flex justify-center">
@@ -217,126 +330,123 @@ const Login = () => {
               className="h-28 sm:h-32 md:h-36 lg:h-40 w-auto object-contain"
             />
           </div>
-          
-          {!showPasswordStep ? (
+
+          {!showPasswordStep && !forgotPasswordMode ? (
             <form onSubmit={handlePhoneSubmit} autoComplete="off" noValidate className="space-y-4 sm:space-y-5 md:space-y-6">
-            {/* Mobile Number Input */}
-            <div>
-              <label className="block text-sm sm:text-base md:text-lg font-medium text-[var(--app-black)] mb-2 sm:mb-3">
-                Mobile Number
-              </label>
-              <div className={`relative flex items-stretch rounded-lg sm:rounded-xl border transition-all ${
-                isInputFocused 
-                  ? 'border-[var(--app-dark-blue)] ring-2 ring-[var(--app-dark-blue)]/20' 
+              {/* Mobile Number Input */}
+              <div>
+                <label className="block text-sm sm:text-base md:text-lg font-medium text-[var(--app-black)] mb-2 sm:mb-3">
+                  Mobile Number
+                </label>
+                <div className={`relative flex items-stretch rounded-lg sm:rounded-xl border transition-all ${isInputFocused
+                  ? 'border-[var(--app-dark-blue)] ring-2 ring-[var(--app-dark-blue)]/20'
                   : 'border-gray-300'
-              }`}>
-                {/* Country Code Dropdown */}
-                <div className="relative flex-shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => setShowCountryDropdown(!showCountryDropdown)}
-                    className={`flex items-center justify-center gap-1 sm:gap-1.5 px-3 sm:px-4 md:px-5 h-full rounded-l-lg sm:rounded-l-xl bg-gray-50 hover:bg-gray-100 transition-colors min-h-[48px] sm:min-h-[52px] md:min-h-[56px] w-auto ${
-                      isInputFocused ? 'border-0' : 'border-r border-gray-300'
-                    }`}
-                  >
-                    <span className="text-[var(--app-black)]/70 font-medium text-sm sm:text-base md:text-lg whitespace-nowrap">
-                      {selectedCountryCode}
-                    </span>
-                    <FiChevronDown className="text-[var(--app-black)]/50 text-sm sm:text-base md:text-lg flex-shrink-0" />
-                  </button>
-                  
-                  {/* Dropdown Menu */}
-                  {showCountryDropdown && (
-                    <>
-                      <div 
-                        className="fixed inset-0 z-10" 
-                        onClick={() => setShowCountryDropdown(false)}
-                      />
-                      <div className="absolute top-full left-0 mt-1 bg-white border border-gray-300 rounded-lg sm:rounded-xl shadow-2xl z-20 max-h-60 overflow-y-auto w-44 sm:w-48 md:w-56">
-                        {countryCodes.map((country) => (
-                          <button
-                            key={country.code}
-                            type="button"
-                            onClick={() => {
-                              setSelectedCountryCode(country.code);
-                              setShowCountryDropdown(false);
-                            }}
-                            className={`w-full flex items-center gap-2 md:gap-3 px-2.5 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 hover:bg-gray-50 transition-colors ${
-                              selectedCountryCode === country.code ? 'bg-[var(--app-dark-blue)]/10' : ''
-                            }`}
-                          >
-                            <span className="text-[var(--app-black)] font-bold text-xs sm:text-xs md:text-sm w-5 sm:w-6 md:w-8">
-                              {country.countryCode}
-                            </span>
-                            <span className="text-[var(--app-black)] font-medium text-xs sm:text-xs md:text-sm">
-                              {country.code}
-                            </span>
-                            <span className="text-[var(--app-black)]/60 text-[10px] sm:text-[10px] md:text-xs ml-auto">
-                              {country.country}
-                            </span>
-                          </button>
-                        ))}
-                      </div>
-                    </>
+                  }`}>
+                  {/* Country Code Dropdown */}
+                  <div className="relative flex-shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => setShowCountryDropdown(!showCountryDropdown)}
+                      className={`flex items-center justify-center gap-1 sm:gap-1.5 px-3 sm:px-4 md:px-5 h-full rounded-l-lg sm:rounded-l-xl bg-gray-50 hover:bg-gray-100 transition-colors min-h-[48px] sm:min-h-[52px] md:min-h-[56px] w-auto ${isInputFocused ? 'border-0' : 'border-r border-gray-300'
+                        }`}
+                    >
+                      <span className="text-[var(--app-black)]/70 font-medium text-sm sm:text-base md:text-lg whitespace-nowrap">
+                        {selectedCountryCode}
+                      </span>
+                      <FiChevronDown className="text-[var(--app-black)]/50 text-sm sm:text-base md:text-lg flex-shrink-0" />
+                    </button>
+
+                    {/* Dropdown Menu */}
+                    {showCountryDropdown && (
+                      <>
+                        <div
+                          className="fixed inset-0 z-10"
+                          onClick={() => setShowCountryDropdown(false)}
+                        />
+                        <div className="absolute top-full left-0 mt-1 bg-white border border-gray-300 rounded-lg sm:rounded-xl shadow-2xl z-20 max-h-60 overflow-y-auto w-44 sm:w-48 md:w-56">
+                          {countryCodes.map((country) => (
+                            <button
+                              key={country.code}
+                              type="button"
+                              onClick={() => {
+                                setSelectedCountryCode(country.code);
+                                setShowCountryDropdown(false);
+                              }}
+                              className={`w-full flex items-center gap-2 md:gap-3 px-2.5 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 hover:bg-gray-50 transition-colors ${selectedCountryCode === country.code ? 'bg-[var(--app-dark-blue)]/10' : ''
+                                }`}
+                            >
+                              <span className="text-[var(--app-black)] font-bold text-xs sm:text-xs md:text-sm w-5 sm:w-6 md:w-8">
+                                {country.countryCode}
+                              </span>
+                              <span className="text-[var(--app-black)] font-medium text-xs sm:text-xs md:text-sm">
+                                {country.code}
+                              </span>
+                              <span className="text-[var(--app-black)]/60 text-[10px] sm:text-[10px] md:text-xs ml-auto">
+                                {country.country}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Mobile Number Input */}
+                  <input
+                    type="tel"
+                    name="mobile-number-login"
+                    id="mobile-number-login"
+                    placeholder="Enter your mobile number"
+                    value={phone}
+                    onChange={(e) => {
+                      const value = e.target.value.replace(/\D/g, '').slice(0, 15);
+                      setPhone(value);
+                    }}
+                    onFocus={() => setIsInputFocused(true)}
+                    onBlur={() => setIsInputFocused(false)}
+                    autoComplete="off"
+                    autoCapitalize="off"
+                    autoCorrect="off"
+                    spellCheck="false"
+                    inputMode="numeric"
+                    className="flex-1 pl-3 sm:pl-4 md:pl-5 pr-3 sm:pr-4 md:pr-5 py-3 sm:py-3.5 md:py-4 rounded-r-lg sm:rounded-r-xl border-0 bg-gray-50 focus:outline-none focus:bg-white transition-all text-sm sm:text-base md:text-lg text-[var(--app-black)] placeholder:text-gray-400 h-full min-h-[48px] sm:min-h-[52px] md:min-h-[56px]"
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Error Message */}
+              {error && !showPasswordStep && (
+                <div className="bg-red-50 border border-red-200 text-red-700 px-2.5 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 rounded-lg sm:rounded-xl text-xs sm:text-sm">
+                  <p className="mb-1.5 sm:mb-2">{error}</p>
+                  {error.includes("don't have an account") && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const fullPhone = `${selectedCountryCode}${phone}`;
+                        sessionStorage.setItem('registration_phone', fullPhone);
+                        sessionStorage.setItem('registration_country_code', selectedCountryCode);
+                        sessionStorage.setItem('registration_mobile', phone);
+                        navigate(ROUTES.REGISTRATION);
+                      }}
+                      className="text-red-700 font-bold underline hover:text-red-800"
+                    >
+                      Sign Up
+                    </button>
                   )}
                 </div>
-                
-                {/* Mobile Number Input */}
-                <input
-                  type="tel"
-                  name="mobile-number-login"
-                  id="mobile-number-login"
-                  placeholder="Enter your mobile number"
-                  value={phone}
-                  onChange={(e) => {
-                    const value = e.target.value.replace(/\D/g, '').slice(0, 15);
-                    setPhone(value);
-                  }}
-                  onFocus={() => setIsInputFocused(true)}
-                  onBlur={() => setIsInputFocused(false)}
-                  autoComplete="off"
-                  autoCapitalize="off"
-                  autoCorrect="off"
-                  spellCheck="false"
-                  inputMode="numeric"
-                  className="flex-1 pl-3 sm:pl-4 md:pl-5 pr-3 sm:pr-4 md:pr-5 py-3 sm:py-3.5 md:py-4 rounded-r-lg sm:rounded-r-xl border-0 bg-gray-50 focus:outline-none focus:bg-white transition-all text-sm sm:text-base md:text-lg text-[var(--app-black)] placeholder:text-gray-400 h-full min-h-[48px] sm:min-h-[52px] md:min-h-[56px]"
-                  required
-                />
-              </div>
-            </div>
+              )}
 
-            {/* Error Message */}
-            {error && !showPasswordStep && (
-              <div className="bg-red-50 border border-red-200 text-red-700 px-2.5 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 rounded-lg sm:rounded-xl text-xs sm:text-sm">
-                <p className="mb-1.5 sm:mb-2">{error}</p>
-                {error.includes("don't have an account") && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const fullPhone = `${selectedCountryCode}${phone}`;
-                      sessionStorage.setItem('registration_phone', fullPhone);
-                      sessionStorage.setItem('registration_country_code', selectedCountryCode);
-                      sessionStorage.setItem('registration_mobile', phone);
-                      navigate(ROUTES.REGISTRATION);
-                    }}
-                    className="text-red-700 font-bold underline hover:text-red-800"
-                  >
-                    Sign Up
-                  </button>
-                )}
-              </div>
-            )}
-
-            {/* Continue Button */}
-            <button
-              type="submit"
-              className="w-full bg-[var(--app-dark-blue)] text-white py-3 sm:py-4 md:py-4.5 rounded-lg sm:rounded-xl font-bold text-sm sm:text-base md:text-lg hover:opacity-90 transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
-              disabled={isLoading || !phone || phone.length < 10}
-            >
-              Continue
-            </button>
-          </form>
-          ) : (
+              {/* Continue Button */}
+              <button
+                type="submit"
+                className="w-full bg-[var(--app-dark-blue)] text-white py-3 sm:py-4 md:py-4.5 rounded-lg sm:rounded-xl font-bold text-sm sm:text-base md:text-lg hover:opacity-90 transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={isLoading || !phone || phone.length < 10}
+              >
+                Continue
+              </button>
+            </form>
+          ) : !forgotPasswordMode && (
             <form onSubmit={handleLogin} autoComplete="off" noValidate className="space-y-4 sm:space-y-5 md:space-y-6">
               {/* Back Button */}
               <button
@@ -378,11 +488,10 @@ const Login = () => {
                   onFocus={() => setIsInputFocused(true)}
                   onBlur={() => setIsInputFocused(false)}
                   autoComplete="current-password"
-                  className={`w-full px-3 sm:px-4 md:px-5 py-3 sm:py-3.5 md:py-4 rounded-lg sm:rounded-xl border-2 transition-all text-sm sm:text-base md:text-lg text-[var(--app-black)] placeholder:text-gray-400 ${
-                    isInputFocused 
-                      ? 'border-[var(--app-dark-blue)] ring-2 ring-[var(--app-dark-blue)]/20' 
-                      : 'border-gray-300'
-                  }`}
+                  className={`w-full px-3 sm:px-4 md:px-5 py-3 sm:py-3.5 md:py-4 rounded-lg sm:rounded-xl border-2 transition-all text-sm sm:text-base md:text-lg text-[var(--app-black)] placeholder:text-gray-400 ${isInputFocused
+                    ? 'border-[var(--app-dark-blue)] ring-2 ring-[var(--app-dark-blue)]/20'
+                    : 'border-gray-300'
+                    }`}
                   required
                   minLength={6}
                 />
@@ -403,7 +512,157 @@ const Login = () => {
               >
                 {isLoading ? 'Signing In...' : 'Sign In'}
               </button>
+
+              <div className="text-center mt-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setForgotPasswordMode(true);
+                    setResetStep(1);
+                    setError('');
+                  }}
+                  className="text-sm text-[var(--app-dark-blue)] hover:underline font-medium"
+                >
+                  Forgot Password?
+                </button>
+              </div>
             </form>
+          )}
+
+          {/* Forgot Password Flow */}
+          {forgotPasswordMode && (
+            <div className="space-y-4 sm:space-y-5 md:space-y-6">
+              {/* Back Button */}
+              <button
+                type="button"
+                onClick={() => {
+                  setForgotPasswordMode(false);
+                  setResetStep(1);
+                  setOtp('');
+                  setNewPassword('');
+                  setConfirmPassword('');
+                  setError('');
+                }}
+                className="flex items-center gap-2 text-[var(--app-dark-blue)] hover:opacity-80 transition-opacity mb-2"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+                <span className="text-sm font-medium">Back to Login</span>
+              </button>
+
+              <div className="text-center mb-4">
+                <h2 className="text-xl font-bold text-[var(--app-black)]">Reset Password</h2>
+                <p className="text-sm text-gray-600">
+                  {resetStep === 1
+                    ? `Enter your mobile number to receive OTP`
+                    : `Enter OTP sent to ${selectedCountryCode}${phone}`}
+                </p>
+              </div>
+
+              {resetStep === 1 ? (
+                <form onSubmit={handleForgotPasswordRequest} className="space-y-4">
+                  {/* Phone Input (Read Only if already entered in login step) */}
+                  <div className="bg-gray-50 rounded-lg sm:rounded-xl p-3 sm:p-4 border-2 border-gray-200">
+                    <p className="text-xs sm:text-sm text-gray-600 mb-1">Phone Number</p>
+                    <p className="text-sm sm:text-base font-semibold text-[var(--app-black)]">
+                      {selectedCountryCode}{phone}
+                    </p>
+                  </div>
+
+                  {error && (
+                    <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-lg text-sm">
+                      {error}
+                    </div>
+                  )}
+
+                  <button
+                    type="submit"
+                    className="w-full bg-[var(--app-dark-blue)] text-white py-3 rounded-lg font-bold hover:opacity-90 transition-all"
+                    disabled={isLoading}
+                  >
+                    {isLoading ? 'Sending OTP...' : 'Send OTP'}
+                  </button>
+                </form>
+              ) : (
+                <form onSubmit={handleResetPassword} className="space-y-4">
+                  {/* OTP Input */}
+                  <div>
+                    <label className="block text-sm font-medium text-[var(--app-black)] mb-2">
+                      Enter 6-digit OTP
+                    </label>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={6}
+                      value={otp}
+                      onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
+                      className="w-full px-4 py-3 rounded-lg border-2 border-gray-300 focus:border-[var(--app-dark-blue)] text-center text-xl tracking-widest"
+                      placeholder="------"
+                      required
+                    />
+                  </div>
+
+                  {/* Resend Link */}
+                  <div className="text-center">
+                    <button
+                      type="button"
+                      onClick={handleResendOTP}
+                      disabled={isResending}
+                      className="text-sm text-[var(--app-dark-blue)] hover:underline font-medium disabled:opacity-50"
+                    >
+                      {isResending ? 'Resending...' : 'Resend OTP'}
+                    </button>
+                  </div>
+
+                  {/* New Password */}
+                  <div>
+                    <label className="block text-sm font-medium text-[var(--app-black)] mb-2">
+                      New Password
+                    </label>
+                    <input
+                      type="password"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      className="w-full px-4 py-3 rounded-lg border-2 border-gray-300 focus:border-[var(--app-dark-blue)]"
+                      placeholder="Min 6 characters"
+                      required
+                      minLength={6}
+                    />
+                  </div>
+
+                  {/* Confirm Password */}
+                  <div>
+                    <label className="block text-sm font-medium text-[var(--app-black)] mb-2">
+                      Confirm Password
+                    </label>
+                    <input
+                      type="password"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      className="w-full px-4 py-3 rounded-lg border-2 border-gray-300 focus:border-[var(--app-dark-blue)]"
+                      placeholder="Confirm new password"
+                      required
+                      minLength={6}
+                    />
+                  </div>
+
+                  {error && (
+                    <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-lg text-sm">
+                      {error}
+                    </div>
+                  )}
+
+                  <button
+                    type="submit"
+                    className="w-full bg-[var(--app-dark-blue)] text-white py-3 rounded-lg font-bold hover:opacity-90 transition-all"
+                    disabled={isLoading}
+                  >
+                    {isLoading ? 'Resetting...' : 'Reset Password & Login'}
+                  </button>
+                </form>
+              )}
+            </div>
           )}
 
           {/* Footer Text */}
@@ -422,7 +681,7 @@ const Login = () => {
       </div>
 
       {/* Bottom Colored Pattern */}
-      <div 
+      <div
         className="bg-[var(--app-dark-blue)] h-16 sm:h-20 md:h-24 relative mt-auto overflow-hidden"
         style={{
           borderTopLeftRadius: '300px',
@@ -430,36 +689,36 @@ const Login = () => {
       >
         {/* Animated Waves Pattern */}
         <div className="absolute top-0 left-0 w-full h-full overflow-hidden">
-          <svg 
+          <svg
             className="absolute top-0 w-full h-full"
-            viewBox="0 0 1200 120" 
+            viewBox="0 0 1200 120"
             preserveAspectRatio="none"
           >
-            <path 
-              d="M0,40 Q300,80 600,40 T1200,40 L1200,0 L0,0 Z" 
+            <path
+              d="M0,40 Q300,80 600,40 T1200,40 L1200,0 L0,0 Z"
               fill="rgba(255,255,255,0.1)"
             >
-              <animate 
-                attributeName="d" 
-                values="M0,40 Q300,80 600,40 T1200,40 L1200,0 L0,0 Z;M0,40 Q300,60 600,40 T1200,40 L1200,0 L0,0 Z;M0,40 Q300,80 600,40 T1200,40 L1200,0 L0,0 Z" 
-                dur="3s" 
+              <animate
+                attributeName="d"
+                values="M0,40 Q300,80 600,40 T1200,40 L1200,0 L0,0 Z;M0,40 Q300,60 600,40 T1200,40 L1200,0 L0,0 Z;M0,40 Q300,80 600,40 T1200,40 L1200,0 L0,0 Z"
+                dur="3s"
                 repeatCount="indefinite"
               />
             </path>
-            <path 
-              d="M0,20 Q300,60 600,20 T1200,20 L1200,0 L0,0 Z" 
+            <path
+              d="M0,20 Q300,60 600,20 T1200,20 L1200,0 L0,0 Z"
               fill="rgba(255,255,255,0.05)"
             >
-              <animate 
-                attributeName="d" 
-                values="M0,20 Q300,60 600,20 T1200,20 L1200,0 L0,0 Z;M0,20 Q300,40 600,20 T1200,20 L1200,0 L0,0 Z;M0,20 Q300,60 600,20 T1200,20 L1200,0 L0,0 Z" 
-                dur="4s" 
+              <animate
+                attributeName="d"
+                values="M0,20 Q300,60 600,20 T1200,20 L1200,0 L0,0 Z;M0,20 Q300,40 600,20 T1200,20 L1200,0 L0,0 Z;M0,20 Q300,60 600,20 T1200,20 L1200,0 L0,0 Z"
+                dur="4s"
                 repeatCount="indefinite"
               />
             </path>
           </svg>
         </div>
-        
+
         {/* Decorative Circles */}
         <div className="absolute bottom-3 left-6 w-16 h-16 sm:w-20 sm:h-20 bg-white/10 rounded-full blur-xl"></div>
         <div className="absolute bottom-8 left-16 w-12 h-12 sm:w-16 sm:h-16 bg-white/5 rounded-full blur-lg"></div>

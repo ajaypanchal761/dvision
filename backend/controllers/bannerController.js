@@ -8,8 +8,8 @@ const { uploadToCloudinary, deleteFromCloudinary } = require('../config/cloudina
 // @access  Public
 exports.getPublicBanners = asyncHandler(async (req, res) => {
   const banners = await Banner.find({ isActive: true })
-    .sort({ order: 1, createdAt: -1 });
-  
+    .sort({ createdAt: -1 });
+
   res.status(200).json({
     success: true,
     count: banners.length,
@@ -24,8 +24,8 @@ exports.getPublicBanners = asyncHandler(async (req, res) => {
 // @access  Private/Admin
 exports.getAllBanners = asyncHandler(async (req, res) => {
   const banners = await Banner.find()
-    .sort({ order: 1, createdAt: -1 });
-  
+    .sort({ createdAt: -1 });
+
   res.status(200).json({
     success: true,
     count: banners.length,
@@ -40,11 +40,11 @@ exports.getAllBanners = asyncHandler(async (req, res) => {
 // @access  Private/Admin
 exports.getBanner = asyncHandler(async (req, res) => {
   const banner = await Banner.findById(req.params.id);
-  
+
   if (!banner) {
     throw new ErrorResponse('Banner not found', 404);
   }
-  
+
   res.status(200).json({
     success: true,
     data: {
@@ -57,15 +57,15 @@ exports.getBanner = asyncHandler(async (req, res) => {
 // @route   POST /api/admin/banners
 // @access  Private/Admin
 exports.createBanner = asyncHandler(async (req, res) => {
-  const { title, description, imageBase64, order, isActive } = req.body;
-  
+  const { title, description, imageBase64, isActive } = req.body;
+
   if (!title || !imageBase64) {
     throw new ErrorResponse('Please provide title and image', 400);
   }
-  
+
   let imageUrl = null;
   let imagePublicId = null;
-  
+
   // Upload image to Cloudinary
   try {
     const uploadResult = await uploadToCloudinary(imageBase64, {
@@ -78,17 +78,16 @@ exports.createBanner = asyncHandler(async (req, res) => {
     console.error('Image upload error:', error);
     throw new ErrorResponse('Failed to upload banner image', 500);
   }
-  
+
   const banner = await Banner.create({
     title,
     description,
     image: imageUrl,
     imagePublicId,
-    order: order || 0,
     isActive: isActive !== undefined ? isActive : true,
     createdBy: req.user._id
   });
-  
+
   res.status(201).json({
     success: true,
     message: 'Banner created successfully',
@@ -102,19 +101,19 @@ exports.createBanner = asyncHandler(async (req, res) => {
 // @route   PUT /api/admin/banners/:id
 // @access  Private/Admin
 exports.updateBanner = asyncHandler(async (req, res) => {
-  const { title, description, imageBase64, order, isActive } = req.body;
-  
+  const { title, description, imageBase64, isActive } = req.body;
+
   let banner = await Banner.findById(req.params.id);
-  
+
   if (!banner) {
     throw new ErrorResponse('Banner not found', 404);
   }
-  
+
   if (title) banner.title = title;
   if (description !== undefined) banner.description = description;
-  if (order !== undefined) banner.order = parseInt(order);
+
   if (isActive !== undefined) banner.isActive = isActive;
-  
+
   // Handle image update
   if (imageBase64) {
     // Delete old image
@@ -125,7 +124,7 @@ exports.updateBanner = asyncHandler(async (req, res) => {
         console.error('Error deleting old image:', error);
       }
     }
-    
+
     // Upload new image
     try {
       const uploadResult = await uploadToCloudinary(imageBase64, {
@@ -139,9 +138,9 @@ exports.updateBanner = asyncHandler(async (req, res) => {
       throw new ErrorResponse('Failed to upload banner image', 500);
     }
   }
-  
+
   await banner.save();
-  
+
   res.status(200).json({
     success: true,
     message: 'Banner updated successfully',
@@ -156,11 +155,11 @@ exports.updateBanner = asyncHandler(async (req, res) => {
 // @access  Private/Admin
 exports.deleteBanner = asyncHandler(async (req, res) => {
   const banner = await Banner.findById(req.params.id);
-  
+
   if (!banner) {
     throw new ErrorResponse('Banner not found', 404);
   }
-  
+
   // Delete image from Cloudinary
   if (banner.imagePublicId) {
     try {
@@ -170,9 +169,9 @@ exports.deleteBanner = asyncHandler(async (req, res) => {
       // Continue with banner deletion even if image deletion fails
     }
   }
-  
+
   await banner.deleteOne();
-  
+
   res.status(200).json({
     success: true,
     message: 'Banner deleted successfully'

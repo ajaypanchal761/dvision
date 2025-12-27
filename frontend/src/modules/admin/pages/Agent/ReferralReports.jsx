@@ -300,46 +300,46 @@ const ReferralReports = () => {
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Agent</th>
-                      <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Student</th>
-                      <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase hidden sm:table-cell">Plan</th>
-                      <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Amount</th>
-                      <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase hidden md:table-cell">Date</th>
-                      <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Status</th>
-                      <th className="px-3 py-2 text-right text-xs font-semibold text-gray-600 uppercase">Actions</th>
+                      <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 uppercase">Agent</th>
+                      <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 uppercase">Student</th>
+                      <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 uppercase hidden sm:table-cell">Plan</th>
+                      <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 uppercase">Amount</th>
+                      <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 uppercase hidden md:table-cell">Subscription Date</th>
+                      <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 uppercase">Status</th>
+                      <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 uppercase">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-100">
                     {referrals.map((referral) => (
                       <tr key={referral._id} className="hover:bg-gray-50">
-                        <td className="px-3 py-2 whitespace-nowrap">
+                        <td className="px-3 py-2 whitespace-nowrap text-center">
                           <div className="text-xs font-semibold text-gray-900">{referral.agentId?.name || 'N/A'}</div>
                           <div className="text-[10px] text-gray-500">{referral.agentId?.phone || 'N/A'}</div>
                         </td>
-                        <td className="px-3 py-2 whitespace-nowrap">
+                        <td className="px-3 py-2 whitespace-nowrap text-center">
                           <div className="text-xs font-semibold text-gray-900">{referral.studentId?.name || 'N/A'}</div>
                           <div className="text-[10px] text-gray-500">{referral.studentId?.phone || 'N/A'}</div>
                         </td>
-                        <td className="px-3 py-2 whitespace-nowrap hidden sm:table-cell">
+                        <td className="px-3 py-2 whitespace-nowrap hidden sm:table-cell text-center">
                           <div className="text-xs text-gray-600">{referral.subscriptionPlanId?.name || 'N/A'}</div>
                         </td>
-                        <td className="px-3 py-2 whitespace-nowrap">
+                        <td className="px-3 py-2 whitespace-nowrap text-center">
                           <div className="text-xs font-semibold text-gray-900">{formatCurrency(referral.amount)}</div>
                         </td>
-                        <td className="px-3 py-2 whitespace-nowrap hidden md:table-cell">
+                        <td className="px-3 py-2 whitespace-nowrap hidden md:table-cell text-center">
                           <div className="text-xs text-gray-600">{formatDate(referral.subscriptionDate)}</div>
                         </td>
-                        <td className="px-3 py-2 whitespace-nowrap">
+                        <td className="px-3 py-2 whitespace-nowrap text-center">
                           <span className={`px-2 py-1 text-xs font-semibold rounded-full ${referral.status === 'paid'
-                              ? 'bg-green-100 text-green-800'
-                              : referral.status === 'completed'
-                                ? 'bg-blue-100 text-blue-800'
-                                : 'bg-yellow-100 text-yellow-800'
+                            ? 'bg-green-100 text-green-800'
+                            : referral.status === 'completed'
+                              ? 'bg-blue-100 text-blue-800'
+                              : 'bg-yellow-100 text-yellow-800'
                             }`}>
                             {referral.status}
                           </span>
                         </td>
-                        <td className="px-3 py-2 whitespace-nowrap text-right">
+                        <td className="px-3 py-2 whitespace-nowrap text-center">
                           {referral.status === 'completed' && (
                             <button
                               onClick={() => handleStatusUpdate(referral._id, 'paid')}

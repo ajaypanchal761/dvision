@@ -3,6 +3,8 @@ const SubscriptionPlan = require('../models/SubscriptionPlan');
 const asyncHandler = require('../utils/asyncHandler');
 const ErrorResponse = require('../utils/errorResponse');
 const { uploadToCloudinary, deleteFromCloudinary } = require('../config/cloudinary');
+const sendEmail = require('../utils/sendEmail');
+const notificationService = require('../services/notificationService');
 
 // @desc    Get student statistics (Admin)
 // @route   GET /api/admin/students/statistics
@@ -53,9 +55,9 @@ exports.getAllStudents = asyncHandler(async (req, res) => {
 
   if (search) {
     query.$or = [
-      { name: { $regex: search, $options: 'i' } },
-      { email: { $regex: search, $options: 'i' } },
-      { phone: { $regex: search, $options: 'i' } }
+      { name: { $regex: search.trim(), $options: 'i' } },
+      { email: { $regex: search.trim(), $options: 'i' } },
+      { phone: { $regex: search.trim(), $options: 'i' } }
     ];
   }
 
@@ -278,6 +280,59 @@ exports.createStudent = asyncHandler(async (req, res) => {
   }
 
   const student = await Student.create(studentData);
+
+  // Send welcome email
+  if (email) {
+    try {
+      const webLink = process.env.WEB_URL || 'https://dvisionacademy.com';
+      const appLink = process.env.APP_URL || 'https://play.google.com/store/apps/details?id=com.dvisionacademy';
+
+      const message = `
+        <h1>Welcome to Dvision Academy!</h1>
+        <p>Hello ${name},</p>
+        <p>Your Student account has been created successfully.</p>
+        
+        <h2>Login Credentials</h2>
+        <p><strong>Login ID (Phone):</strong> ${phone}</p>
+        ${password ? `<p><strong>Password:</strong> ${password}</p>` : ''}
+        
+        <h2>Access Links</h2>
+        <p><strong>Web:</strong> <a href="${webLink}">${webLink}</a></p>
+        <p><strong>App:</strong> <a href="${appLink}">Download App</a></p>
+        
+        <p>Regards,<br>Dvision Academy Team</p>
+      `;
+
+      await sendEmail({
+        to: email,
+        subject: 'Welcome to Dvision Academy - Login Details',
+        html: message
+      });
+    } catch (error) {
+      console.error('Failed to send welcome email:', error);
+      // Continue execution
+    }
+  }
+
+  // Send notification if plan was assigned
+  if (subscriptionPlanId || prepIds.length > 0) {
+    try {
+      await notificationService.sendToUser(
+        student._id.toString(),
+        'student',
+        {
+          title: 'Premium Plan Activated!',
+          body: 'Your subscription plan has been activated by admin. You now have full access to premium features.',
+        },
+        {
+          type: 'subscription_activated',
+          action: 'view_subscriptions'
+        }
+      );
+    } catch (notificationError) {
+      console.error('Failed to send activation notification:', notificationError);
+    }
+  }
 
   res.status(201).json({
     success: true,
@@ -514,6 +569,26 @@ exports.updateStudent = asyncHandler(async (req, res) => {
   }
 
   await student.save();
+
+  // Send notification if plan was updated
+  if (subscriptionPlanId || (Array.isArray(preparationPlanIds) && preparationPlanIds.length > 0)) {
+    try {
+      await notificationService.sendToUser(
+        student._id.toString(),
+        'student',
+        {
+          title: 'Subscription Updated',
+          body: 'Admin has updated your subscription plans. Check your active plans now!',
+        },
+        {
+          type: 'subscription_updated',
+          action: 'view_subscriptions'
+        }
+      );
+    } catch (notificationError) {
+      console.error('Failed to send update notification:', notificationError);
+    }
+  }
 
   res.status(200).json({
     success: true,

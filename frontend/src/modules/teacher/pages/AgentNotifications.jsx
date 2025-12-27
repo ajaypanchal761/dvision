@@ -76,7 +76,7 @@ const AgentNotifications = () => {
   };
 
   const handleSelectNotification = (notificationId) => {
-    setSelectedIds(prev => 
+    setSelectedIds(prev =>
       prev.includes(notificationId)
         ? prev.filter(id => id !== notificationId)
         : [...prev, notificationId]
@@ -142,13 +142,8 @@ const AgentNotifications = () => {
     // Don't navigate if in selection mode
     if (isSelectionMode) return;
 
-    // Handle different notification types
-    if (notification.data?.url) {
-      navigate(notification.data.url);
-    } else if (notification.type === 'student_registered' || notification.type === 'student_subscribed') {
-      // Navigate to referrals page
-      navigate('/agent/referrals');
-    }
+    // Navigate to referrals page for any notification
+    navigate(ROUTES.AGENT_REFERRALS);
   };
 
   const getNotificationIcon = (type) => {
@@ -206,14 +201,14 @@ const AgentNotifications = () => {
                     </>
                   ) : (
                     <>
-                      <button 
+                      <button
                         onClick={handleEnterSelectionMode}
                         className="p-1.5 sm:p-2 text-white hover:bg-white/10 rounded-full transition-colors"
                         title="Select to Delete"
                       >
                         <FiTrash2 className="text-base sm:text-lg md:text-xl" />
                       </button>
-                      <button 
+                      <button
                         onClick={fetchNotifications}
                         disabled={isLoading}
                         className="p-1.5 sm:p-2 text-white hover:bg-white/10 rounded-full transition-colors disabled:opacity-50"
@@ -274,13 +269,11 @@ const AgentNotifications = () => {
               return (
                 <div
                   key={notification._id}
-                  className={`bg-white rounded-xl p-3 sm:p-4 md:p-5 shadow-md border-2 transition-all ${
-                    isSelectionMode ? 'cursor-pointer' : notification.type === 'student_registered' || notification.type === 'student_subscribed' ? 'cursor-pointer hover:shadow-lg' : ''
-                  } ${
-                    isSelected 
-                      ? 'border-[var(--app-dark-blue)] ring-2 ring-[var(--app-dark-blue)]/20 bg-blue-50' 
+                  className={`bg-white rounded-xl p-3 sm:p-4 md:p-5 shadow-md border-2 transition-all ${isSelectionMode ? 'cursor-pointer' : notification.type === 'student_registered' || notification.type === 'student_subscribed' ? 'cursor-pointer hover:shadow-lg' : ''
+                    } ${isSelected
+                      ? 'border-[var(--app-dark-blue)] ring-2 ring-[var(--app-dark-blue)]/20 bg-blue-50'
                       : 'border-gray-200 hover:border-[var(--app-dark-blue)]/30'
-                  } ${!notification.isRead ? 'bg-[var(--app-dark-blue)]/5' : ''}`}
+                    } ${!notification.isRead ? 'bg-[var(--app-dark-blue)]/5' : ''}`}
                   onClick={() => {
                     if (isSelectionMode) {
                       handleSelectNotification(notification._id);

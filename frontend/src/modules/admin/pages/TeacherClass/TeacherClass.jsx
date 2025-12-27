@@ -34,7 +34,7 @@ const TeacherClass = () => {
   const [liveClasses, setLiveClasses] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
-  
+
   // Pagination state
   const [pagination, setPagination] = useState({
     page: 1,
@@ -42,7 +42,7 @@ const TeacherClass = () => {
     total: 0,
     count: 0
   })
-  
+
   // Statistics state
   const [statistics, setStatistics] = useState({
     totalLiveClasses: 0,
@@ -80,7 +80,7 @@ const TeacherClass = () => {
       const response = await liveClassAdminAPI.getAll(requestParams)
       const classes = response?.data?.liveClasses || response?.data?.classes || []
       setLiveClasses(classes)
-      
+
       // Update pagination
       setPagination({
         page: response.page || 1,
@@ -104,7 +104,7 @@ const TeacherClass = () => {
   useEffect(() => {
     fetchLiveClasses(queryParams, 1) // Reset to page 1 when filters change
   }, [queryParams])
-  
+
   // Handle page change
   const handlePageChange = (newPage) => {
     if (newPage >= 1 && newPage <= pagination.pages) {
@@ -273,24 +273,24 @@ const TeacherClass = () => {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-3 sm:px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Title</th>
-                  <th className="px-3 sm:px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Teacher</th>
-                  <th className="px-3 sm:px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Class</th>
-                  <th className="px-3 sm:px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Subject</th>
-                  <th className="px-3 sm:px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Scheduled</th>
-                  <th className="px-3 sm:px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
-                  <th className="px-3 sm:px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Students Joined</th>
-                  <th className="px-3 sm:px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Actions</th>
+                  <th className="px-3 sm:px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">Title</th>
+                  <th className="px-3 sm:px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">Teacher</th>
+                  <th className="px-3 sm:px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">Class</th>
+                  <th className="px-3 sm:px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">Subject</th>
+                  <th className="px-3 sm:px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">Scheduled Date & Time</th>
+                  <th className="px-3 sm:px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
+                  <th className="px-3 sm:px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">Students Joined</th>
+                  <th className="px-3 sm:px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-100">
                 {loading ? (
                   <tr>
-                    <td colSpan="7" className="px-4 py-6 text-center text-sm text-gray-600">Fetching classes...</td>
+                    <td colSpan="8" className="px-4 py-6 text-center text-sm text-gray-600">Fetching classes...</td>
                   </tr>
                 ) : liveClasses.length === 0 ? (
                   <tr>
-                    <td colSpan="7" className="px-4 py-10 text-center">
+                    <td colSpan="8" className="px-4 py-10 text-center">
                       <div className="flex flex-col items-center justify-center">
                         <div className="h-12 w-12 rounded-full bg-gray-100 flex items-center justify-center mb-3">
                           <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -305,30 +305,30 @@ const TeacherClass = () => {
                 ) : (
                   liveClasses.map((liveClass) => (
                     <tr key={liveClass._id} className="hover:bg-gray-50 transition-all duration-150">
-                      <td className="px-3 sm:px-4 py-3 whitespace-nowrap">
+                      <td className="px-3 sm:px-4 py-3 whitespace-nowrap text-center">
                         <div className="text-sm font-semibold text-gray-900">{liveClass.title || '-'}</div>
                         <div className="text-xs text-gray-500">{liveClass.description || '—'}</div>
                       </td>
-                      <td className="px-3 sm:px-4 py-3 whitespace-nowrap">
+                      <td className="px-3 sm:px-4 py-3 whitespace-nowrap text-center">
                         <div className="text-sm font-semibold text-gray-900">{liveClass.teacher?.name || '-'}</div>
                         <div className="text-xs text-gray-500">{liveClass.teacher?.email || liveClass.teacher?.phone || '—'}</div>
                       </td>
-                      <td className="px-3 sm:px-4 py-3 whitespace-nowrap">
+                      <td className="px-3 sm:px-4 py-3 whitespace-nowrap text-center">
                         <span className="px-2 py-1 inline-flex text-xs font-medium rounded-lg bg-blue-50 text-blue-700">
                           {liveClass.class?.name || liveClass.class?.class || '-'}
                         </span>
                         <div className="text-xs text-gray-500 mt-1">{liveClass.class?.board || ''}</div>
                       </td>
-                      <td className="px-3 sm:px-4 py-3 whitespace-nowrap">
+                      <td className="px-3 sm:px-4 py-3 whitespace-nowrap text-center">
                         <div className="text-sm text-gray-800 font-semibold">{liveClass.subject?.name || '-'}</div>
                       </td>
-                      <td className="px-3 sm:px-4 py-3 whitespace-nowrap">
+                      <td className="px-3 sm:px-4 py-3 whitespace-nowrap text-center">
                         <div className="text-sm font-semibold text-gray-900">{formatDateTime(liveClass.scheduledStartTime)}</div>
                         {liveClass.status === 'ended' && (
                           <div className="text-xs text-gray-500">Ended: {formatDateTime(liveClass.endTime)}</div>
                         )}
                       </td>
-                      <td className="px-3 sm:px-4 py-3 whitespace-nowrap">
+                      <td className="px-3 sm:px-4 py-3 whitespace-nowrap text-center">
                         <span
                           className={`px-2 py-1 inline-flex text-xs font-semibold rounded-lg ${liveClass.status === 'live'
                             ? 'bg-green-100 text-green-700'
@@ -342,18 +342,18 @@ const TeacherClass = () => {
                           {liveClass.status}
                         </span>
                       </td>
-                      <td className="px-3 sm:px-4 py-3">
+                      <td className="px-3 sm:px-4 py-3 text-center">
                         <div className="text-sm font-semibold text-gray-900">
                           <span className="px-2 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-semibold">
                             {liveClass.studentCount || 0} students
                           </span>
                         </div>
-                        <div className="mt-1 flex flex-col gap-1">
+                        <div className="mt-1 flex flex-col gap-1 items-center">
                           {liveClass.studentsJoined && liveClass.studentsJoined.length > 0 ? (
                             <>
                               {liveClass.studentsJoined.slice(0, 3).map((participant) => (
-                                <div key={participant.userId} className="flex items-center justify-between text-xs text-gray-700 bg-gray-50 rounded-md px-2 py-1">
-                                  <div className="flex-1 min-w-0">
+                                <div key={participant.userId} className="flex items-center justify-between text-xs text-gray-700 bg-gray-50 rounded-md px-2 py-1 w-full max-w-[200px]">
+                                  <div className="flex-1 min-w-0 text-left">
                                     <div className="font-semibold truncate">{participant.student?.name || 'Student'}</div>
                                     <div className="text-gray-500 truncate">{participant.student?.phone || '—'}</div>
                                   </div>
@@ -371,14 +371,16 @@ const TeacherClass = () => {
                           )}
                         </div>
                       </td>
-                      <td className="px-3 sm:px-4 py-3 whitespace-nowrap">
-                        <button
-                          onClick={() => navigate(`/admin/teacher-class/${liveClass._id}`)}
-                          className="inline-flex items-center gap-1 px-3 py-2 rounded-lg border border-gray-200 text-xs font-semibold text-gray-700 hover:bg-gray-50 transition-all"
-                          title="View details"
-                        >
-                          <FiEye className="text-gray-600" /> View
-                        </button>
+                      <td className="px-3 sm:px-4 py-3 whitespace-nowrap text-center">
+                        <div className="flex justify-center">
+                          <button
+                            onClick={() => navigate(`/admin/teacher-class/${liveClass._id}`)}
+                            className="inline-flex items-center gap-1 px-3 py-2 rounded-lg border border-gray-200 text-xs font-semibold text-gray-700 hover:bg-gray-50 transition-all"
+                            title="View details"
+                          >
+                            <FiEye className="text-gray-600" /> View
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -386,7 +388,7 @@ const TeacherClass = () => {
               </tbody>
             </table>
           </div>
-          
+
           {/* Pagination Controls */}
           {!loading && pagination.pages > 1 && (
             <div className="px-3 sm:px-4 py-3 sm:py-4 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-3">
@@ -401,11 +403,10 @@ const TeacherClass = () => {
                 <button
                   onClick={() => handlePageChange(pagination.page - 1)}
                   disabled={pagination.page === 1}
-                  className={`px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-all ${
-                    pagination.page === 1
+                  className={`px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-all ${pagination.page === 1
                       ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                       : 'bg-[#1e3a5f] text-white hover:bg-[#2a4a6f]'
-                  }`}
+                    }`}
                 >
                   Previous
                 </button>
@@ -425,11 +426,10 @@ const TeacherClass = () => {
                       <button
                         key={pageNum}
                         onClick={() => handlePageChange(pageNum)}
-                        className={`px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-all ${
-                          pagination.page === pageNum
+                        className={`px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-all ${pagination.page === pageNum
                             ? 'bg-[#1e3a5f] text-white'
                             : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                        }`}
+                          }`}
                       >
                         {pageNum}
                       </button>
@@ -439,11 +439,10 @@ const TeacherClass = () => {
                 <button
                   onClick={() => handlePageChange(pagination.page + 1)}
                   disabled={pagination.page === pagination.pages}
-                  className={`px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-all ${
-                    pagination.page === pagination.pages
+                  className={`px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-all ${pagination.page === pagination.pages
                       ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                       : 'bg-[#1e3a5f] text-white hover:bg-[#2a4a6f]'
-                  }`}
+                    }`}
                 >
                   Next
                 </button>

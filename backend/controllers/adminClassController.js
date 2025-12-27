@@ -26,7 +26,7 @@ exports.getClassStatistics = asyncHandler(async (req, res) => {
   const activeClasses = await Class.countDocuments({ isActive: true });
   const regularClasses = await Class.countDocuments({ type: 'regular' });
   const preparationClasses = await Class.countDocuments({ type: 'preparation' });
-  
+
   res.status(200).json({
     success: true,
     data: {
@@ -47,7 +47,7 @@ exports.getAllClassesWithoutPagination = asyncHandler(async (req, res) => {
   const { type, isActive } = req.query;
 
   const query = {};
-  
+
   if (type) query.type = type;
   if (isActive !== undefined) query.isActive = isActive === 'true';
 
@@ -71,17 +71,17 @@ exports.getAllClasses = asyncHandler(async (req, res) => {
   const { page = 1, limit = 10, search, type, isActive } = req.query;
 
   const query = {};
-  
+
   if (type) query.type = type;
   if (isActive !== undefined) query.isActive = isActive === 'true';
-  
+
   // Add search functionality
   if (search) {
     query.$or = [
-      { name: { $regex: search, $options: 'i' } },
-      { classCode: { $regex: search, $options: 'i' } },
-      { description: { $regex: search, $options: 'i' } },
-      { board: { $regex: search, $options: 'i' } }
+      { name: { $regex: search.trim(), $options: 'i' } },
+      { classCode: { $regex: search.trim(), $options: 'i' } },
+      { description: { $regex: search.trim(), $options: 'i' } },
+      { board: { $regex: search.trim(), $options: 'i' } }
     ];
   }
 
@@ -143,7 +143,7 @@ exports.createClass = asyncHandler(async (req, res) => {
 
   // Validate based on type
   if (classType === 'regular') {
-  if (!classNumber || !board || !classCode) {
+    if (!classNumber || !board || !classCode) {
       throw new ErrorResponse('Please provide class, board, and classCode for regular class', 400);
     }
   } else if (classType === 'preparation') {
@@ -162,19 +162,19 @@ exports.createClass = asyncHandler(async (req, res) => {
 
   // For regular classes, check if same class and board combination exists
   if (classType === 'regular') {
-  const existingClassBoard = await Class.findOne({ 
-      class: parseInt(classNumber), 
+    const existingClassBoard = await Class.findOne({
+      class: parseInt(classNumber),
       board: board.trim(),
       type: 'regular'
-  });
-  if (existingClassBoard) {
-    throw new ErrorResponse(`Class ${classNumber} with board ${board} already exists`, 400);
-  }
+    });
+    if (existingClassBoard) {
+      throw new ErrorResponse(`Class ${classNumber} with board ${board} already exists`, 400);
+    }
   }
 
   // For preparation classes, check if same name exists
   if (classType === 'preparation') {
-    const existingPrepClass = await Class.findOne({ 
+    const existingPrepClass = await Class.findOne({
       name: name.trim(),
       type: 'preparation'
     });
@@ -236,17 +236,17 @@ exports.updateClass = asyncHandler(async (req, res) => {
 
   // For regular classes
   if (classType === 'regular') {
-  // If class or board is being updated, check for duplicates
-  if ((classNumber || board) && 
+    // If class or board is being updated, check for duplicates
+    if ((classNumber || board) &&
       (classNumber !== classItem.class || board !== classItem.board)) {
-    const existingClassBoard = await Class.findOne({ 
-      class: classNumber || classItem.class, 
-      board: board || classItem.board,
+      const existingClassBoard = await Class.findOne({
+        class: classNumber || classItem.class,
+        board: board || classItem.board,
         type: 'regular',
-      _id: { $ne: req.params.id }
-    });
-    if (existingClassBoard) {
-      throw new ErrorResponse(`Class ${classNumber || classItem.class} with board ${board || classItem.board} already exists`, 400);
+        _id: { $ne: req.params.id }
+      });
+      if (existingClassBoard) {
+        throw new ErrorResponse(`Class ${classNumber || classItem.class} with board ${board || classItem.board} already exists`, 400);
       }
     }
   }
@@ -255,7 +255,7 @@ exports.updateClass = asyncHandler(async (req, res) => {
   if (classType === 'preparation') {
     // If name is being updated, check for duplicates
     if (name && name.trim() !== classItem.name) {
-      const existingPrepClass = await Class.findOne({ 
+      const existingPrepClass = await Class.findOne({
         name: name.trim(),
         type: 'preparation',
         _id: { $ne: req.params.id }
@@ -269,7 +269,7 @@ exports.updateClass = asyncHandler(async (req, res) => {
   // Update fields
   if (type !== undefined) classItem.type = classType;
   if (classType === 'regular') {
-  if (classNumber !== undefined) classItem.class = parseInt(classNumber);
+    if (classNumber !== undefined) classItem.class = parseInt(classNumber);
     if (board !== undefined) classItem.board = board.trim();
     // Clear preparation fields
     classItem.name = undefined;

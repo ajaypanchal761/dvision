@@ -15,7 +15,7 @@ const Doubts = () => {
   const [showAnswerModal, setShowAnswerModal] = useState(false)
   const [answer, setAnswer] = useState('')
   const [submitting, setSubmitting] = useState(false)
-  
+
   // Pagination state
   const [pagination, setPagination] = useState({
     page: 1,
@@ -23,7 +23,7 @@ const Doubts = () => {
     total: 0,
     count: 0
   })
-  
+
   // Statistics state
   const [statistics, setStatistics] = useState({
     totalDoubts: 0,
@@ -61,7 +61,7 @@ const Doubts = () => {
     }, 500)
     return () => clearTimeout(timer)
   }, [statusFilter, searchTerm])
-  
+
   // Handle page change
   const handlePageChange = (newPage) => {
     if (newPage >= 1 && newPage <= pagination.pages) {
@@ -77,12 +77,12 @@ const Doubts = () => {
         limit: 10
       }
       if (statusFilter !== 'all') params.status = statusFilter
-      if (searchTerm) params.search = searchTerm
+      if (searchTerm) params.search = searchTerm.trim()
 
       const response = await doubtAPI.getAllDoubts(params)
       if (response.success && response.data.doubts) {
         setDoubts(response.data.doubts)
-        
+
         // Update pagination
         setPagination({
           page: response.page || 1,
@@ -162,19 +162,7 @@ const Doubts = () => {
     }
   }
 
-  const handleStatusChange = async (doubtId, status) => {
-    try {
-      const response = await doubtAPI.updateDoubtStatus(doubtId, status)
-      if (response.success) {
-        // Refresh statistics and doubts list
-        await fetchStatistics()
-        await fetchDoubts(pagination.page)
-      }
-    } catch (error) {
-      console.error('Error updating status:', error)
-      alert(error.message || 'Failed to update status. Please try again.')
-    }
-  }
+
 
   // No client-side filtering needed - backend handles search
   const filteredDoubts = doubts
@@ -264,15 +252,14 @@ const Doubts = () => {
             />
           </div>
           <div className="flex gap-2">
-            {['all', 'Pending', 'Answered', 'Resolved'].map((status) => (
+            {['all', 'Pending', 'Resolved'].map((status) => (
               <button
                 key={status}
                 onClick={() => setStatusFilter(status)}
-                className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors ${
-                  statusFilter === status
-                    ? 'bg-dvision-blue text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
+                className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors ${statusFilter === status
+                  ? 'bg-[#1e3a5f] text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
               >
                 {status}
               </button>
@@ -318,13 +305,12 @@ const Doubts = () => {
                     )}
                     {/* Status and Date */}
                     <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-semibold ${
-                        doubt.status === 'Pending'
-                          ? 'bg-orange-100 text-orange-700'
-                          : doubt.status === 'Answered'
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-semibold ${doubt.status === 'Pending'
+                        ? 'bg-orange-100 text-orange-700'
+                        : doubt.status === 'Answered'
                           ? 'bg-blue-100 text-blue-700'
                           : 'bg-green-100 text-green-700'
-                      }`}>
+                        }`}>
                         {doubt.status}
                       </span>
                       <div className="flex items-center gap-1 text-gray-500 text-[10px] sm:text-xs">
@@ -381,15 +367,7 @@ const Doubts = () => {
                   >
                     {doubt.answer ? 'Edit Answer' : 'Answer'}
                   </button>
-                  <select
-                    value={doubt.status}
-                    onChange={(e) => handleStatusChange(doubt._id, e.target.value)}
-                    className="px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg border-2 border-gray-200 bg-white text-[10px] sm:text-xs font-medium text-gray-700 focus:outline-none focus:border-[#1e3a5f] cursor-pointer"
-                  >
-                    <option value="Pending">Pending</option>
-                    <option value="Answered">Answered</option>
-                    <option value="Resolved">Resolved</option>
-                  </select>
+
                   <button
                     onClick={() => handleDeleteClick(doubt._id)}
                     className="px-2 sm:px-3 py-1.5 sm:py-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors text-[10px] sm:text-xs font-medium"
@@ -414,7 +392,7 @@ const Doubts = () => {
             <p className="text-gray-400 text-[10px] sm:text-xs mt-1">{searchTerm ? 'Try adjusting your search criteria.' : 'No doubt inquiries yet.'}</p>
           </div>
         )}
-        
+
         {/* Pagination Controls */}
         {!loading && pagination.pages > 1 && (
           <div className="px-3 sm:px-4 py-3 sm:py-4 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-3 mt-4">
@@ -429,11 +407,10 @@ const Doubts = () => {
               <button
                 onClick={() => handlePageChange(pagination.page - 1)}
                 disabled={pagination.page === 1}
-                className={`px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-all ${
-                  pagination.page === 1
-                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                    : 'bg-[#1e3a5f] text-white hover:bg-[#2a4a6f]'
-                }`}
+                className={`px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-all ${pagination.page === 1
+                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                  : 'bg-[#1e3a5f] text-white hover:bg-[#2a4a6f]'
+                  }`}
               >
                 Previous
               </button>
@@ -453,11 +430,10 @@ const Doubts = () => {
                     <button
                       key={pageNum}
                       onClick={() => handlePageChange(pageNum)}
-                      className={`px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-all ${
-                        pagination.page === pageNum
-                          ? 'bg-[#1e3a5f] text-white'
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                      }`}
+                      className={`px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-all ${pagination.page === pageNum
+                        ? 'bg-[#1e3a5f] text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        }`}
                     >
                       {pageNum}
                     </button>
@@ -467,11 +443,10 @@ const Doubts = () => {
               <button
                 onClick={() => handlePageChange(pagination.page + 1)}
                 disabled={pagination.page === pagination.pages}
-                className={`px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-all ${
-                  pagination.page === pagination.pages
-                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                    : 'bg-[#1e3a5f] text-white hover:bg-[#2a4a6f]'
-                }`}
+                className={`px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-all ${pagination.page === pagination.pages
+                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                  : 'bg-[#1e3a5f] text-white hover:bg-[#2a4a6f]'
+                  }`}
               >
                 Next
               </button>

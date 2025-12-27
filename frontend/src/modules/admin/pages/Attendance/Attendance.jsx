@@ -156,20 +156,20 @@ const Attendance = () => {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-2 sm:px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  <th className="px-2 sm:px-3 py-2 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
                     Image
                   </th>
-                  <th className="px-2 sm:px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  <th className="px-2 sm:px-3 py-2 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
                     Teacher Name
                   </th>
-                  <th className="px-2 sm:px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider hidden sm:table-cell">
+                  <th className="px-2 sm:px-3 py-2 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider hidden sm:table-cell">
                     Attendance Date
                   </th>
-                  <th className="px-2 sm:px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  <th className="px-2 sm:px-3 py-2 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
                     Status
                   </th>
-                  <th className="px-2 sm:px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider hidden lg:table-cell">
-                    Created At
+                  <th className="px-2 sm:px-3 py-2 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider hidden lg:table-cell">
+                    Created Date & Time
                   </th>
                 </tr>
               </thead>
@@ -185,7 +185,7 @@ const Attendance = () => {
                   </tr>
                 ) : filteredAttendance.length === 0 ? (
                   <tr>
-                    <td colSpan="7" className="px-3 sm:px-4 py-6 sm:py-8 text-center">
+                    <td colSpan="5" className="px-3 sm:px-4 py-6 sm:py-8 text-center">
                       <div className="flex flex-col items-center justify-center">
                         <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-gray-100 flex items-center justify-center mb-2 sm:mb-3">
                           <svg className="w-5 h-5 sm:w-6 sm:h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -215,7 +215,7 @@ const Attendance = () => {
                     return (
                       <tr key={record._id} className="hover:bg-gray-50 transition-all duration-200">
                         <td className="px-2 sm:px-3 py-2 whitespace-nowrap">
-                          <div className="flex items-center">
+                          <div className="flex items-center justify-center">
                             {(
                               <div className="h-6 w-6 sm:h-8 sm:w-8 rounded-full bg-gradient-to-br from-[#1e3a5f] to-[#2a4a6f] flex items-center justify-center ring-2 ring-gray-200">
                                 <span className="text-white font-semibold text-[10px] sm:text-xs">
@@ -225,15 +225,15 @@ const Attendance = () => {
                             )}
                           </div>
                         </td>
-                        <td className="px-2 sm:px-3 py-2 whitespace-nowrap">
+                        <td className="px-2 sm:px-3 py-2 whitespace-nowrap text-center">
                           <div className="text-xs font-semibold text-gray-900">{teacherName}</div>
                         </td>
-                        <td className="px-2 sm:px-3 py-2 whitespace-nowrap hidden sm:table-cell">
+                        <td className="px-2 sm:px-3 py-2 whitespace-nowrap hidden sm:table-cell text-center">
                           <span className="px-2 py-0.5 inline-flex text-[10px] sm:text-xs font-medium rounded-lg bg-blue-50 text-[#1e3a5f]">
                             {dateStr}
                           </span>
                         </td>
-                        <td className="px-2 sm:px-3 py-2 whitespace-nowrap">
+                        <td className="px-2 sm:px-3 py-2 whitespace-nowrap text-center">
                           <span
                             className={`px-2 py-0.5 inline-flex text-[10px] sm:text-xs font-medium rounded-lg ${status === 'P' || status === 'PRESENT'
                               ? 'bg-green-50 text-green-700'
@@ -243,7 +243,7 @@ const Attendance = () => {
                             {status === 'PRESENT' ? 'Present' : status === 'P' ? 'P' : 'Absent'}
                           </span>
                         </td>
-                        <td className="px-2 sm:px-3 py-2 whitespace-nowrap hidden lg:table-cell">
+                        <td className="px-2 sm:px-3 py-2 whitespace-nowrap hidden lg:table-cell text-center">
                           <div className="text-[10px] sm:text-xs text-gray-500">{createdStr}</div>
                         </td>
                       </tr>

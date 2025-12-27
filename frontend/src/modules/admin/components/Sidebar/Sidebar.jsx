@@ -4,8 +4,13 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 const Sidebar = ({ isOpen, setIsOpen, isCollapsed }) => {
   const location = useLocation()
   const navigate = useNavigate()
+  const [showLogoutModal, setShowLogoutModal] = useState(false)
 
   const handleLogout = () => {
+    setShowLogoutModal(true)
+  }
+
+  const confirmLogout = () => {
     localStorage.removeItem('dvision_admin_token')
     localStorage.removeItem('admin_data')
     localStorage.removeItem('isAuthenticated')
@@ -222,7 +227,6 @@ const Sidebar = ({ isOpen, setIsOpen, isCollapsed }) => {
 
   const isActive = (path) => {
     if (path === '/admin/attendance') {
-      // For attendance, check if current path starts with /admin/attendance
       return location.pathname.startsWith('/admin/attendance')
     }
     if (path === '/admin/subscriptions') {
@@ -317,6 +321,7 @@ const Sidebar = ({ isOpen, setIsOpen, isCollapsed }) => {
           pointer-events: none;
         }
       `}</style>
+
       {/* Mobile Overlay */}
       {isOpen && (
         <div
@@ -325,153 +330,201 @@ const Sidebar = ({ isOpen, setIsOpen, isCollapsed }) => {
         />
       )}
 
-       {/* Collapsed Sidebar - Blue Icon Bar */}
-       {isCollapsed && (
-         <aside
-           className={`fixed top-0 left-0 z-50 h-screen bg-[#1e3a5f] shadow-xl transform transition-all duration-300 ease-in-out flex flex-col ${
-             isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
-           } w-20`}
-         >
-           {/* Logo at top */}
-           <div className="flex items-center justify-center h-20 border-b border-white/20 flex-shrink-0 px-2 py-3">
-             <div className="h-14 w-14 rounded-lg flex items-center justify-center">
-               <img 
-                 src="/logo.png" 
-                 alt="D'Vision Academy Logo" 
-                 className="h-12 w-12 object-contain"
-               />
-             </div>
-           </div>
+      {/* Collapsed Sidebar - Blue Icon Bar */}
+      {isCollapsed && (
+        <aside
+          className={`fixed top-0 left-0 z-50 h-screen bg-[#1e3a5f] shadow-xl transform transition-all duration-300 ease-in-out flex flex-col ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+            } w-20`}
+        >
+          {/* Logo at top */}
+          <div className="flex items-center justify-center h-20 border-b border-white/20 flex-shrink-0 px-2 py-3">
+            <div className="h-14 w-14 rounded-lg flex items-center justify-center">
+              <img
+                src="/logo.png"
+                alt="D'Vision Academy Logo"
+                className="h-12 w-12 object-contain"
+              />
+            </div>
+          </div>
 
-           {/* Icon Menu */}
-           <nav className="flex-1 overflow-y-auto overflow-x-hidden py-4 min-h-0 bg-[#1e3a5f]">
-             <ul className="space-y-2 px-3">
-               {allMenuItems.map((item, index) => (
-                 <li key={`${item.path}-${index}`}>
-                   {item.onClick ? (
-                     <button
-                       onClick={() => {
-                         setIsOpen(false)
-                         item.onClick()
-                       }}
-                       className={`flex items-center justify-center p-3 rounded-xl transition-all duration-200 sidebar-tooltip w-full ${
-                         isActive(item.path)
-                           ? 'bg-white/20 text-white shadow-sm'
-                           : 'text-white/70 hover:bg-white/10 hover:text-white'
-                       }`}
-                       data-tooltip={item.name}
-                       title={item.name}
-                     >
-                       {item.icon}
-                     </button>
-                   ) : (
-                     <button
-                       onClick={() => {
-                         if (isCollapsed) {
-                           setIsOpen(true)
-                         }
-                         navigate(item.path)
-                       }}
-                       className={`flex items-center justify-center p-3 rounded-xl transition-all duration-200 sidebar-tooltip w-full ${
-                         isActive(item.path)
-                           ? 'bg-white/20 text-white shadow-sm'
-                           : 'text-white/70 hover:bg-white/10 hover:text-white'
-                       }`}
-                       data-tooltip={item.name}
-                       title={item.name}
-                     >
-                       {item.icon}
-                     </button>
-                   )}
-                 </li>
-               ))}
-             </ul>
-           </nav>
+          {/* Icon Menu */}
+          <nav className="flex-1 overflow-y-auto overflow-x-hidden py-4 min-h-0 bg-[#1e3a5f]">
+            <ul className="space-y-2 px-3">
+              {allMenuItems.map((item, index) => (
+                <li key={`${item.path}-${index}`}>
+                  {item.onClick ? (
+                    <button
+                      onClick={() => {
+                        setIsOpen(false)
+                        item.onClick()
+                      }}
+                      className={`flex items-center justify-center p-3 rounded-xl transition-all duration-200 sidebar-tooltip w-full ${isActive(item.path)
+                          ? 'bg-white/20 text-white shadow-sm'
+                          : 'text-white/70 hover:bg-white/10 hover:text-white'
+                        }`}
+                      data-tooltip={item.name}
+                      title={item.name}
+                    >
+                      {item.icon}
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => {
+                        if (isCollapsed) {
+                          setIsOpen(true)
+                        }
+                        navigate(item.path)
+                      }}
+                      className={`flex items-center justify-center p-3 rounded-xl transition-all duration-200 sidebar-tooltip w-full ${isActive(item.path)
+                          ? 'bg-white/20 text-white shadow-sm'
+                          : 'text-white/70 hover:bg-white/10 hover:text-white'
+                        }`}
+                      data-tooltip={item.name}
+                      title={item.name}
+                    >
+                      {item.icon}
+                    </button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </nav>
+        </aside>
+      )}
 
-         </aside>
-       )}
+      {/* Expanded Sidebar - Single Combined Sidebar */}
+      {!isCollapsed && (
+        <aside className={`fixed top-0 left-0 z-50 h-screen bg-[#1e3a5f] shadow-xl transform transition-all duration-300 ease-in-out flex flex-col ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+          } w-72`}>
+          {/* Header - Blue Background */}
+          <div className="flex items-center justify-between h-16 px-6 border-b border-white/20 flex-shrink-0 shadow-lg relative z-10 bg-[#1e3a5f]">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-lg flex items-center justify-center">
+                <img
+                  src="/logo.png"
+                  alt="D'Vision Academy Logo"
+                  className="h-8 w-8 object-contain"
+                />
+              </div>
+              <span className="text-lg font-bold text-white">D'Vision Academy</span>
+            </div>
+            <button
+              onClick={() => setIsOpen(false)}
+              className="text-white/70 hover:text-white transition-colors lg:hidden"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
 
-       {/* Expanded Sidebar - Single Combined Sidebar */}
-       {!isCollapsed && (
-         <aside className={`fixed top-0 left-0 z-50 h-screen bg-[#1e3a5f] shadow-xl transform transition-all duration-300 ease-in-out flex flex-col ${
-           isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
-         } w-72`}>
-           {/* Header - Blue Background */}
-           <div className="flex items-center justify-between h-16 px-6 border-b border-white/20 flex-shrink-0 shadow-lg relative z-10 bg-[#1e3a5f]">
-             <div className="flex items-center gap-3">
-               <div className="h-10 w-10 rounded-lg flex items-center justify-center">
-                 <img 
-                   src="/logo.png" 
-                   alt="D'Vision Academy Logo" 
-                   className="h-8 w-8 object-contain"
-                 />
-               </div>
-               <span className="text-lg font-bold text-white">D'Vision Academy</span>
-             </div>
-             <button
-               onClick={() => setIsOpen(false)}
-               className="text-white/70 hover:text-white transition-colors lg:hidden"
-             >
-               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-               </svg>
-             </button>
-           </div>
+          {/* Content Sections */}
+          <div className="flex-1 overflow-y-auto overflow-x-hidden py-6 px-4 min-h-0 bg-[#1e3a5f]">
+            {menuSections.map((section, sectionIndex) => (
+              <div key={section.title} className={sectionIndex > 0 ? 'mt-8' : ''}>
+                <h3 className="text-xs font-bold text-white/60 uppercase tracking-wider mb-4 px-2">
+                  {section.title}
+                </h3>
+                <ul className="space-y-1">
+                  {section.items.map((item, itemIndex) => (
+                    <li key={`${item.path}-${itemIndex}`}>
+                      {item.onClick ? (
+                        <button
+                          onClick={() => {
+                            setIsOpen(false)
+                            item.onClick()
+                          }}
+                          className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 w-full text-left ${isActive(item.path)
+                              ? 'bg-white/20 text-white shadow-sm'
+                              : 'text-white/70 hover:bg-white/10 hover:text-white'
+                            }`}
+                        >
+                          <span className={`flex-shrink-0 ${isActive(item.path) ? 'text-white' : 'text-white/60'}`}>
+                            {item.icon}
+                          </span>
+                          <span className="text-sm flex-1">{item.name}</span>
+                        </button>
+                      ) : (
+                        <Link
+                          to={item.path}
+                          onClick={() => setIsOpen(false)}
+                          className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 ${isActive(item.path)
+                              ? 'bg-white/20 text-white shadow-sm'
+                              : 'text-white/70 hover:bg-white/10 hover:text-white'
+                            }`}
+                        >
+                          <span className={`flex-shrink-0 ${isActive(item.path) ? 'text-white' : 'text-white/60'}`}>
+                            {item.icon}
+                          </span>
+                          <span className="text-sm flex-1">{item.name}</span>
+                        </Link>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </aside>
+      )}
 
-           {/* Content Sections */}
-           <div className="flex-1 overflow-y-auto overflow-x-hidden py-6 px-4 min-h-0 bg-[#1e3a5f]">
-             {menuSections.map((section, sectionIndex) => (
-               <div key={section.title} className={sectionIndex > 0 ? 'mt-8' : ''}>
-                 <h3 className="text-xs font-bold text-white/60 uppercase tracking-wider mb-4 px-2">
-                   {section.title}
-                 </h3>
-                 <ul className="space-y-1">
-                   {section.items.map((item, itemIndex) => (
-                     <li key={`${item.path}-${itemIndex}`}>
-                       {item.onClick ? (
-                         <button
-                           onClick={() => {
-                             setIsOpen(false)
-                             item.onClick()
-                           }}
-                           className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 w-full text-left ${
-                             isActive(item.path)
-                               ? 'bg-white/20 text-white shadow-sm'
-                               : 'text-white/70 hover:bg-white/10 hover:text-white'
-                           }`}
-                         >
-                           <span className={`flex-shrink-0 ${isActive(item.path) ? 'text-white' : 'text-white/60'}`}>
-                             {item.icon}
-                           </span>
-                           <span className="text-sm flex-1">{item.name}</span>
-                         </button>
-                       ) : (
-                         <Link
-                           to={item.path}
-                           onClick={() => setIsOpen(false)}
-                           className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 ${
-                             isActive(item.path)
-                               ? 'bg-white/20 text-white shadow-sm'
-                               : 'text-white/70 hover:bg-white/10 hover:text-white'
-                           }`}
-                         >
-                           <span className={`flex-shrink-0 ${isActive(item.path) ? 'text-white' : 'text-white/60'}`}>
-                             {item.icon}
-                           </span>
-                           <span className="text-sm flex-1">{item.name}</span>
-                         </Link>
-                       )}
-                     </li>
-                   ))}
-                 </ul>
-               </div>
-             ))}
-           </div>
+      {/* Logout Confirmation Modal */}
+      {showLogoutModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden transform transition-all scale-100 opacity-100">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-[#1e3a5f] to-[#2a4a6f] px-6 py-4 flex items-center justify-between">
+              <h3 className="text-lg font-bold text-white">Confirm Logout</h3>
+              <button
+                onClick={() => setShowLogoutModal(false)}
+                className="text-white/80 hover:text-white transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
 
-         </aside>
-       )}
-     </>
-   )
- }
- 
- export default Sidebar
+            {/* Body */}
+            <div className="p-6">
+              <div className="flex items-start gap-4">
+                <div className="flex-shrink-0 w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">
+                  <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                  </svg>
+                </div>
+                <div>
+                  <h4 className="text-gray-900 font-semibold mb-1">Ready to leave?</h4>
+                  <p className="text-gray-600 text-sm">
+                    Are you sure you want to log out of your admin account? You will need to sign in again to access the dashboard.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="bg-gray-50 px-6 py-4 flex items-center justify-end gap-3">
+              <button
+                onClick={() => setShowLogoutModal(false)}
+                className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 font-medium text-sm transition-colors shadow-sm"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmLogout}
+                className="px-4 py-2 text-white bg-red-600 rounded-lg hover:bg-red-700 font-medium text-sm transition-colors shadow-md flex items-center gap-2"
+              >
+                <span>Logout</span>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  )
+}
+
+export default Sidebar

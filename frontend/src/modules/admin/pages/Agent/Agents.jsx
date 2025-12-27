@@ -64,7 +64,7 @@ const Agents = () => {
         page,
         limit: 10
       }
-      if (searchTerm) params.search = searchTerm
+      if (searchTerm) params.search = searchTerm.trim()
 
       const response = await agentAPI.getAll(params)
       if (response.success && response.data?.agents) {
@@ -387,25 +387,28 @@ const Agents = () => {
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-2 sm:px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    <th className="px-2 sm:px-3 py-2 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      Image
+                    </th>
+                    <th className="px-2 sm:px-3 py-2 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
                       Name
                     </th>
-                    <th className="px-2 sm:px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider hidden sm:table-cell">
+                    <th className="px-2 sm:px-3 py-2 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider hidden sm:table-cell">
                       Email
                     </th>
-                    <th className="px-2 sm:px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider hidden md:table-cell">
+                    <th className="px-2 sm:px-3 py-2 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider hidden md:table-cell">
                       Phone
                     </th>
-                    <th className="px-2 sm:px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    <th className="px-2 sm:px-3 py-2 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
                       Status
                     </th>
-                    <th className="px-2 sm:px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider hidden lg:table-cell">
+                    <th className="px-2 sm:px-3 py-2 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider hidden lg:table-cell">
                       Referrals
                     </th>
-                    <th className="px-2 sm:px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider hidden lg:table-cell">
+                    <th className="px-2 sm:px-3 py-2 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider hidden lg:table-cell">
                       Subscriptions
                     </th>
-                    <th className="px-2 sm:px-3 py-2 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    <th className="px-2 sm:px-3 py-2 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
                       Actions
                     </th>
                   </tr>
@@ -413,7 +416,7 @@ const Agents = () => {
                 <tbody className="bg-white divide-y divide-gray-100">
                   {filteredAgents.length === 0 ? (
                     <tr>
-                      <td colSpan="7" className="px-3 sm:px-4 py-6 sm:py-8 text-center">
+                      <td colSpan="8" className="px-3 sm:px-4 py-6 sm:py-8 text-center">
                         <div className="flex flex-col items-center justify-center">
                           <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-gray-100 flex items-center justify-center mb-2 sm:mb-3">
                             <svg className="w-5 h-5 sm:w-6 sm:h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -428,25 +431,25 @@ const Agents = () => {
                   ) : (
                     filteredAgents.map((agent) => (
                       <tr key={agent._id} className="hover:bg-gray-50 transition-all duration-200">
-                        <td className="px-2 sm:px-3 py-2 whitespace-nowrap">
-                          <div className="flex items-center">
+                        <td className="px-2 sm:px-3 py-2 whitespace-nowrap text-center">
+                          <div className="flex items-center justify-center">
                             <div className="h-6 w-6 sm:h-8 sm:w-8 rounded-full bg-gradient-to-br from-[#1e3a5f] to-[#2a4a6f] flex items-center justify-center ring-2 ring-gray-200">
                               <span className="text-white font-semibold text-[10px] sm:text-xs">
                                 {getInitials(agent.name)}
                               </span>
                             </div>
-                            <div className="ml-2 sm:ml-3">
-                              <div className="text-xs font-semibold text-gray-900">{agent.name}</div>
-                            </div>
                           </div>
                         </td>
-                        <td className="px-2 sm:px-3 py-2 whitespace-nowrap hidden sm:table-cell">
-                          <div className="text-xs text-gray-600 truncate max-w-[150px]">{agent.email || 'N/A'}</div>
+                        <td className="px-2 sm:px-3 py-2 whitespace-nowrap text-center">
+                          <div className="text-xs font-semibold text-gray-900">{agent.name}</div>
                         </td>
-                        <td className="px-2 sm:px-3 py-2 whitespace-nowrap hidden md:table-cell">
+                        <td className="px-2 sm:px-3 py-2 whitespace-nowrap hidden sm:table-cell text-center">
+                          <div className="text-xs text-gray-600 truncate max-w-[150px] mx-auto">{agent.email || 'N/A'}</div>
+                        </td>
+                        <td className="px-2 sm:px-3 py-2 whitespace-nowrap hidden md:table-cell text-center">
                           <div className="text-xs text-gray-600">{agent.phone}</div>
                         </td>
-                        <td className="px-2 sm:px-3 py-2 whitespace-nowrap">
+                        <td className="px-2 sm:px-3 py-2 whitespace-nowrap text-center">
                           <span className={`px-2 py-1 text-xs font-semibold rounded-full ${agent.isActive
                             ? 'bg-green-100 text-green-800'
                             : 'bg-red-100 text-red-800'
@@ -454,14 +457,14 @@ const Agents = () => {
                             {agent.isActive ? 'Active' : 'Inactive'}
                           </span>
                         </td>
-                        <td className="px-2 sm:px-3 py-2 whitespace-nowrap hidden lg:table-cell">
+                        <td className="px-2 sm:px-3 py-2 whitespace-nowrap hidden lg:table-cell text-center">
                           <div className="text-xs text-gray-600">{agent.stats?.totalReferrals || 0}</div>
                         </td>
-                        <td className="px-2 sm:px-3 py-2 whitespace-nowrap hidden lg:table-cell">
+                        <td className="px-2 sm:px-3 py-2 whitespace-nowrap hidden lg:table-cell text-center">
                           <div className="text-xs text-gray-600">{agent.stats?.successfulSubscriptions || 0}</div>
                         </td>
-                        <td className="px-2 sm:px-3 py-2 whitespace-nowrap text-right text-xs font-medium">
-                          <div className="flex items-center justify-end space-x-1 sm:space-x-2">
+                        <td className="px-2 sm:px-3 py-2 whitespace-nowrap text-center text-xs font-medium">
+                          <div className="flex items-center justify-center space-x-1 sm:space-x-2">
                             <button
                               onClick={() => handleViewClick(agent)}
                               className="p-1.5 sm:p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-all duration-200"

@@ -12,7 +12,9 @@ const {
   updateProfile,
   updateFcmToken,
   getCourses,
-  getCourseById
+  getCourseById,
+  resetPassword,
+  requestDemoPlan
 } = require('../controllers/studentController');
 const { getPublicClasses } = require('../controllers/adminClassController');
 const { getPublicSubjects } = require('../controllers/adminSubjectController');
@@ -26,6 +28,7 @@ router.post('/login', login);
 router.post('/send-otp', sendOTP);
 router.post('/verify-otp', verifyOTP);
 router.post('/resend-otp', resendOTP);
+router.post('/reset-password', resetPassword);
 router.get('/classes', getPublicClasses);
 router.get('/subjects', getPublicSubjects);
 
@@ -36,6 +39,7 @@ router.get('/courses/:id', protect, getCourseById);
 router.put('/profile', protect, updateProfile);
 router.put('/fcm-token', protect, updateFcmToken);
 router.post('/upload-profile-image', protect, upload.single('profileImage'), uploadProfileImage);
+router.post('/request-demo', protect, requestDemoPlan);
 
 module.exports = router;
 

@@ -149,34 +149,34 @@ const AddSubscription = () => {
     const feature = featureInputs[planIndex]
     if (feature && feature.trim()) {
       const trimmedFeature = feature.trim()
-      
+
       // Set ref to prevent double execution
       addingFeatureRef.current[planIndex] = true
-      
+
       setPlans(prev => {
         const updated = [...prev]
         const currentPlan = updated[planIndex]
-        
+
         // Check if feature already exists to prevent duplicates (using current state)
         const featureExists = currentPlan.features.some(f => f.trim() === trimmedFeature)
-        
+
         if (!featureExists) {
           updated[planIndex] = {
             ...currentPlan,
             features: [...currentPlan.features, trimmedFeature]
           }
         }
-        
+
         return updated
       })
-      
+
       // Clear the input for this plan
       setFeatureInputs(prev => {
         const updated = [...prev]
         updated[planIndex] = ''
         return updated
       })
-      
+
       // Reset the ref after a short delay
       setTimeout(() => {
         addingFeatureRef.current[planIndex] = false
@@ -214,12 +214,12 @@ const AddSubscription = () => {
         // For preparation class, calculate missing durations
         const allDurations = ['monthly', 'quarterly', 'half_yearly', 'yearly', 'demo']
         const missingDurations = classMissingDurations[selectedPrepClassId] || allDurations
-        
+
         setPlans(prev => prev.map(plan => ({
           ...plan,
           isAvailable: missingDurations.includes(plan.duration)
         })))
-        
+
         setStep(4)
       }
     } else if (step === 3) {
@@ -228,23 +228,23 @@ const AddSubscription = () => {
         return
       }
       setError('')
-      
+
       // Calculate which durations are missing for selected classes
       // A duration is available if at least one selected class is missing it
       const allDurations = ['monthly', 'quarterly', 'half_yearly', 'yearly', 'demo']
       const availableDurations = new Set()
-      
+
       selectedClasses.forEach(classNum => {
         const missingDurations = classMissingDurations[classNum] || allDurations
         missingDurations.forEach(dur => availableDurations.add(dur))
       })
-      
+
       // Filter plans to only show missing durations
       setPlans(prev => prev.map(plan => ({
         ...plan,
         isAvailable: availableDurations.has(plan.duration)
       })))
-      
+
       setStep(4)
     }
   }
@@ -289,19 +289,24 @@ const AddSubscription = () => {
 
     // Filter to only available plans (missing durations)
     const availablePlans = plans.filter(plan => plan.isAvailable !== false)
-    
+
     if (availablePlans.length === 0) {
       setError('No plans available to create. All plans already exist for selected classes.')
       return
     }
 
-    // Validate available plans
-    for (let i = 0; i < availablePlans.length; i++) {
-      const plan = availablePlans[i]
-      if (!plan.name) {
-        setError(`Please provide plan name for ${plan.duration} plan`)
-        return
-      }
+    // Filter to only plans that have a name entered (user wants to create these)
+    const plansToCreate = availablePlans.filter(plan => plan.name && plan.name.trim() !== '')
+
+    if (plansToCreate.length === 0) {
+      setError('Please fill in details for at least one plan to continue.')
+      return
+    }
+
+    // Validate only the plans intended to be created
+    for (let i = 0; i < plansToCreate.length; i++) {
+      const plan = plansToCreate[i]
+
       // Price is optional for demo plans (can be 0 or free)
       if (plan.duration !== 'demo') {
         if (!plan.price) {
@@ -332,9 +337,8 @@ const AddSubscription = () => {
 
     try {
       // Create only available plans (missing durations)
-      const promises = availablePlans.map(plan => {
-        if (!plan.name || !plan.price) return null
-
+      // Create only the validated plans
+      const promises = plansToCreate.map(plan => {
         const planData = {
           type: planType,
           name: plan.name,
@@ -371,7 +375,7 @@ const AddSubscription = () => {
       }
 
       // Success - navigate back
-    navigate('/admin/subscriptions')
+      navigate('/admin/subscriptions')
     } catch (err) {
       setError(err.message || 'Failed to create subscription plans')
       console.error('Error creating subscription plans:', err)
@@ -401,10 +405,10 @@ const AddSubscription = () => {
               </h1>
               <p className="text-xs text-[#1e3a5f]/70 mt-0.5">
                 Step {step} of {planType === 'preparation' ? 4 : 4}: {
-                  step === 1 ? 'Select Type' : 
-                  step === 2 ? (planType === 'regular' ? 'Select Board' : 'Select Preparation Class') : 
-                  step === 3 ? 'Select Classes' : 
-                  'Create Plans'
+                  step === 1 ? 'Select Type' :
+                    step === 2 ? (planType === 'regular' ? 'Select Board' : 'Select Preparation Class') :
+                      step === 3 ? 'Select Classes' :
+                        'Create Plans'
                 }
               </p>
             </div>
@@ -509,9 +513,9 @@ const AddSubscription = () => {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                     </svg>
                   </div>
-            </button>
-          </div>
-        </div>
+                </button>
+              </div>
+            </div>
           </div>
         )}
 
@@ -520,7 +524,7 @@ const AddSubscription = () => {
           <div className="mt-2 sm:mt-3">
             <div className="bg-white rounded-lg shadow-lg border border-gray-200 p-3 sm:p-4 md:p-5">
               <div className="flex items-center justify-between mb-4 sm:mb-6">
-              <div>
+                <div>
                   <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900">
                     Select Preparation Class
                   </h2>
@@ -556,11 +560,10 @@ const AddSubscription = () => {
                     <button
                       key={classItem._id}
                       onClick={() => handlePrepClassSelect(classItem._id)}
-                      className={`p-3 sm:p-4 border-2 rounded-lg transition-all duration-200 text-left ${
-                        selectedPrepClassId === classItem._id
-                          ? 'border-[#1e3a5f] bg-blue-50 text-[#1e3a5f]'
-                          : 'border-gray-200 hover:border-gray-300 text-gray-700'
-                      }`}
+                      className={`p-3 sm:p-4 border-2 rounded-lg transition-all duration-200 text-left ${selectedPrepClassId === classItem._id
+                        ? 'border-[#1e3a5f] bg-blue-50 text-[#1e3a5f]'
+                        : 'border-gray-200 hover:border-gray-300 text-gray-700'
+                        }`}
                     >
                       <div>
                         <div className="text-base sm:text-lg md:text-xl font-bold">{classItem.name}</div>
@@ -587,7 +590,7 @@ const AddSubscription = () => {
           <div className="mt-2 sm:mt-3">
             <div className="bg-white rounded-lg shadow-lg border border-gray-200 p-3 sm:p-4 md:p-5">
               <div className="flex items-center justify-between mb-4 sm:mb-6">
-              <div>
+                <div>
                   <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900">
                     Select Classes for {board}
                   </h2>
@@ -665,15 +668,18 @@ const AddSubscription = () => {
             <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
               <div className="bg-white rounded-lg shadow-lg border border-gray-200 p-3 sm:p-4 md:p-5">
                 <div className="flex items-center justify-between mb-4 sm:mb-6">
-              <div>
+                  <div>
                     <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900">
                       Create Subscription Plans
                     </h2>
                     <p className="text-xs sm:text-sm text-gray-600 mt-1">
-                      {planType === 'regular' 
+                      {planType === 'regular'
                         ? `${board} - Classes ${selectedClasses.map(c => c).join(', ')}`
                         : preparationClasses.find(c => c._id === selectedPrepClassId)?.name || 'Preparation Class'
                       }
+                    </p>
+                    <p className="text-xs text-blue-600 mt-1 font-medium">
+                      Note: You can fill details only for the plans you want to create. Leave others empty to skip.
                     </p>
                   </div>
                   <button
@@ -683,7 +689,7 @@ const AddSubscription = () => {
                   >
                     Change Selection
                   </button>
-              </div>
+                </div>
 
                 {plans.filter(plan => plan.isAvailable !== false).length === 0 ? (
                   <div className="text-center py-8 sm:py-12">
@@ -695,165 +701,162 @@ const AddSubscription = () => {
                     </p>
                   </div>
                 ) : (
-                <div className="space-y-6 sm:space-y-8">
-                  {plans.map((plan, index) => {
-                    // Only show plans that are available (missing for selected classes)
-                    if (plan.isAvailable === false) {
-                      return null
-                    }
-                    return (
-                    <div key={plan.duration} className="border-2 border-gray-200 rounded-lg sm:rounded-xl p-4 sm:p-6">
-                      <h3 className="text-base sm:text-lg md:text-xl font-bold text-gray-900 mb-4 sm:mb-6 capitalize">
-                        {plan.duration === 'half_yearly' ? 'Half Yearly' : plan.duration === 'demo' ? 'Demo' : plan.duration.charAt(0).toUpperCase() + plan.duration.slice(1)} Plan
-                      </h3>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
-                        <div className="md:col-span-2">
-                <label className="block text-xs sm:text-sm md:text-base font-semibold text-gray-700 mb-1.5 sm:mb-2">
-                            Plan Name <span className="text-red-500">*</span>
-                </label>
-                <input
-                            type="text"
-                  required
-                            value={plan.name}
-                            onChange={(e) => handlePlanChange(index, 'name', e.target.value)}
-                            className="w-full px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm md:text-base border-2 border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-[#1e3a5f] focus:border-[#1e3a5f] outline-none transition-all duration-200"
-                            placeholder={`e.g., ${board} ${plan.duration} Plan`}
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs sm:text-sm md:text-base font-semibold text-gray-700 mb-1.5 sm:mb-2">
-                            Price (₹) {plan.duration !== 'demo' && <span className="text-red-500">*</span>}
-                            {plan.duration === 'demo' && <span className="text-gray-500 text-xs">(Optional - Default: Free)</span>}
-                </label>
-                <input
-                  type="number"
-                  required={plan.duration !== 'demo'}
-                  min="0"
-                  step="0.01"
-                            value={plan.price || ''}
-                            onChange={(e) => handlePlanChange(index, 'price', e.target.value)}
-                            className="w-full px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm md:text-base border-2 border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-[#1e3a5f] focus:border-[#1e3a5f] outline-none transition-all duration-200"
-                            placeholder={plan.duration === 'demo' ? "Enter price (optional, default: 0)" : "Enter price"}
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs sm:text-sm md:text-base font-semibold text-gray-700 mb-1.5 sm:mb-2">
-                            Original Price (₹) <span className="text-gray-500 text-xs">(Optional)</span>
-                </label>
-                          <input
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            value={plan.originalPrice}
-                            onChange={(e) => handlePlanChange(index, 'originalPrice', e.target.value)}
-                            className="w-full px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm md:text-base border-2 border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-[#1e3a5f] focus:border-[#1e3a5f] outline-none transition-all duration-200"
-                            placeholder="Enter original price (for discount)"
-                          />
-              </div>
-
-              {/* Validity Days for Demo Plans */}
-              {plan.duration === 'demo' && (
-                <div>
-                  <label className="block text-xs sm:text-sm md:text-base font-semibold text-gray-700 mb-1.5 sm:mb-2">
-                    Validity (Days) <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="number"
-                    required
-                    min="1"
-                    step="1"
-                    value={plan.validityDays || ''}
-                    onChange={(e) => handlePlanChange(index, 'validityDays', parseInt(e.target.value) || 7)}
-                    className="w-full px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm md:text-base border-2 border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-[#1e3a5f] focus:border-[#1e3a5f] outline-none transition-all duration-200"
-                    placeholder="Enter validity in days (e.g., 7, 15, 30)"
-                  />
-                </div>
-              )}
-
-                        <div className="md:col-span-2">
-                <label className="block text-xs sm:text-sm md:text-base font-semibold text-gray-700 mb-1.5 sm:mb-2">
-                            Description <span className="text-gray-500 text-xs">(Optional)</span>
-                </label>
-                          <textarea
-                            value={plan.description}
-                            onChange={(e) => handlePlanChange(index, 'description', e.target.value)}
-                            rows="3"
-                            className="w-full px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm md:text-base border-2 border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-[#1e3a5f] focus:border-[#1e3a5f] outline-none transition-all duration-200"
-                            placeholder="Enter plan description"
-                          />
-              </div>
-
-                        <div className="md:col-span-2">
-                <label className="block text-xs sm:text-sm md:text-base font-semibold text-gray-700 mb-1.5 sm:mb-2">
-                            Features <span className="text-gray-500 text-xs">(Optional)</span>
-                </label>
-                          <div className="space-y-2">
-                            {plan.features.map((feature, featureIndex) => (
-                              <div key={featureIndex} className="flex items-center gap-2">
-                                <span className="flex-1 px-3 py-2 bg-gray-50 rounded-lg text-sm">{feature}</span>
-                                <button
-                                  type="button"
-                                  onClick={() => handleFeatureRemove(index, featureIndex)}
-                                  className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
-                                >
-                                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                  </svg>
-                                </button>
-                              </div>
-                            ))}
-                            <div className="flex gap-2">
-                <input
+                  <div className="space-y-6 sm:space-y-8">
+                    {plans.map((plan, index) => {
+                      // Only show plans that are available (missing for selected classes)
+                      if (plan.isAvailable === false) {
+                        return null
+                      }
+                      return (
+                        <div key={plan.duration} className="border-2 border-gray-200 rounded-lg sm:rounded-xl p-4 sm:p-6">
+                          <h3 className="text-base sm:text-lg md:text-xl font-bold text-gray-900 mb-4 sm:mb-6 capitalize">
+                            {plan.duration === 'half_yearly' ? 'Half Yearly' : plan.duration === 'demo' ? 'Demo' : plan.duration.charAt(0).toUpperCase() + plan.duration.slice(1)} Plan
+                          </h3>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
+                            <div className="md:col-span-2">
+                              <label className="block text-xs sm:text-sm md:text-base font-semibold text-gray-700 mb-1.5 sm:mb-2">
+                                Plan Name <span className="text-red-500">*</span>
+                              </label>
+                              <input
                                 type="text"
-                                value={featureInputs[index] || ''}
-                                onChange={(e) => handleFeatureInputChange(index, e.target.value)}
-                                onKeyPress={(e) => {
-                                  if (e.key === 'Enter') {
-                                    e.preventDefault()
-                                    handleFeatureAdd(index)
-                                  }
-                                }}
-                                placeholder="Add a feature"
-                                className="flex-1 px-3 py-2 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-[#1e3a5f] focus:border-[#1e3a5f] outline-none text-sm"
+                                value={plan.name}
+                                onChange={(e) => handlePlanChange(index, 'name', e.target.value)}
+                                className="w-full px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm md:text-base border-2 border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-[#1e3a5f] focus:border-[#1e3a5f] outline-none transition-all duration-200"
+                                placeholder={`e.g., ${board} ${plan.duration} Plan`}
                               />
-                              <button
-                                type="button"
-                                onClick={() => handleFeatureAdd(index)}
-                                className="px-4 py-2 bg-gradient-to-r from-[#1e3a5f] to-[#2a4a6f] hover:from-[#2a4a6f] hover:to-[#1e3a5f] text-white rounded-lg text-sm"
-                              >
-                                Add
-                              </button>
+                            </div>
+
+                            <div>
+                              <label className="block text-xs sm:text-sm md:text-base font-semibold text-gray-700 mb-1.5 sm:mb-2">
+                                Price (₹) {plan.duration !== 'demo' && <span className="text-red-500">*</span>}
+                                {plan.duration === 'demo' && <span className="text-gray-500 text-xs">(Optional - Default: Free)</span>}
+                              </label>
+                              <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={plan.price || ''}
+                                onChange={(e) => handlePlanChange(index, 'price', e.target.value)}
+                                className="w-full px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm md:text-base border-2 border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-[#1e3a5f] focus:border-[#1e3a5f] outline-none transition-all duration-200"
+                                placeholder={plan.duration === 'demo' ? "Enter price (optional, default: 0)" : "Enter price"}
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block text-xs sm:text-sm md:text-base font-semibold text-gray-700 mb-1.5 sm:mb-2">
+                                Original Price (₹) <span className="text-gray-500 text-xs">(Optional)</span>
+                              </label>
+                              <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={plan.originalPrice}
+                                onChange={(e) => handlePlanChange(index, 'originalPrice', e.target.value)}
+                                className="w-full px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm md:text-base border-2 border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-[#1e3a5f] focus:border-[#1e3a5f] outline-none transition-all duration-200"
+                                placeholder="Enter original price (for discount)"
+                              />
+                            </div>
+
+                            {/* Validity Days for Demo Plans */}
+                            {plan.duration === 'demo' && (
+                              <div>
+                                <label className="block text-xs sm:text-sm md:text-base font-semibold text-gray-700 mb-1.5 sm:mb-2">
+                                  Validity (Days) <span className="text-red-500">*</span>
+                                </label>
+                                <input
+                                  type="number"
+                                  min="1"
+                                  step="1"
+                                  value={plan.validityDays || ''}
+                                  onChange={(e) => handlePlanChange(index, 'validityDays', parseInt(e.target.value) || 7)}
+                                  className="w-full px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm md:text-base border-2 border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-[#1e3a5f] focus:border-[#1e3a5f] outline-none transition-all duration-200"
+                                  placeholder="Enter validity in days (e.g., 7, 15, 30)"
+                                />
+                              </div>
+                            )}
+
+                            <div className="md:col-span-2">
+                              <label className="block text-xs sm:text-sm md:text-base font-semibold text-gray-700 mb-1.5 sm:mb-2">
+                                Description <span className="text-gray-500 text-xs">(Optional)</span>
+                              </label>
+                              <textarea
+                                value={plan.description}
+                                onChange={(e) => handlePlanChange(index, 'description', e.target.value)}
+                                rows="3"
+                                className="w-full px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm md:text-base border-2 border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-[#1e3a5f] focus:border-[#1e3a5f] outline-none transition-all duration-200"
+                                placeholder="Enter plan description"
+                              />
+                            </div>
+
+                            <div className="md:col-span-2">
+                              <label className="block text-xs sm:text-sm md:text-base font-semibold text-gray-700 mb-1.5 sm:mb-2">
+                                Features <span className="text-gray-500 text-xs">(Optional)</span>
+                              </label>
+                              <div className="space-y-2">
+                                {plan.features.map((feature, featureIndex) => (
+                                  <div key={featureIndex} className="flex items-center gap-2">
+                                    <span className="flex-1 px-3 py-2 bg-gray-50 rounded-lg text-sm">{feature}</span>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleFeatureRemove(index, featureIndex)}
+                                      className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
+                                    >
+                                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                      </svg>
+                                    </button>
+                                  </div>
+                                ))}
+                                <div className="flex gap-2">
+                                  <input
+                                    type="text"
+                                    value={featureInputs[index] || ''}
+                                    onChange={(e) => handleFeatureInputChange(index, e.target.value)}
+                                    onKeyPress={(e) => {
+                                      if (e.key === 'Enter') {
+                                        e.preventDefault()
+                                        handleFeatureAdd(index)
+                                      }
+                                    }}
+                                    placeholder="Add a feature"
+                                    className="flex-1 px-3 py-2 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-[#1e3a5f] focus:border-[#1e3a5f] outline-none text-sm"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => handleFeatureAdd(index)}
+                                    className="px-4 py-2 bg-gradient-to-r from-[#1e3a5f] to-[#2a4a6f] hover:from-[#2a4a6f] hover:to-[#1e3a5f] text-white rounded-lg text-sm"
+                                  >
+                                    Add
+                                  </button>
+                                </div>
+                              </div>
                             </div>
                           </div>
                         </div>
-              </div>
-                    </div>
-                    )
-                  })}
-                </div>
+                      )
+                    })}
+                  </div>
                 )}
-            </div>
+              </div>
 
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-3 sm:gap-4 pt-4 sm:pt-6">
-              <button
-                type="button"
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-3 sm:gap-4 pt-4 sm:pt-6">
+                <button
+                  type="button"
                   onClick={handleBack}
-                className="w-full sm:w-auto px-4 sm:px-6 md:px-8 py-2.5 sm:py-3 text-xs sm:text-sm md:text-base border-2 border-gray-300 text-gray-700 rounded-lg sm:rounded-xl font-semibold hover:bg-gray-50 transition-all duration-200"
-              >
+                  className="w-full sm:w-auto px-4 sm:px-6 md:px-8 py-2.5 sm:py-3 text-xs sm:text-sm md:text-base border-2 border-gray-300 text-gray-700 rounded-lg sm:rounded-xl font-semibold hover:bg-gray-50 transition-all duration-200"
+                >
                   Back
-              </button>
-              <button
-                type="submit"
+                </button>
+                <button
+                  type="submit"
                   disabled={isSubmitting}
                   className="w-full sm:w-auto px-4 sm:px-6 md:px-8 py-2.5 sm:py-3 text-xs sm:text-sm md:text-base bg-gradient-to-r from-[#1e3a5f] to-[#2a4a6f] hover:from-[#2a4a6f] hover:to-[#1e3a5f] text-white rounded-lg sm:rounded-xl font-semibold transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
-              >
+                >
                   {isSubmitting ? 'Creating Plans...' : 'Create All Plans'}
-              </button>
-            </div>
-          </form>
-        </div>
+                </button>
+              </div>
+            </form>
+          </div>
         )}
       </div>
     </div>

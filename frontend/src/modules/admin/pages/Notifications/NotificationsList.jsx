@@ -10,7 +10,7 @@ const NotificationsList = () => {
   const [deleteCampaignId, setDeleteCampaignId] = useState(null)
   const [error, setError] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
-  
+
   // Pagination state
   const [pagination, setPagination] = useState({
     page: 1,
@@ -32,7 +32,7 @@ const NotificationsList = () => {
     }, 500)
     return () => clearTimeout(timer)
   }, [searchTerm])
-  
+
   // Handle page change
   const handlePageChange = (newPage) => {
     if (newPage >= 1 && newPage <= pagination.pages) {
@@ -48,12 +48,12 @@ const NotificationsList = () => {
         page,
         limit: 10
       }
-      if (searchTerm) params.search = searchTerm
-      
+      if (searchTerm) params.search = searchTerm.trim()
+
       const response = await notificationAPI.getAllCampaigns(params)
       if (response.success && response.data?.campaigns) {
         setCampaigns(response.data.campaigns)
-        
+
         // Update pagination
         setPagination({
           page: response.page || 1,
@@ -174,20 +174,20 @@ const NotificationsList = () => {
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-2 sm:px-3 py-2 text-left text-[10px] sm:text-xs font-semibold text-gray-700 uppercase tracking-wider">Title</th>
-                    <th className="px-2 sm:px-3 py-2 text-left text-[10px] sm:text-xs font-semibold text-gray-700 uppercase tracking-wider">Recipient Type</th>
-                    <th className="px-2 sm:px-3 py-2 text-left text-[10px] sm:text-xs font-semibold text-gray-700 uppercase tracking-wider">Created</th>
-                    <th className="px-2 sm:px-3 py-2 text-right text-[10px] sm:text-xs font-semibold text-gray-700 uppercase tracking-wider">Actions</th>
+                    <th className="px-2 sm:px-3 py-2 text-center text-[10px] sm:text-xs font-semibold text-gray-700 uppercase tracking-wider">Title</th>
+                    <th className="px-2 sm:px-3 py-2 text-center text-[10px] sm:text-xs font-semibold text-gray-700 uppercase tracking-wider">Recipient Type</th>
+                    <th className="px-2 sm:px-3 py-2 text-center text-[10px] sm:text-xs font-semibold text-gray-700 uppercase tracking-wider">Created Date & Time</th>
+                    <th className="px-2 sm:px-3 py-2 text-center text-[10px] sm:text-xs font-semibold text-gray-700 uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
+                <tbody className="bg-white divide-y divide-gray-100">
                   {filteredCampaigns.map((campaign) => (
                     <tr key={campaign._id} className="hover:bg-gray-50">
-                      <td className="px-2 sm:px-3 py-2">
+                      <td className="px-2 sm:px-3 py-2 text-center">
                         <div className="text-xs sm:text-sm font-medium text-gray-900">{campaign.title}</div>
-                        <div className="text-[10px] sm:text-xs text-gray-500 truncate max-w-xs">{campaign.body}</div>
+                        <div className="text-[10px] sm:text-xs text-gray-500 truncate max-w-xs mx-auto">{campaign.body}</div>
                       </td>
-                      <td className="px-2 sm:px-3 py-2">
+                      <td className="px-2 sm:px-3 py-2 text-center">
                         {(() => {
                           const type = campaign.notificationType ||
                             (campaign.recipientTypes ?
@@ -225,11 +225,11 @@ const NotificationsList = () => {
                           )
                         })()}
                       </td>
-                      <td className="px-2 sm:px-3 py-2 text-[10px] sm:text-xs text-gray-500">
+                      <td className="px-2 sm:px-3 py-2 text-[10px] sm:text-xs text-gray-500 text-center">
                         {formatDate(campaign.createdAt)}
                       </td>
-                      <td className="px-2 sm:px-3 py-2 text-right">
-                        <div className="flex items-center justify-end gap-1">
+                      <td className="px-2 sm:px-3 py-2 text-center">
+                        <div className="flex items-center justify-center gap-1">
                           {!campaign.sentAt && (
                             <button
                               onClick={() => navigate(`/admin/notifications/edit/${campaign._id}`)}
@@ -258,7 +258,7 @@ const NotificationsList = () => {
               </table>
             </div>
           )}
-          
+
           {/* Pagination Controls */}
           {!loading && pagination.pages > 1 && (
             <div className="px-3 sm:px-4 py-3 sm:py-4 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-3">
@@ -273,11 +273,10 @@ const NotificationsList = () => {
                 <button
                   onClick={() => handlePageChange(pagination.page - 1)}
                   disabled={pagination.page === 1}
-                  className={`px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-all ${
-                    pagination.page === 1
-                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                      : 'bg-[#1e3a5f] text-white hover:bg-[#2a4a6f]'
-                  }`}
+                  className={`px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-all ${pagination.page === 1
+                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                    : 'bg-[#1e3a5f] text-white hover:bg-[#2a4a6f]'
+                    }`}
                 >
                   Previous
                 </button>
@@ -297,11 +296,10 @@ const NotificationsList = () => {
                       <button
                         key={pageNum}
                         onClick={() => handlePageChange(pageNum)}
-                        className={`px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-all ${
-                          pagination.page === pageNum
-                            ? 'bg-[#1e3a5f] text-white'
-                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                        }`}
+                        className={`px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-all ${pagination.page === pageNum
+                          ? 'bg-[#1e3a5f] text-white'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          }`}
                       >
                         {pageNum}
                       </button>
@@ -311,11 +309,10 @@ const NotificationsList = () => {
                 <button
                   onClick={() => handlePageChange(pagination.page + 1)}
                   disabled={pagination.page === pagination.pages}
-                  className={`px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-all ${
-                    pagination.page === pagination.pages
-                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                      : 'bg-[#1e3a5f] text-white hover:bg-[#2a4a6f]'
-                  }`}
+                  className={`px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-all ${pagination.page === pagination.pages
+                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                    : 'bg-[#1e3a5f] text-white hover:bg-[#2a4a6f]'
+                    }`}
                 >
                   Next
                 </button>
@@ -327,7 +324,7 @@ const NotificationsList = () => {
 
       {/* Delete Modal */}
       {isDeleteModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-4 sm:p-6 max-w-md w-full mx-4">
             <h3 className="text-sm sm:text-base font-bold text-gray-900 mb-2">Delete Notification</h3>
             <p className="text-xs sm:text-sm text-gray-600 mb-4">

@@ -15,7 +15,7 @@ exports.getCourseStatistics = asyncHandler(async (req, res) => {
   const totalCourses = await Course.countDocuments({});
   const activeCourses = await Course.countDocuments({ isActive: true });
   const inactiveCourses = await Course.countDocuments({ isActive: false });
-  
+
   res.status(200).json({
     success: true,
     data: {
@@ -35,12 +35,12 @@ exports.getAllCourses = asyncHandler(async (req, res) => {
   const { page = 1, limit = 10, search } = req.query;
 
   const query = {};
-  
+
   // Add search functionality
   if (search) {
     query.$or = [
-      { name: { $regex: search, $options: 'i' } },
-      { description: { $regex: search, $options: 'i' } }
+      { name: { $regex: search.trim(), $options: 'i' } },
+      { description: { $regex: search.trim(), $options: 'i' } }
     ];
   }
 
@@ -89,7 +89,7 @@ exports.getCourse = asyncHandler(async (req, res) => {
 // @access  Private/Admin
 exports.createCourse = asyncHandler(async (req, res) => {
   const { title, type, board, class: classNumber, classId, subject, description, status } = req.body;
-  
+
   // Parse chapters from FormData (it comes as JSON string)
   let chapters = req.body.chapters;
   if (typeof chapters === 'string') {
@@ -104,7 +104,7 @@ exports.createCourse = asyncHandler(async (req, res) => {
   if (!chapters) {
     chapters = [];
   }
-  
+
   // Get files from Multer (if uploaded via Multer)
   const thumbnailFile = req.files && req.files['thumbnail'] ? req.files['thumbnail'][0] : null;
   const pdfFiles = req.files && req.files['chapterPdf'] ? req.files['chapterPdf'] : [];
@@ -183,25 +183,25 @@ exports.createCourse = asyncHandler(async (req, res) => {
 
   if (courseType === 'regular') {
     // Check if class-board combination exists
-    const classBoardExists = await Class.findOne({ 
+    const classBoardExists = await Class.findOne({
       type: 'regular',
-      class: parseInt(classNumber), 
+      class: parseInt(classNumber),
       board: board.trim(),
       isActive: true
     });
-    
+
     if (!classBoardExists) {
       throw new ErrorResponse(`Class ${classNumber} with board ${board} does not exist. Please create the class first.`, 400);
     }
 
     // Check if subject exists for this class and board
-    subjectExists = await Subject.findOne({ 
-      name: subject.trim(), 
-      class: parseInt(classNumber), 
+    subjectExists = await Subject.findOne({
+      name: subject.trim(),
+      class: parseInt(classNumber),
       board: board.trim(),
       isActive: true
     });
-    
+
     if (!subjectExists) {
       throw new ErrorResponse(`Subject "${subject}" for Class ${classNumber} ${board} does not exist. Please create the subject first.`, 400);
     }
@@ -211,14 +211,14 @@ exports.createCourse = asyncHandler(async (req, res) => {
     courseData.subjectId = subjectExists._id;
 
     // Check if course with same title, board, class, and subject already exists
-    const existingCourse = await Course.findOne({ 
+    const existingCourse = await Course.findOne({
       type: 'regular',
-      title: title.trim(), 
-      board: board.trim(), 
-      class: parseInt(classNumber), 
-      subject: subject.trim() 
+      title: title.trim(),
+      board: board.trim(),
+      class: parseInt(classNumber),
+      subject: subject.trim()
     });
-    
+
     if (existingCourse) {
       throw new ErrorResponse(`Course with this title for Class ${classNumber} ${board} ${subject} already exists`, 400);
     }
@@ -231,11 +231,11 @@ exports.createCourse = asyncHandler(async (req, res) => {
 
     // For preparation courses, subject might be linked differently
     // Check if subject exists (might be linked to the preparation class)
-    subjectExists = await Subject.findOne({ 
+    subjectExists = await Subject.findOne({
       name: subject.trim(),
       isActive: true
     }).populate('classId');
-    
+
     // If subject doesn't exist or doesn't match, we'll still allow it but set subjectId to null
     if (subjectExists) {
       courseData.subjectId = subjectExists._id;
@@ -244,13 +244,13 @@ exports.createCourse = asyncHandler(async (req, res) => {
     courseData.classId = classId;
 
     // Check if course with same title and classId already exists
-    const existingCourse = await Course.findOne({ 
+    const existingCourse = await Course.findOne({
       type: 'preparation',
-      title: title.trim(), 
+      title: title.trim(),
       classId: classId,
-      subject: subject.trim() 
+      subject: subject.trim()
     });
-    
+
     if (existingCourse) {
       throw new ErrorResponse(`Course with this title for this preparation class and subject already exists`, 400);
     }
@@ -259,7 +259,7 @@ exports.createCourse = asyncHandler(async (req, res) => {
   // Upload thumbnail to Cloudinary
   let thumbnailUrl = null;
   let thumbnailFilePath = null;
-  
+
   try {
     if (thumbnailFile) {
       // Upload from Multer saved file (local path)
@@ -293,14 +293,14 @@ exports.createCourse = asyncHandler(async (req, res) => {
 
   // Process chapters: save PDFs locally (chapters are optional)
   const processedChapters = [];
-  
+
   // Only process if chapters are provided
   if (chapters && chapters.length > 0) {
     for (let i = 0; i < chapters.length; i++) {
       const chapter = chapters[i];
       let pdfUrl = chapter.pdfUrl; // If already exists (local path)
       let pdfFilePath = null;
-      
+
       try {
         // Priority: Multer file > base64 > existing URL
         if (pdfFiles[i]) {
@@ -318,13 +318,13 @@ exports.createCourse = asyncHandler(async (req, res) => {
           const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
           const fileName = `dvision-chapter-${uniqueSuffix}.pdf`;
           const filePath = path.join(__dirname, '../../uploads', fileName);
-          
+
           // Ensure uploads directory exists
           const uploadsDir = path.join(__dirname, '../../uploads');
           if (!fs.existsSync(uploadsDir)) {
             fs.mkdirSync(uploadsDir, { recursive: true });
           }
-          
+
           fs.writeFileSync(filePath, buffer);
           pdfUrl = `/uploads/${fileName}`;
         }
@@ -376,7 +376,7 @@ exports.updateCourse = asyncHandler(async (req, res) => {
   }
 
   const { title, type, board, class: classNumber, classId, subject, description, status } = req.body;
-  
+
   // Parse chapters from FormData (it comes as JSON string)
   let chapters = req.body.chapters;
   if (typeof chapters === 'string') {
@@ -391,7 +391,7 @@ exports.updateCourse = asyncHandler(async (req, res) => {
   if (chapters === undefined || chapters === null) {
     chapters = course.chapters || [];
   }
-  
+
   // Get files from Multer (if uploaded via Multer)
   const thumbnailFile = req.files && req.files['thumbnail'] ? req.files['thumbnail'][0] : null;
   const pdfFiles = req.files && req.files['chapterPdf'] ? req.files['chapterPdf'] : [];
@@ -408,21 +408,21 @@ exports.updateCourse = asyncHandler(async (req, res) => {
     // Validate required fields for regular course
     const finalBoard = board !== undefined ? board : course.board;
     const finalClass = classNumber !== undefined ? classNumber : course.class;
-    
+
     if (!finalBoard || !finalClass) {
       throw new ErrorResponse('Board and class are required for regular course', 400);
     }
 
     // If class or board is being updated, check if combination exists
-    if ((classNumber || board) && 
-        (classNumber !== course.class || board !== course.board)) {
-      const classBoardExists = await Class.findOne({ 
+    if ((classNumber || board) &&
+      (classNumber !== course.class || board !== course.board)) {
+      const classBoardExists = await Class.findOne({
         type: 'regular',
-        class: parseInt(finalClass), 
+        class: parseInt(finalClass),
         board: finalBoard.trim(),
         isActive: true
       });
-      
+
       if (!classBoardExists) {
         throw new ErrorResponse(`Class ${finalClass} with board ${finalBoard} does not exist. Please create the class first.`, 400);
       }
@@ -430,13 +430,13 @@ exports.updateCourse = asyncHandler(async (req, res) => {
 
     // If subject is being updated, check if it exists
     if (subject && subject !== course.subject) {
-      const subjectExists = await Subject.findOne({ 
-        name: subject.trim(), 
-        class: parseInt(finalClass), 
+      const subjectExists = await Subject.findOne({
+        name: subject.trim(),
+        class: parseInt(finalClass),
         board: finalBoard.trim(),
         isActive: true
       });
-      
+
       if (!subjectExists) {
         throw new ErrorResponse(`Subject "${subject}" for Class ${finalClass} ${finalBoard} does not exist. Please create the subject first.`, 400);
       }
@@ -444,21 +444,21 @@ exports.updateCourse = asyncHandler(async (req, res) => {
     }
 
     // Check for duplicate course
-    if ((title || board || classNumber || subject) && 
-        (title !== course.title || board !== course.board || 
-         classNumber !== course.class || subject !== course.subject)) {
+    if ((title || board || classNumber || subject) &&
+      (title !== course.title || board !== course.board ||
+        classNumber !== course.class || subject !== course.subject)) {
       const finalTitle = title || course.title;
       const finalSubject = subject || course.subject;
-      
-      const existingCourse = await Course.findOne({ 
+
+      const existingCourse = await Course.findOne({
         type: 'regular',
-        title: finalTitle.trim(), 
-        board: finalBoard.trim(), 
-        class: parseInt(finalClass), 
+        title: finalTitle.trim(),
+        board: finalBoard.trim(),
+        class: parseInt(finalClass),
         subject: finalSubject.trim(),
         _id: { $ne: req.params.id }
       });
-      
+
       if (existingCourse) {
         throw new ErrorResponse(`Course with this title for Class ${finalClass} ${finalBoard} ${finalSubject} already exists`, 400);
       }
@@ -466,7 +466,7 @@ exports.updateCourse = asyncHandler(async (req, res) => {
   } else if (courseType === 'preparation') {
     // Validate required fields for preparation course
     const finalClassId = classId !== undefined ? classId : course.classId;
-    
+
     if (!finalClassId) {
       throw new ErrorResponse('Preparation class is required for preparation course', 400);
     }
@@ -481,30 +481,30 @@ exports.updateCourse = asyncHandler(async (req, res) => {
 
     // If subject is being updated
     if (subject && subject !== course.subject) {
-      const subjectExists = await Subject.findOne({ 
+      const subjectExists = await Subject.findOne({
         name: subject.trim(),
         isActive: true
       });
-      
+
       if (subjectExists) {
         course.subjectId = subjectExists._id;
       }
     }
 
     // Check for duplicate course
-    if ((title || classId || subject) && 
-        (title !== course.title || classId?.toString() !== course.classId?.toString() || subject !== course.subject)) {
+    if ((title || classId || subject) &&
+      (title !== course.title || classId?.toString() !== course.classId?.toString() || subject !== course.subject)) {
       const finalTitle = title || course.title;
       const finalSubject = subject || course.subject;
-      
-      const existingCourse = await Course.findOne({ 
+
+      const existingCourse = await Course.findOne({
         type: 'preparation',
-        title: finalTitle.trim(), 
+        title: finalTitle.trim(),
         classId: finalClassId,
         subject: finalSubject.trim(),
         _id: { $ne: req.params.id }
       });
-      
+
       if (existingCourse) {
         throw new ErrorResponse(`Course with this title for this preparation class and subject already exists`, 400);
       }
@@ -545,7 +545,7 @@ exports.updateCourse = asyncHandler(async (req, res) => {
         });
         course.thumbnail = thumbnailResult.url;
       }
-      
+
       // Clean up local file after Cloudinary upload
       if (thumbnailFilePath && fs.existsSync(thumbnailFilePath)) {
         fs.unlinkSync(thumbnailFilePath);
@@ -573,7 +573,7 @@ exports.updateCourse = asyncHandler(async (req, res) => {
       const hasPdfFile = chapter.hasNewPdf && pdfFiles && pdfFiles.length > 0;
       const hasPdfBase64 = chapter.pdfBase64;
       const hasPdfUrl = chapter.pdfUrl; // Can be null if PDF was removed
-      
+
       // PDF is required: either existing URL, new file, or base64
       if (!hasPdfFile && !hasPdfBase64 && !hasPdfUrl) {
         throw new ErrorResponse(`Chapter ${i + 1}: Please provide PDF file`, 400);
@@ -582,23 +582,23 @@ exports.updateCourse = asyncHandler(async (req, res) => {
 
     // Process chapters: save new PDFs locally or keep existing ones
     const processedChapters = [];
-    
+
     // Track which PDF file index we're at (since not all chapters may have new PDFs)
     let pdfFileIndex = 0;
-    
+
     for (let i = 0; i < chapters.length; i++) {
       const chapter = chapters[i];
       let pdfUrl = chapter.pdfUrl || null; // Keep existing PDF URL (can be null if removed)
       let pdfFilePath = null;
-      
+
       // Check if this chapter has a new PDF file
       // pdfFiles array only contains new files, so we need to check if chapter.hasNewPdf flag is set
       const hasNewPdf = chapter.hasNewPdf && pdfFiles.length > pdfFileIndex;
-      
+
       if (hasNewPdf && pdfFiles[pdfFileIndex]) {
         // New PDF uploaded via Multer for this chapter
         pdfFilePath = pdfFiles[pdfFileIndex].path;
-        
+
         // Delete old PDF if exists (local file)
         if (chapter.pdfUrl && !chapter.pdfUrl.startsWith('http')) {
           try {
@@ -646,13 +646,13 @@ exports.updateCourse = asyncHandler(async (req, res) => {
           const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
           const fileName = `dvision-chapter-${uniqueSuffix}.pdf`;
           const filePath = path.join(__dirname, '../../uploads', fileName);
-          
+
           // Ensure uploads directory exists
           const uploadsDir = path.join(__dirname, '../../uploads');
           if (!fs.existsSync(uploadsDir)) {
             fs.mkdirSync(uploadsDir, { recursive: true });
           }
-          
+
           fs.writeFileSync(filePath, buffer);
           pdfUrl = `/uploads/${fileName}`;
         } catch (error) {
@@ -691,7 +691,7 @@ exports.updateCourse = asyncHandler(async (req, res) => {
   if (type !== undefined) course.type = courseType;
   if (description !== undefined) course.description = description.trim();
   if (status !== undefined) course.status = status;
-  
+
   // Update type-specific fields
   if (courseType === 'regular') {
     if (board !== undefined) course.board = board.trim();

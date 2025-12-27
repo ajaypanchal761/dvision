@@ -26,9 +26,7 @@ const Banners = () => {
           title: banner.title || '',
           description: banner.description || '',
           image: banner.image || '',
-          link: banner.link || '',
           status: banner.isActive ? 'Active' : 'Inactive',
-          order: banner.order || 0,
           createDateTime: banner.createdAt ? new Date(banner.createdAt).toLocaleString() : ''
         }))
         setBanners(mappedBanners)
@@ -68,9 +66,9 @@ const Banners = () => {
   }
 
   const filteredBanners = banners.filter(banner =>
-    banner.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (banner.description && banner.description.toLowerCase().includes(searchTerm.toLowerCase())) ||
-    banner.status.toLowerCase().includes(searchTerm.toLowerCase())
+    banner.title.toLowerCase().includes(searchTerm.trim().toLowerCase()) ||
+    (banner.description && banner.description.toLowerCase().includes(searchTerm.trim().toLowerCase())) ||
+    banner.status.toLowerCase().includes(searchTerm.trim().toLowerCase())
   )
 
   return (
@@ -175,28 +173,24 @@ const Banners = () => {
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-2 sm:px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    <th className="px-2 sm:px-3 py-2 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
                       Image
                     </th>
-                    <th className="px-2 sm:px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    <th className="px-2 sm:px-3 py-2 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
                       Title
                     </th>
-                    <th className="px-2 sm:px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider hidden md:table-cell">
+                    <th className="px-2 sm:px-3 py-2 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider hidden md:table-cell">
                       Description
                     </th>
-                    <th className="px-2 sm:px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider hidden lg:table-cell">
-                      Link
-                    </th>
-                    <th className="px-2 sm:px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+
+                    <th className="px-2 sm:px-3 py-2 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
                       Status
                     </th>
-                    <th className="px-2 sm:px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider hidden lg:table-cell">
-                      Order
+
+                    <th className="px-2 sm:px-3 py-2 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider hidden xl:table-cell">
+                      Created Date & Time
                     </th>
-                    <th className="px-2 sm:px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider hidden xl:table-cell">
-                      Created
-                    </th>
-                    <th className="px-2 sm:px-3 py-2 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    <th className="px-2 sm:px-3 py-2 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
                       Actions
                     </th>
                   </tr>
@@ -219,52 +213,44 @@ const Banners = () => {
                   ) : (
                     filteredBanners.map((banner) => (
                       <tr key={banner._id || banner.id} className="hover:bg-gray-50 transition-all duration-200">
-                        <td className="px-2 sm:px-3 py-2 whitespace-nowrap">
-                          {banner.image ? (
-                            <img
-                              src={banner.image}
-                              alt={banner.title}
-                              className="h-12 w-20 sm:h-14 sm:w-24 md:h-16 md:w-32 object-cover rounded-lg ring-2 ring-gray-200"
-                            />
-                          ) : (
-                            <div className="h-12 w-20 sm:h-14 sm:w-24 md:h-16 md:w-32 bg-gray-100 rounded-lg flex items-center justify-center">
-                              <svg className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                              </svg>
-                            </div>
-                          )}
+                        <td className="px-2 sm:px-3 py-2 whitespace-nowrap text-center">
+                          <div className="flex justify-center">
+                            {banner.image ? (
+                              <img
+                                src={banner.image}
+                                alt={banner.title}
+                                className="h-12 w-20 sm:h-14 sm:w-24 md:h-16 md:w-32 object-cover rounded-lg ring-2 ring-gray-200"
+                              />
+                            ) : (
+                              <div className="h-12 w-20 sm:h-14 sm:w-24 md:h-16 md:w-32 bg-gray-100 rounded-lg flex items-center justify-center">
+                                <svg className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                </svg>
+                              </div>
+                            )}
+                          </div>
                         </td>
-                        <td className="px-2 sm:px-3 py-2 whitespace-nowrap">
+                        <td className="px-2 sm:px-3 py-2 whitespace-nowrap text-center">
                           <div className="text-xs sm:text-sm font-semibold text-gray-900">{banner.title}</div>
                         </td>
-                        <td className="px-2 sm:px-3 py-2 hidden md:table-cell">
-                          <div className="text-xs sm:text-sm text-gray-600 max-w-xs truncate">{banner.description || 'N/A'}</div>
+                        <td className="px-2 sm:px-3 py-2 hidden md:table-cell text-center">
+                          <div className="text-xs sm:text-sm text-gray-600 max-w-xs truncate mx-auto">{banner.description || 'N/A'}</div>
                         </td>
-                        <td className="px-2 sm:px-3 py-2 whitespace-nowrap hidden lg:table-cell">
-                          {banner.link ? (
-                            <a href={banner.link} target="_blank" rel="noopener noreferrer" className="text-xs sm:text-sm text-[#1e3a5f] hover:underline">
-                              View Link
-                            </a>
-                          ) : (
-                            <span className="text-xs sm:text-sm text-gray-400">N/A</span>
-                          )}
-                        </td>
-                        <td className="px-2 sm:px-3 py-2 whitespace-nowrap">
+
+                        <td className="px-2 sm:px-3 py-2 whitespace-nowrap text-center">
                           <span className={`px-2 py-0.5 inline-flex text-[10px] sm:text-xs font-semibold rounded-lg ${banner.status === 'Active'
-                              ? 'bg-green-100 text-green-700'
-                              : 'bg-red-100 text-red-700'
+                            ? 'bg-green-100 text-green-700'
+                            : 'bg-red-100 text-red-700'
                             }`}>
                             {banner.status}
                           </span>
                         </td>
-                        <td className="px-2 sm:px-3 py-2 whitespace-nowrap hidden lg:table-cell">
-                          <div className="text-xs sm:text-sm font-semibold text-gray-900">{banner.order}</div>
-                        </td>
-                        <td className="px-2 sm:px-3 py-2 whitespace-nowrap hidden xl:table-cell">
+
+                        <td className="px-2 sm:px-3 py-2 whitespace-nowrap hidden xl:table-cell text-center">
                           <div className="text-[10px] sm:text-xs text-gray-500">{banner.createDateTime}</div>
                         </td>
-                        <td className="px-2 sm:px-3 py-2 whitespace-nowrap text-right text-xs font-medium">
-                          <div className="flex items-center justify-end space-x-1 sm:space-x-2">
+                        <td className="px-2 sm:px-3 py-2 whitespace-nowrap text-center text-xs font-medium">
+                          <div className="flex items-center justify-center space-x-1 sm:space-x-2">
                             <button
                               onClick={() => navigate(`/admin/banners/edit/${banner._id || banner.id}`)}
                               className="p-1.5 sm:p-2 text-[#1e3a5f] hover:bg-[#1e3a5f]/10 rounded-lg transition-all duration-200"

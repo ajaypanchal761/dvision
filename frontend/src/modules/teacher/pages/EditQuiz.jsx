@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { FiArrowLeft, FiChevronDown, FiChevronUp } from 'react-icons/fi'
-import { teacherAPI, quizAPI } from '../services/api'
+import { teacherAPI, quizAPI, liveClassAPI } from '../services/api'
 import BottomNav from '../components/common/BottomNav'
 
 const EditQuiz = () => {
@@ -19,6 +19,7 @@ const EditQuiz = () => {
   const [questions, setQuestions] = useState([])
   const [allClassesData, setAllClassesData] = useState([])
   const [allSubjectsData, setAllSubjectsData] = useState([])
+  const [classSubjectCombinations, setClassSubjectCombinations] = useState({})
   const [boards, setBoards] = useState([])
   const [availableClasses, setAvailableClasses] = useState([])
   const [availableSubjects, setAvailableSubjects] = useState([])
@@ -36,7 +37,7 @@ const EditQuiz = () => {
         const response = await quizAPI.getById(id)
         if (response.success && response.data?.quiz) {
           const quiz = response.data.quiz
-          
+
           // Check if deadline has passed
           if (quiz.deadline) {
             const now = new Date()
@@ -48,7 +49,7 @@ const EditQuiz = () => {
               return
             }
           }
-          
+
           // Set form data
           setFormData({
             quizName: quiz.name || '',
@@ -68,7 +69,7 @@ const EditQuiz = () => {
             const minutes = deadline.getMinutes()
             // Use 24-hour format
             const timeStr = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`
-            
+
             setFormData(prev => ({
               ...prev,
               deadlineDate: dateStr,
@@ -104,23 +105,21 @@ const EditQuiz = () => {
     const fetchAllData = async () => {
       try {
         setIsLoadingData(true)
-        
-        const [classesResponse, subjectsResponse] = await Promise.all([
-          teacherAPI.getAllClasses(),
-          teacherAPI.getAllSubjects()
-        ])
-        
-        if (classesResponse.success && classesResponse.data?.classes) {
-          const activeClasses = classesResponse.data.classes.filter(c => c.isActive)
-          setAllClassesData(activeClasses)
-          
-          const uniqueBoards = [...new Set(activeClasses.map(c => c.board))].filter(Boolean).sort()
-          setBoards(uniqueBoards)
-        }
-        
-        if (subjectsResponse.success && subjectsResponse.data?.subjects) {
-          const activeSubjects = subjectsResponse.data.subjects.filter(s => s.isActive)
-          setAllSubjectsData(activeSubjects)
+
+        const response = await liveClassAPI.getAssignedOptions()
+
+        if (response.success && response.data) {
+          const { classes, subjects, boards, classSubjectCombinations } = response.data
+
+          setAllClassesData(classes)
+          setAllSubjectsData(subjects)
+          setBoards(boards || [])
+          setClassSubjectCombinations(classSubjectCombinations || {})
+
+          if (!boards || boards.length === 0) {
+            const uniqueBoards = [...new Set(classes.map(c => c.board))].filter(Boolean).sort()
+            setBoards(uniqueBoards)
+          }
         }
       } catch (err) {
         console.error('Error fetching data:', err)
@@ -142,7 +141,7 @@ const EditQuiz = () => {
     const classesForBoard = allClassesData
       .filter(c => c.board === formData.board)
       .map(c => c.class)
-    
+
     const uniqueClasses = [...new Set(classesForBoard)].sort((a, b) => a - b)
     setAvailableClasses(uniqueClasses)
   }, [formData.board, allClassesData])
@@ -154,12 +153,18 @@ const EditQuiz = () => {
       return
     }
 
-    const filteredSubjects = allSubjectsData.filter(s => 
-      s.board === formData.board && s.class === parseInt(formData.class)
+    const selectedClassObj = allClassesData.find(c =>
+      c.board === formData.board && c.class === parseInt(formData.class)
     )
-    
-    setAvailableSubjects(filteredSubjects)
-  }, [formData.board, formData.class, allSubjectsData])
+
+    if (selectedClassObj && classSubjectCombinations[selectedClassObj._id]) {
+      const allowedSubjectIds = classSubjectCombinations[selectedClassObj._id]
+      const filteredSubjects = allSubjectsData.filter(s => allowedSubjectIds.includes(s._id))
+      setAvailableSubjects(filteredSubjects)
+    } else {
+      setAvailableSubjects([])
+    }
+  }, [formData.board, formData.class, allClassesData, allSubjectsData, classSubjectCombinations])
 
   const handleAddQuestion = () => {
     setQuestions([...questions, {
@@ -242,47 +247,47 @@ const EditQuiz = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    
+
     if (!isFormValid()) {
       return
     }
 
     try {
       setSubmitting(true)
-      
+
       let deadline = null
       if (formData.deadlineDate && formData.deadlineTime) {
         try {
           const [hours, minutes] = formData.deadlineTime.split(':')
-          
+
           // Validate time format
           if (!hours || !minutes || isNaN(parseInt(hours)) || isNaN(parseInt(minutes))) {
             throw new Error('Invalid time format')
           }
-          
+
           const hour24 = parseInt(hours, 10)
           const min24 = parseInt(minutes, 10)
-          
+
           // Validate hour and minute ranges (24-hour format)
           if (hour24 < 0 || hour24 > 23 || min24 < 0 || min24 > 59) {
             throw new Error('Invalid time value')
           }
-          
+
           // Create date string in ISO format (YYYY-MM-DDTHH:mm)
           const dateStr = `${formData.deadlineDate}T${String(hour24).padStart(2, '0')}:${String(min24).padStart(2, '0')}`
           const deadlineDateTime = new Date(dateStr)
-          
+
           // Validate the created date
           if (isNaN(deadlineDateTime.getTime())) {
             throw new Error('Invalid date or time value')
           }
-          
+
           // Check if deadline is in the past (only if editing and deadline hasn't passed yet)
           const now = new Date()
           if (!deadlinePassed && deadlineDateTime <= now) {
             throw new Error('Deadline must be in the future. Please select a future date and time.')
           }
-          
+
           deadline = deadlineDateTime.toISOString()
         } catch (error) {
           console.error('Error parsing deadline:', error)
@@ -370,8 +375,8 @@ const EditQuiz = () => {
                 required
                 value={formData.board}
                 onChange={(e) => {
-                  setFormData({ 
-                    ...formData, 
+                  setFormData({
+                    ...formData,
                     board: e.target.value,
                     class: '',
                     subjectId: ''
@@ -397,8 +402,8 @@ const EditQuiz = () => {
                 required
                 value={formData.class}
                 onChange={(e) => {
-                  setFormData({ 
-                    ...formData, 
+                  setFormData({
+                    ...formData,
                     class: e.target.value,
                     subjectId: ''
                   })

@@ -50,7 +50,7 @@ const RecordedSession = () => {
   const [currentRecording, setCurrentRecording] = useState(null)
   const [playerLoading, setPlayerLoading] = useState(false)
   const [playerError, setPlayerError] = useState(null)
-  
+
   // Pagination state
   const [pagination, setPagination] = useState({
     page: 1,
@@ -58,7 +58,7 @@ const RecordedSession = () => {
     total: 0,
     count: 0
   })
-  
+
   // Statistics state
   const [statistics, setStatistics] = useState({
     totalRecordings: 0,
@@ -96,7 +96,7 @@ const RecordedSession = () => {
       const res = await recordingAdminAPI.getAll(requestParams)
       const list = res?.data?.recordings || []
       setSessions(list)
-      
+
       // Update pagination
       setPagination({
         page: res.page || 1,
@@ -120,7 +120,7 @@ const RecordedSession = () => {
   useEffect(() => {
     fetchSessions(queryParams, 1) // Reset to page 1 when filters change
   }, [queryParams])
-  
+
   // Handle page change
   const handlePageChange = (newPage) => {
     if (newPage >= 1 && newPage <= pagination.pages) {
@@ -308,15 +308,15 @@ const RecordedSession = () => {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-3 sm:px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Class</th>
-                  <th className="px-3 sm:px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Subject</th>
-                  <th className="px-3 sm:px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Teacher</th>
-                  <th className="px-3 sm:px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Title</th>
-                  <th className="px-3 sm:px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Created</th>
-                  <th className="px-3 sm:px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Duration</th>
-                  <th className="px-3 sm:px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">File Size</th>
-                  <th className="px-3 sm:px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
-                  <th className="px-3 sm:px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Actions</th>
+                  <th className="px-3 sm:px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">Class</th>
+                  <th className="px-3 sm:px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">Subject</th>
+                  <th className="px-3 sm:px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">Teacher</th>
+                  <th className="px-3 sm:px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">Title</th>
+                  <th className="px-3 sm:px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">Created Date & Time</th>
+                  <th className="px-3 sm:px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">Duration</th>
+                  <th className="px-3 sm:px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">File Size</th>
+                  <th className="px-3 sm:px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
+                  <th className="px-3 sm:px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-100">
@@ -341,44 +341,43 @@ const RecordedSession = () => {
                 ) : (
                   sessions.map((session) => (
                     <tr key={session._id} className="hover:bg-gray-50 transition-all duration-150">
-                      <td className="px-3 sm:px-4 py-3 whitespace-nowrap">
+                      <td className="px-3 sm:px-4 py-3 whitespace-nowrap text-center">
                         <span className="px-2 py-1 inline-flex text-xs font-medium rounded-lg bg-blue-50 text-blue-700">
                           {session.class?.name || session.class?.class || '-'}
                         </span>
                       </td>
-                      <td className="px-3 sm:px-4 py-3 whitespace-nowrap">
+                      <td className="px-3 sm:px-4 py-3 whitespace-nowrap text-center">
                         <div className="text-xs sm:text-sm text-gray-700 font-semibold">{session.subject?.name || '-'}</div>
                       </td>
-                      <td className="px-3 sm:px-4 py-3 whitespace-nowrap">
+                      <td className="px-3 sm:px-4 py-3 whitespace-nowrap text-center">
                         <div className="text-xs sm:text-sm text-gray-700">{session.teacher?.name || '-'}</div>
                         <div className="text-[11px] text-gray-500">{session.teacher?.email || session.teacher?.phone || ''}</div>
                       </td>
-                      <td className="px-3 sm:px-4 py-3 whitespace-nowrap">
+                      <td className="px-3 sm:px-4 py-3 whitespace-nowrap text-center">
                         <div className="text-sm font-semibold text-gray-900">{session.title}</div>
                         <div className="text-xs text-gray-500">{session.description || '—'}</div>
                       </td>
-                      <td className="px-3 sm:px-4 py-3 whitespace-nowrap text-sm text-gray-700">{formatDateTime(session.createdAt)}</td>
-                      <td className="px-3 sm:px-4 py-3 whitespace-nowrap text-sm text-gray-700">{session.duration ? `${(session.duration / 60).toFixed(0)} min` : '—'}</td>
-                      <td className="px-3 sm:px-4 py-3 whitespace-nowrap text-sm text-gray-700">{humanFileSize(session.fileSize)}</td>
-                      <td className="px-3 sm:px-4 py-3 whitespace-nowrap">
+                      <td className="px-3 sm:px-4 py-3 whitespace-nowrap text-sm text-gray-700 text-center">{formatDateTime(session.createdAt)}</td>
+                      <td className="px-3 sm:px-4 py-3 whitespace-nowrap text-sm text-gray-700 text-center">{session.duration ? `${(session.duration / 60).toFixed(0)} min` : '—'}</td>
+                      <td className="px-3 sm:px-4 py-3 whitespace-nowrap text-sm text-gray-700 text-center">{humanFileSize(session.fileSize)}</td>
+                      <td className="px-3 sm:px-4 py-3 whitespace-nowrap text-center">
                         <span
-                          className={`px-2 py-1 inline-flex text-xs font-semibold rounded-lg ${
-                            session.status === 'completed'
+                          className={`px-2 py-1 inline-flex text-xs font-semibold rounded-lg ${session.status === 'completed'
                               ? 'bg-green-100 text-green-700'
                               : session.status === 'processing'
                                 ? 'bg-yellow-100 text-yellow-700'
                                 : session.status === 'uploading'
                                   ? 'bg-blue-100 text-blue-700'
                                   : 'bg-red-100 text-red-700'
-                          }`}
+                            }`}
                         >
                           {session.status}
                         </span>
                       </td>
-                      <td className="px-3 sm:px-4 py-3 whitespace-nowrap">
+                      <td className="px-3 sm:px-4 py-3 whitespace-nowrap text-center">
                         <button
                           onClick={() => openPlayer(session._id)}
-                          className="inline-flex items-center gap-1 px-3 py-2 rounded-lg border border-gray-200 text-xs font-semibold text-gray-700 hover:bg-gray-50 transition-all"
+                          className="inline-flex items-center justify-center gap-1 px-3 py-2 rounded-lg border border-gray-200 text-xs font-semibold text-gray-700 hover:bg-gray-50 transition-all"
                           title="Watch recording"
                         >
                           <FiPlay className="text-gray-600" /> Watch
@@ -390,7 +389,7 @@ const RecordedSession = () => {
               </tbody>
             </table>
           </div>
-          
+
           {/* Pagination Controls */}
           {!loading && pagination.pages > 1 && (
             <div className="px-3 sm:px-4 py-3 sm:py-4 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-3">
@@ -405,11 +404,10 @@ const RecordedSession = () => {
                 <button
                   onClick={() => handlePageChange(pagination.page - 1)}
                   disabled={pagination.page === 1}
-                  className={`px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-all ${
-                    pagination.page === 1
+                  className={`px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-all ${pagination.page === 1
                       ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                       : 'bg-[#1e3a5f] text-white hover:bg-[#2a4a6f]'
-                  }`}
+                    }`}
                 >
                   Previous
                 </button>
@@ -429,11 +427,10 @@ const RecordedSession = () => {
                       <button
                         key={pageNum}
                         onClick={() => handlePageChange(pageNum)}
-                        className={`px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-all ${
-                          pagination.page === pageNum
+                        className={`px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-all ${pagination.page === pageNum
                             ? 'bg-[#1e3a5f] text-white'
                             : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                        }`}
+                          }`}
                       >
                         {pageNum}
                       </button>
@@ -443,11 +440,10 @@ const RecordedSession = () => {
                 <button
                   onClick={() => handlePageChange(pagination.page + 1)}
                   disabled={pagination.page === pagination.pages}
-                  className={`px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-all ${
-                    pagination.page === pagination.pages
+                  className={`px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-all ${pagination.page === pagination.pages
                       ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                       : 'bg-[#1e3a5f] text-white hover:bg-[#2a4a6f]'
-                  }`}
+                    }`}
                 >
                   Next
                 </button>

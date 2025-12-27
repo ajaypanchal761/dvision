@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { FiArrowLeft } from 'react-icons/fi'
-import { teacherAPI, quizAPI } from '../services/api'
+import { teacherAPI, quizAPI, liveClassAPI } from '../services/api'
 import BottomNav from '../components/common/BottomNav'
 
 const AddQuiz = () => {
@@ -18,6 +18,7 @@ const AddQuiz = () => {
   const [questions, setQuestions] = useState([])
   const [allClassesData, setAllClassesData] = useState([])
   const [allSubjectsData, setAllSubjectsData] = useState([])
+  const [classSubjectCombinations, setClassSubjectCombinations] = useState({})
   const [boards, setBoards] = useState([])
   const [availableClasses, setAvailableClasses] = useState([])
   const [availableSubjects, setAvailableSubjects] = useState([])
@@ -29,25 +30,23 @@ const AddQuiz = () => {
     const fetchAllData = async () => {
       try {
         setIsLoadingData(true)
-        
-        // Fetch all classes and subjects in parallel
-        const [classesResponse, subjectsResponse] = await Promise.all([
-          teacherAPI.getAllClasses(),
-          teacherAPI.getAllSubjects()
-        ])
-        
-        if (classesResponse.success && classesResponse.data?.classes) {
-          const activeClasses = classesResponse.data.classes.filter(c => c.isActive)
-          setAllClassesData(activeClasses)
-          
-          // Extract unique boards
-          const uniqueBoards = [...new Set(activeClasses.map(c => c.board))].filter(Boolean).sort()
-          setBoards(uniqueBoards)
-        }
-        
-        if (subjectsResponse.success && subjectsResponse.data?.subjects) {
-          const activeSubjects = subjectsResponse.data.subjects.filter(s => s.isActive)
-          setAllSubjectsData(activeSubjects)
+
+        // Fetch assigned options (classes, subjects, boards) for the teacher
+        const response = await liveClassAPI.getAssignedOptions()
+
+        if (response.success && response.data) {
+          const { classes, subjects, boards, classSubjectCombinations } = response.data
+
+          setAllClassesData(classes)
+          setAllSubjectsData(subjects)
+          setBoards(boards || []) // boards might be computed in backend or empty
+          setClassSubjectCombinations(classSubjectCombinations || {})
+
+          // If backend doesn't return boards (it does), extraction fallback:
+          if (!boards || boards.length === 0) {
+            const uniqueBoards = [...new Set(classes.map(c => c.board))].filter(Boolean).sort()
+            setBoards(uniqueBoards)
+          }
         }
       } catch (err) {
         console.error('Error fetching data:', err)
@@ -72,10 +71,10 @@ const AddQuiz = () => {
     const classesForBoard = allClassesData
       .filter(c => c.board === formData.board)
       .map(c => c.class)
-    
+
     const uniqueClasses = [...new Set(classesForBoard)].sort((a, b) => a - b)
     setAvailableClasses(uniqueClasses)
-    
+
     // Reset class and subject if current class is not available for selected board
     if (formData.class && !uniqueClasses.includes(parseInt(formData.class))) {
       setFormData(prev => ({ ...prev, class: '', subjectId: '' }))
@@ -91,18 +90,25 @@ const AddQuiz = () => {
       return
     }
 
-    // Filter subjects by board and class from already loaded data
-    const filteredSubjects = allSubjectsData.filter(s => 
-      s.board === formData.board && s.class === parseInt(formData.class)
+    // Find the class object that matches selected board and class number
+    const selectedClassObj = allClassesData.find(c =>
+      c.board === formData.board && c.class === parseInt(formData.class)
     )
-    
-    setAvailableSubjects(filteredSubjects)
-    
-    // Reset subject if current subject is not available for selected board and class
-    if (formData.subjectId && !filteredSubjects.find(s => s._id === formData.subjectId)) {
+
+    if (selectedClassObj && classSubjectCombinations[selectedClassObj._id]) {
+      const allowedSubjectIds = classSubjectCombinations[selectedClassObj._id]
+      const filteredSubjects = allSubjectsData.filter(s => allowedSubjectIds.includes(s._id))
+      setAvailableSubjects(filteredSubjects)
+
+      // Reset subject if current subject is not available
+      if (formData.subjectId && !allowedSubjectIds.includes(formData.subjectId)) {
+        setFormData(prev => ({ ...prev, subjectId: '' }))
+      }
+    } else {
+      setAvailableSubjects([])
       setFormData(prev => ({ ...prev, subjectId: '' }))
     }
-  }, [formData.board, formData.class, allSubjectsData])
+  }, [formData.board, formData.class, allClassesData, allSubjectsData, classSubjectCombinations])
 
   const handleAddQuestion = () => {
     setQuestions([...questions, {
@@ -178,48 +184,48 @@ const AddQuiz = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    
+
     if (!isFormValid()) {
       return
     }
 
     try {
       setSubmitting(true)
-      
+
       // Convert deadline to ISO datetime format
       let deadline = null
       if (formData.deadlineDate && formData.deadlineTime) {
         try {
           const [hours, minutes] = formData.deadlineTime.split(':')
-          
+
           // Validate time format
           if (!hours || !minutes || isNaN(parseInt(hours)) || isNaN(parseInt(minutes))) {
             throw new Error('Invalid time format')
           }
-          
+
           const hour24 = parseInt(hours, 10)
           const min24 = parseInt(minutes, 10)
-          
+
           // Validate hour and minute ranges (24-hour format)
           if (hour24 < 0 || hour24 > 23 || min24 < 0 || min24 > 59) {
             throw new Error('Invalid time value')
           }
-          
+
           // Create date string in ISO format (YYYY-MM-DDTHH:mm)
           const dateStr = `${formData.deadlineDate}T${String(hour24).padStart(2, '0')}:${String(min24).padStart(2, '0')}`
           const deadlineDateTime = new Date(dateStr)
-          
+
           // Validate the created date
           if (isNaN(deadlineDateTime.getTime())) {
             throw new Error('Invalid date or time value')
           }
-          
+
           // Check if deadline is in the past
           const now = new Date()
           if (deadlineDateTime <= now) {
             throw new Error('Deadline must be in the future. Please select a future date and time.')
           }
-          
+
           deadline = deadlineDateTime.toISOString()
         } catch (error) {
           console.error('Error parsing deadline:', error)
@@ -301,8 +307,8 @@ const AddQuiz = () => {
                 required
                 value={formData.board}
                 onChange={(e) => {
-                  setFormData({ 
-                    ...formData, 
+                  setFormData({
+                    ...formData,
                     board: e.target.value,
                     class: '',
                     subjectId: ''
@@ -328,8 +334,8 @@ const AddQuiz = () => {
                 required
                 value={formData.class}
                 onChange={(e) => {
-                  setFormData({ 
-                    ...formData, 
+                  setFormData({
+                    ...formData,
                     class: e.target.value,
                     subjectId: ''
                   })

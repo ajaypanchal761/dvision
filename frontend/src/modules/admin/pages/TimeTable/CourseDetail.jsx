@@ -21,7 +21,7 @@ const CourseDetail = () => {
       if (response.success && response.data?.timetables) {
         const courseTimetables = response.data.timetables
         setTimeTables(courseTimetables)
-        
+
         // Set class info from first timetable
         if (courseTimetables.length > 0 && courseTimetables[0].classId) {
           setClassInfo(courseTimetables[0].classId)
@@ -127,16 +127,16 @@ const CourseDetail = () => {
               <table className="min-w-full border-collapse border-2 border-gray-400">
                 <thead className="bg-gray-50 sticky top-0 z-10">
                   <tr>
-                    <th className="px-3 sm:px-4 py-3 border-2 border-gray-400 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                    <th className="px-3 sm:px-4 py-3 border-2 border-gray-400 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">
                       Day
                     </th>
-                    <th className="px-3 sm:px-4 py-3 border-2 border-gray-400 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                    <th className="px-3 sm:px-4 py-3 border-2 border-gray-400 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">
                       Subject
                     </th>
-                    <th className="px-3 sm:px-4 py-3 border-2 border-gray-400 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                    <th className="px-3 sm:px-4 py-3 border-2 border-gray-400 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">
                       Teacher
                     </th>
-                    <th className="px-3 sm:px-4 py-3 border-2 border-gray-400 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                    <th className="px-3 sm:px-4 py-3 border-2 border-gray-400 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">
                       Time
                     </th>
                   </tr>
@@ -148,16 +148,16 @@ const CourseDetail = () => {
                       // Add border-top for first row of each day (except first day)
                       const isFirstRowOfDay = index === 0
                       const isFirstDay = dayIndex === 0
-                      
+
                       return (
-                        <tr 
-                          key={timeTable._id} 
+                        <tr
+                          key={timeTable._id}
                           className={`hover:bg-gray-50 ${isFirstRowOfDay && !isFirstDay ? 'border-t-2 border-gray-400' : ''}`}
                         >
                           {/* Day - Only show for first row of each day, with rowSpan */}
                           {index === 0 && (
-                            <td 
-                              rowSpan={dayTimetables.length} 
+                            <td
+                              rowSpan={dayTimetables.length}
                               className="px-3 sm:px-4 py-3 border-2 border-gray-400 align-middle text-center"
                             >
                               <span className="px-2 py-1 inline-flex text-xs font-medium rounded-lg bg-blue-50 text-[#1e3a5f]">
@@ -166,19 +166,19 @@ const CourseDetail = () => {
                             </td>
                           )}
                           {/* Subject */}
-                          <td className="px-3 sm:px-4 py-3 border-2 border-gray-400 whitespace-nowrap">
+                          <td className="px-3 sm:px-4 py-3 border-2 border-gray-400 whitespace-nowrap text-center">
                             <div className="text-xs sm:text-sm text-gray-900 font-medium">
                               {timeTable.subjectId?.name || 'N/A'}
                             </div>
                           </td>
                           {/* Teacher */}
-                          <td className="px-3 sm:px-4 py-3 border-2 border-gray-400 whitespace-nowrap">
+                          <td className="px-3 sm:px-4 py-3 border-2 border-gray-400 whitespace-nowrap text-center">
                             <div className="text-xs sm:text-sm text-gray-600">
                               {timeTable.teacherId?.name || 'N/A'}
                             </div>
                           </td>
                           {/* Time */}
-                          <td className="px-3 sm:px-4 py-3 border-2 border-gray-400 whitespace-nowrap">
+                          <td className="px-3 sm:px-4 py-3 border-2 border-gray-400 whitespace-nowrap text-center">
                             <div className="text-xs sm:text-sm font-semibold text-gray-900">
                               {formatTime(timeTable.startTime)} - {formatTime(timeTable.endTime)}
                             </div>

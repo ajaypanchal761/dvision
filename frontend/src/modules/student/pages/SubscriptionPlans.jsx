@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiArrowLeft, FiCheck, FiClock, FiStar } from 'react-icons/fi';
 import { useAuth } from '../context/AuthContext';
-import { subscriptionPlanAPI, paymentAPI } from '../services/api';
+import { subscriptionPlanAPI, paymentAPI, studentAPI } from '../services/api';
 import { ROUTES } from '../constants/routes';
 
 /**
@@ -16,6 +16,8 @@ const SubscriptionPlans = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [processingPlanId, setProcessingPlanId] = useState(null);
+  const [showDemoModal, setShowDemoModal] = useState(false);
+  const [selectedDemoPlan, setSelectedDemoPlan] = useState(null);
   const { getCurrentUser } = useAuth();
 
   // Get user's class and board - ensure they are valid
@@ -56,13 +58,7 @@ const SubscriptionPlans = () => {
         console.log('Plans fetched successfully:', plansData.length, 'plans');
 
         // Additional client-side filtering to ensure only matching plans are shown
-        // Also exclude demo plans from student view
         const filteredPlans = plansData.filter(plan => {
-          // Exclude demo plans
-          if (plan.duration === 'demo') {
-            return false;
-          }
-
           if (plan.type === 'regular') {
             // For regular plans, must match board AND class must be in classes array
             return plan.board === userBoard &&
@@ -70,7 +66,7 @@ const SubscriptionPlans = () => {
               Array.isArray(plan.classes) &&
               plan.classes.includes(parseInt(userClass));
           } else if (plan.type === 'preparation') {
-            // Preparation plans are shown to all students (except demo)
+            // Preparation plans are shown to all students
             return true;
           }
           return false;
@@ -109,10 +105,37 @@ const SubscriptionPlans = () => {
     return labels[duration] || duration;
   };
 
+  const handleDemoRequestConfirm = async () => {
+    if (!selectedDemoPlan) return;
+
+    setProcessingPlanId(selectedDemoPlan._id);
+    try {
+      await studentAPI.requestDemoPlan(selectedDemoPlan._id, selectedDemoPlan.name);
+
+      // Show success message and close modal
+      alert('Your request for the demo plan has been sent successfully! Admin will notify you once activated.');
+      setShowDemoModal(false);
+      setSelectedDemoPlan(null);
+    } catch (err) {
+      console.error('Error requesting demo:', err);
+      // Basic alert for now, can be improved
+      alert(err.message || 'Failed to submit demo request. Please try again.');
+    } finally {
+      setProcessingPlanId(null);
+    }
+  };
+
   const handleSubscribe = async (plan) => {
     console.log('=== SUBSCRIBE BUTTON CLICKED ===');
     console.log('Plan:', plan);
     console.log('User:', user);
+
+    // Handle Demo Plan specific flow
+    if (plan.duration === 'demo') {
+      setSelectedDemoPlan(plan);
+      setShowDemoModal(true);
+      return;
+    }
 
     try {
       setProcessingPlanId(plan._id);
@@ -424,7 +447,7 @@ const SubscriptionPlans = () => {
                 : `${getDurationLabel(group.duration)} Plans`;
 
               return (
-                <div key={`${group.type}_${group.duration}`} className="space-y-4">
+                <div key={`${group.type}_${group.prepClassId || 'regular'}_${group.duration}`} className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
                     {group.plans.map((plan) => {
                       const hasDiscount = plan.originalPrice && plan.originalPrice > plan.price;
@@ -588,7 +611,7 @@ const SubscriptionPlans = () => {
                                 handleSubscribe(plan);
                               }}
                               disabled={processingPlanId === plan._id || isDisabled}
-                              className="w-full bg-gradient-to-r from-[var(--app-dark-blue)] to-[var(--app-teal)] text-white font-bold py-2.5 rounded-lg hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm"
+                              className={`w-full font-bold py-2.5 rounded-lg hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm ${plan.duration === 'demo' ? 'bg-orange-500 hover:bg-orange-600 text-white' : 'bg-gradient-to-r from-[var(--app-dark-blue)] to-[var(--app-teal)] text-white'}`}
                             >
                               {processingPlanId === plan._id ? (
                                 <>
@@ -597,7 +620,7 @@ const SubscriptionPlans = () => {
                                 </>
                               ) : (
                                 <>
-                                  Subscribe Now
+                                  {plan.duration === 'demo' ? 'Request Demo Plan' : 'Subscribe Now'}
                                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
                                   </svg>
@@ -612,6 +635,83 @@ const SubscriptionPlans = () => {
                 </div>
               );
             })}
+          </div>
+        )}
+
+        {/* Demo Request Modal */}
+        {showDemoModal && selectedDemoPlan && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+            <div className="bg-white rounded-2xl p-6 sm:p-8 w-full max-w-md shadow-2xl animate-scale-in relative border border-gray-100">
+              <button
+                onClick={() => setShowDemoModal(false)}
+                className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors bg-gray-50 p-2 rounded-full"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+
+              <div className="text-center mb-6">
+                <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4 relative">
+                  <div className="absolute inset-0 bg-orange-200 rounded-full animate-ping opacity-20"></div>
+                  <FiStar className="text-orange-600 text-3xl relative z-10" />
+                </div>
+                <h3 className="text-2xl font-bold text-gray-900 mb-2">Request Demo Access</h3>
+                <p className="text-gray-600 text-sm leading-relaxed">
+                  Get full access to all features for <span className="font-bold text-orange-600">{selectedDemoPlan.validityDays || 7} days</span> absolutely free!
+                </p>
+              </div>
+
+              <div className="bg-gray-50 rounded-xl p-4 mb-6 border border-gray-100">
+                <h4 className="font-semibold text-gray-900 text-sm mb-3 flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-orange-500"></span>
+                  How to get started:
+                </h4>
+                <ul className="space-y-3 text-sm text-gray-600">
+                  <li className="flex items-start gap-3">
+                    <span className="flex-shrink-0 w-5 h-5 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-bold mt-0.5">1</span>
+                    <span>Click the <span className="font-semibold">Request Access</span> button below</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="flex-shrink-0 w-5 h-5 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-bold mt-0.5">2</span>
+                    <span>Admin will review and approve your request</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="flex-shrink-0 w-5 h-5 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-bold mt-0.5">3</span>
+                    <span>You'll get notified once activated!</span>
+                  </li>
+                </ul>
+              </div>
+
+              <div className="space-y-3">
+                <button
+                  onClick={handleDemoRequestConfirm}
+                  disabled={processingPlanId === selectedDemoPlan._id}
+                  className="w-full bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-bold py-3.5 rounded-xl shadow-lg hover:shadow-orange-500/30 transition-all duration-300 transform hover:-translate-y-0.5 flex items-center justify-center gap-2 text-sm sm:text-base group"
+                >
+                  {processingPlanId === selectedDemoPlan._id ? (
+                    <>
+                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      Sending Request...
+                    </>
+                  ) : (
+                    <>
+                      Request Access Now
+                      <svg className="w-5 h-5 transform group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                      </svg>
+                    </>
+                  )}
+                </button>
+                <button
+                  onClick={() => setShowDemoModal(false)}
+                  disabled={processingPlanId === selectedDemoPlan._id}
+                  className="w-full py-3 text-gray-500 hover:text-gray-700 font-medium text-sm transition-colors"
+                >
+                  Maybe Later
+                </button>
+              </div>
+            </div>
           </div>
         )}
 

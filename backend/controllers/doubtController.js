@@ -223,8 +223,8 @@ exports.getMyDoubts = asyncHandler(async (req, res) => {
   // Add search functionality
   if (search) {
     query.$or = [
-      { question: { $regex: search, $options: 'i' } },
-      { answer: { $regex: search, $options: 'i' } }
+      { question: { $regex: search.trim(), $options: 'i' } },
+      { answer: { $regex: search.trim(), $options: 'i' } }
     ];
   }
 
@@ -308,8 +308,8 @@ exports.getAllDoubts = asyncHandler(async (req, res) => {
   // Add search functionality
   if (search) {
     query.$or = [
-      { question: { $regex: search, $options: 'i' } },
-      { answer: { $regex: search, $options: 'i' } }
+      { question: { $regex: search.trim(), $options: 'i' } },
+      { answer: { $regex: search.trim(), $options: 'i' } }
     ];
   }
 
@@ -411,7 +411,7 @@ exports.answerDoubt = asyncHandler(async (req, res) => {
   }
 
   doubt.answer = answer.trim();
-  doubt.status = 'Answered';
+  doubt.status = 'Resolved';
   doubt.answeredBy = req.user._id;
   doubt.answeredByModel = userRole === 'teacher' ? 'Teacher' : 'Admin';
   doubt.answeredAt = new Date();

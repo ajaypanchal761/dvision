@@ -16,7 +16,7 @@ exports.getTimetableStatistics = asyncHandler(async (req, res) => {
   const totalTimetables = await Timetable.countDocuments({});
   const activeTimetables = await Timetable.countDocuments({ isActive: true });
   const inactiveTimetables = await Timetable.countDocuments({ isActive: false });
-  
+
   res.status(200).json({
     success: true,
     data: {
@@ -39,18 +39,18 @@ exports.getAllTimetables = asyncHandler(async (req, res) => {
   if (classId) query.classId = classId;
   if (dayOfWeek) query.dayOfWeek = dayOfWeek;
   if (teacherId) query.teacherId = teacherId;
-  
+
   // By default, show only active timetables unless explicitly filtered
   if (req.query.isActive === undefined) {
     query.isActive = true;
   } else {
     query.isActive = req.query.isActive === 'true';
   }
-  
+
   // Add search functionality
   if (search) {
     query.$or = [
-      { dayOfWeek: { $regex: search, $options: 'i' } }
+      { dayOfWeek: { $regex: search.trim(), $options: 'i' } }
     ];
   }
 
@@ -129,7 +129,7 @@ exports.getTimetablesByClass = asyncHandler(async (req, res) => {
 exports.getMyClassTimetable = asyncHandler(async (req, res) => {
   const Payment = require('../models/Payment');
   const student = await Student.findById(req.user._id);
-  
+
   if (!student || !student.class || !student.board) {
     throw new ErrorResponse('Student class or board not found', 404);
   }
@@ -153,8 +153,8 @@ exports.getMyClassTimetable = asyncHandler(async (req, res) => {
   // Also honor activeSubscriptions saved on the student document (for cases where payments are not stored)
   const activeSubsFromArray = (student.activeSubscriptions || []).filter(sub => new Date(sub.endDate) >= now);
 
-  const hasActiveClassSubscription = activePayments.some(payment => 
-    payment.subscriptionPlanId && 
+  const hasActiveClassSubscription = activePayments.some(payment =>
+    payment.subscriptionPlanId &&
     payment.subscriptionPlanId.type === 'regular' &&
     payment.subscriptionPlanId.board === student.board &&
     payment.subscriptionPlanId.classes &&
@@ -168,8 +168,8 @@ exports.getMyClassTimetable = asyncHandler(async (req, res) => {
   // Get preparation class IDs from active preparation subscriptions
   const preparationClassIds = [
     ...activePayments
-      .filter(payment => 
-        payment.subscriptionPlanId && 
+      .filter(payment =>
+        payment.subscriptionPlanId &&
         payment.subscriptionPlanId.type === 'preparation' &&
         payment.subscriptionPlanId.classId
       )
@@ -315,7 +315,7 @@ exports.createTimetable = asyncHandler(async (req, res) => {
   const [endHour, endMin] = endTime.split(':').map(Number);
   const startMinutes = startHour * 60 + startMin;
   const endMinutes = endHour * 60 + endMin;
-  
+
   if (endMinutes <= startMinutes) {
     throw new ErrorResponse('End time must be after start time', 400);
   }
@@ -383,10 +383,10 @@ exports.createTimetable = asyncHandler(async (req, res) => {
 
   if (teacherConflict) {
     const conflictClass = teacherConflict.classId;
-    const classDisplay = conflictClass.type === 'preparation' 
-      ? conflictClass.name 
+    const classDisplay = conflictClass.type === 'preparation'
+      ? conflictClass.name
       : `Class ${conflictClass.class} - ${conflictClass.board}`;
-    
+
     throw new ErrorResponse(
       `Teacher is already assigned to ${classDisplay} on ${dayOfWeek} at ${teacherConflict.startTime}. Please choose a different time or teacher.`,
       400
@@ -448,7 +448,7 @@ exports.updateTimetable = asyncHandler(async (req, res) => {
     const [endHour, endMin] = finalEndTime.split(':').map(Number);
     const startMinutes = startHour * 60 + startMin;
     const endMinutes = endHour * 60 + endMin;
-    
+
     if (endMinutes <= startMinutes) {
       throw new ErrorResponse('End time must be after start time', 400);
     }
@@ -456,7 +456,7 @@ exports.updateTimetable = asyncHandler(async (req, res) => {
     // Check for conflicts (excluding current timetable)
     const finalDayOfWeek = dayOfWeek || timetable.dayOfWeek;
     const finalSubjectId = req.body.subjectId || timetable.subjectId;
-    
+
     // Check if same subject is already scheduled on same day for same course (excluding current)
     if (finalSubjectId) {
       const sameSubjectSameDay = await Timetable.findOne({
@@ -526,10 +526,10 @@ exports.updateTimetable = asyncHandler(async (req, res) => {
 
     if (teacherConflict) {
       const conflictClass = teacherConflict.classId;
-      const classDisplay = conflictClass.type === 'preparation' 
-        ? conflictClass.name 
+      const classDisplay = conflictClass.type === 'preparation'
+        ? conflictClass.name
         : `Class ${conflictClass.class} - ${conflictClass.board}`;
-      
+
       throw new ErrorResponse(
         `Teacher is already assigned to ${classDisplay} on ${finalDayOfWeek} at ${teacherConflict.startTime}. Please choose a different time or teacher.`,
         400
@@ -628,12 +628,12 @@ exports.createBulkTimetables = asyncHandler(async (req, res) => {
     const [endHour1, endMin1] = end1.split(':').map(Number);
     const [startHour2, startMin2] = start2.split(':').map(Number);
     const [endHour2, endMin2] = end2.split(':').map(Number);
-    
+
     const startMinutes1 = startHour1 * 60 + startMin1;
     const endMinutes1 = endHour1 * 60 + endMin1;
     const startMinutes2 = startHour2 * 60 + startMin2;
     const endMinutes2 = endHour2 * 60 + endMin2;
-    
+
     return startMinutes1 < endMinutes2 && endMinutes1 > startMinutes2;
   };
 
@@ -691,7 +691,7 @@ exports.createBulkTimetables = asyncHandler(async (req, res) => {
         const [endHour, endMin] = endTime.split(':').map(Number);
         const startMinutes = startHour * 60 + startMin;
         const endMinutes = endHour * 60 + endMin;
-        
+
         if (endMinutes <= startMinutes) {
           errors.push({ day, error: `[${day}] Class ${classIndex + 1}: End time (${endTime}) must be after start time (${startTime}). Please correct the time.` });
           continue;
@@ -706,9 +706,9 @@ exports.createBulkTimetables = asyncHandler(async (req, res) => {
         });
 
         if (sameSubjectSameDay) {
-          errors.push({ 
-            day, 
-            error: `[${day}] Class ${classIndex + 1}: Subject "${subject.name}" is already scheduled on ${day} for this course. A subject can only be scheduled once per day for a course.` 
+          errors.push({
+            day,
+            error: `[${day}] Class ${classIndex + 1}: Subject "${subject.name}" is already scheduled on ${day} for this course. A subject can only be scheduled once per day for a course.`
           });
           continue;
         }
@@ -737,40 +737,40 @@ exports.createBulkTimetables = asyncHandler(async (req, res) => {
   // Step 2: Check conflicts within the same bulk request (same course, same day, overlapping time)
   for (let i = 0; i < pendingTimetables.length; i++) {
     const current = pendingTimetables[i];
-    
+
     for (let j = i + 1; j < pendingTimetables.length; j++) {
       const other = pendingTimetables[j];
-      
+
       // Check if same subject is scheduled multiple times on same day for same course
       if (
         current.classId.toString() === other.classId.toString() &&
         current.subjectId.toString() === other.subjectId.toString() &&
         current.day === other.day
       ) {
-        errors.push({ 
-          day: current.day, 
-          error: `[${current.day}] Class ${current.classIndex} and Class ${other.classIndex}: Subject "${current.subjectName}" cannot be scheduled multiple times on the same day for this course. A subject can only be scheduled once per day.` 
+        errors.push({
+          day: current.day,
+          error: `[${current.day}] Class ${current.classIndex} and Class ${other.classIndex}: Subject "${current.subjectName}" cannot be scheduled multiple times on the same day for this course. A subject can only be scheduled once per day.`
         });
         // Mark both as invalid
         current.invalid = true;
         other.invalid = true;
       }
-      
+
       // Check if same course, same day, overlapping time
       if (
         current.classId.toString() === other.classId.toString() &&
         current.day === other.day &&
         isTimeOverlapping(current.startTime, current.endTime, other.startTime, other.endTime)
       ) {
-        errors.push({ 
-          day: current.day, 
-          error: `[${current.day}] Class ${current.classIndex} (${current.startTime} - ${current.endTime}) conflicts with Class ${other.classIndex} (${other.startTime} - ${other.endTime}). Only one class can be scheduled at the same time for this course. Please change the time for one of these classes.` 
+        errors.push({
+          day: current.day,
+          error: `[${current.day}] Class ${current.classIndex} (${current.startTime} - ${current.endTime}) conflicts with Class ${other.classIndex} (${other.startTime} - ${other.endTime}). Only one class can be scheduled at the same time for this course. Please change the time for one of these classes.`
         });
         // Mark both as invalid
         current.invalid = true;
         other.invalid = true;
       }
-      
+
       // Check minimum gap between classes in same course (15 minutes)
       if (
         current.classId.toString() === other.classId.toString() &&
@@ -780,43 +780,43 @@ exports.createBulkTimetables = asyncHandler(async (req, res) => {
         const [currentEndHour, currentEndMin] = current.endTime.split(':').map(Number);
         const [otherStartHour, otherStartMin] = other.startTime.split(':').map(Number);
         const [otherEndHour, otherEndMin] = other.endTime.split(':').map(Number);
-        
+
         const currentStartMinutes = currentStartHour * 60 + currentStartMin;
         const currentEndMinutes = currentEndHour * 60 + currentEndMin;
         const otherStartMinutes = otherStartHour * 60 + otherStartMin;
         const otherEndMinutes = otherEndHour * 60 + otherEndMin;
-        
+
         const minGap = 15; // 15 minutes minimum gap
-        
+
         // Check if current class ends and other starts (or vice versa) with less than minGap
         if (currentEndMinutes < otherStartMinutes && (otherStartMinutes - currentEndMinutes) < minGap) {
-          errors.push({ 
-            day: current.day, 
-            error: `[${current.day}] Class ${current.classIndex} and Class ${other.classIndex}: Minimum gap of ${minGap} minutes required between classes in the same course. Current gap is ${otherStartMinutes - currentEndMinutes} minutes.` 
+          errors.push({
+            day: current.day,
+            error: `[${current.day}] Class ${current.classIndex} and Class ${other.classIndex}: Minimum gap of ${minGap} minutes required between classes in the same course. Current gap is ${otherStartMinutes - currentEndMinutes} minutes.`
           });
           current.invalid = true;
           other.invalid = true;
         }
-        
+
         if (otherEndMinutes < currentStartMinutes && (currentStartMinutes - otherEndMinutes) < minGap) {
-          errors.push({ 
-            day: current.day, 
-            error: `[${current.day}] Class ${current.classIndex} and Class ${other.classIndex}: Minimum gap of ${minGap} minutes required between classes in the same course. Current gap is ${currentStartMinutes - otherEndMinutes} minutes.` 
+          errors.push({
+            day: current.day,
+            error: `[${current.day}] Class ${current.classIndex} and Class ${other.classIndex}: Minimum gap of ${minGap} minutes required between classes in the same course. Current gap is ${currentStartMinutes - otherEndMinutes} minutes.`
           });
           current.invalid = true;
           other.invalid = true;
         }
       }
-      
+
       // Check teacher conflict within bulk request (same teacher, same day, overlapping time)
       if (
         current.teacherId.toString() === other.teacherId.toString() &&
         current.day === other.day &&
         isTimeOverlapping(current.startTime, current.endTime, other.startTime, other.endTime)
       ) {
-        errors.push({ 
-          day: current.day, 
-          error: `[${current.day}] Class ${current.classIndex}: Teacher "${current.teacherName}" is already assigned to Class ${other.classIndex} at ${other.startTime} - ${other.endTime}. A teacher cannot attend multiple classes at the same time. Please assign a different teacher or change the time.` 
+        errors.push({
+          day: current.day,
+          error: `[${current.day}] Class ${current.classIndex}: Teacher "${current.teacherName}" is already assigned to Class ${other.classIndex} at ${other.startTime} - ${other.endTime}. A teacher cannot attend multiple classes at the same time. Please assign a different teacher or change the time.`
         });
         // Mark both as invalid
         current.invalid = true;
@@ -842,9 +842,9 @@ exports.createBulkTimetables = asyncHandler(async (req, res) => {
       });
 
       if (conflictingTimetable) {
-        errors.push({ 
-          day: pending.day, 
-          error: `[${pending.day}] Class ${pending.classIndex} (${pending.startTime} - ${pending.endTime}) conflicts with an existing timetable in this course. Only one class can be scheduled at the same time for this course. Please change the time or remove the conflicting timetable first.` 
+        errors.push({
+          day: pending.day,
+          error: `[${pending.day}] Class ${pending.classIndex} (${pending.startTime} - ${pending.endTime}) conflicts with an existing timetable in this course. Only one class can be scheduled at the same time for this course. Please change the time or remove the conflicting timetable first.`
         });
         pending.invalid = true;
         continue;
@@ -871,9 +871,9 @@ exports.createBulkTimetables = asyncHandler(async (req, res) => {
 
         // Check if existing class ends and new class starts with less than minGap
         if (existingEndMinutes < pendingStartMinutes && (pendingStartMinutes - existingEndMinutes) < minGap) {
-          errors.push({ 
-            day: pending.day, 
-            error: `[${pending.day}] Class ${pending.classIndex}: Minimum gap of ${minGap} minutes required between classes. There is only ${pendingStartMinutes - existingEndMinutes} minutes gap after existing class ending at ${existing.endTime}.` 
+          errors.push({
+            day: pending.day,
+            error: `[${pending.day}] Class ${pending.classIndex}: Minimum gap of ${minGap} minutes required between classes. There is only ${pendingStartMinutes - existingEndMinutes} minutes gap after existing class ending at ${existing.endTime}.`
           });
           pending.invalid = true;
           break;
@@ -881,9 +881,9 @@ exports.createBulkTimetables = asyncHandler(async (req, res) => {
 
         // Check if new class ends and existing class starts with less than minGap
         if (pendingEndMinutes < existingStartMinutes && (existingStartMinutes - pendingEndMinutes) < minGap) {
-          errors.push({ 
-            day: pending.day, 
-            error: `[${pending.day}] Class ${pending.classIndex}: Minimum gap of ${minGap} minutes required between classes. There is only ${existingStartMinutes - pendingEndMinutes} minutes gap before existing class starting at ${existing.startTime}.` 
+          errors.push({
+            day: pending.day,
+            error: `[${pending.day}] Class ${pending.classIndex}: Minimum gap of ${minGap} minutes required between classes. There is only ${existingStartMinutes - pendingEndMinutes} minutes gap before existing class starting at ${existing.startTime}.`
           });
           pending.invalid = true;
           break;
@@ -905,13 +905,13 @@ exports.createBulkTimetables = asyncHandler(async (req, res) => {
 
       if (teacherConflict) {
         const conflictClass = teacherConflict.classId;
-        const classDisplay = conflictClass.type === 'preparation' 
-          ? conflictClass.name 
+        const classDisplay = conflictClass.type === 'preparation'
+          ? conflictClass.name
           : `Class ${conflictClass.class} - ${conflictClass.board}`;
-        
-        errors.push({ 
-          day: pending.day, 
-          error: `[${pending.day}] Class ${pending.classIndex}: Teacher "${pending.teacherName}" is already assigned to ${classDisplay} at ${teacherConflict.startTime} - ${teacherConflict.endTime}. A teacher cannot attend multiple classes at the same time. Please assign a different teacher or change the time.` 
+
+        errors.push({
+          day: pending.day,
+          error: `[${pending.day}] Class ${pending.classIndex}: Teacher "${pending.teacherName}" is already assigned to ${classDisplay} at ${teacherConflict.startTime} - ${teacherConflict.endTime}. A teacher cannot attend multiple classes at the same time. Please assign a different teacher or change the time.`
         });
         pending.invalid = true;
         continue;

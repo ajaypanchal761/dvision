@@ -233,19 +233,19 @@ const Quiz = () => {
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-2 sm:px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      <th className="px-2 sm:px-3 py-2 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
                         Quiz Name
                       </th>
-                      <th className="px-2 sm:px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      <th className="px-2 sm:px-3 py-2 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
                         Subject
                       </th>
-                      <th className="px-2 sm:px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider hidden sm:table-cell">
+                      <th className="px-2 sm:px-3 py-2 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider hidden sm:table-cell">
                         Course
                       </th>
-                      <th className="px-2 sm:px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      <th className="px-2 sm:px-3 py-2 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
                         Class
                       </th>
-                      <th className="px-2 sm:px-3 py-2 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      <th className="px-2 sm:px-3 py-2 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
                         Actions
                       </th>
                     </tr>
@@ -253,26 +253,26 @@ const Quiz = () => {
                   <tbody className="bg-white divide-y divide-gray-100">
                     {filteredQuizzes.map((quiz) => (
                       <tr key={quiz._id} className="hover:bg-gray-50 transition-all duration-200">
-                        <td className="px-2 sm:px-3 py-2 whitespace-nowrap">
+                        <td className="px-2 sm:px-3 py-2 whitespace-nowrap text-center">
                           <div className="text-xs sm:text-sm font-semibold text-gray-900">{quiz.name}</div>
                         </td>
-                        <td className="px-2 sm:px-3 py-2 whitespace-nowrap">
+                        <td className="px-2 sm:px-3 py-2 whitespace-nowrap text-center">
                           <span className="px-2 py-0.5 inline-flex text-[10px] sm:text-xs font-medium rounded-lg bg-green-100 text-green-700">
                             {quiz.subjectId?.name || 'Unknown Subject'}
                           </span>
                         </td>
-                        <td className="px-2 sm:px-3 py-2 whitespace-nowrap hidden sm:table-cell">
+                        <td className="px-2 sm:px-3 py-2 whitespace-nowrap hidden sm:table-cell text-center">
                           <span className="px-2 py-0.5 inline-flex text-[10px] sm:text-xs font-medium rounded-lg bg-purple-100 text-purple-700">
                             {quiz.board}
                           </span>
                         </td>
-                        <td className="px-2 sm:px-3 py-2 whitespace-nowrap">
+                        <td className="px-2 sm:px-3 py-2 whitespace-nowrap text-center">
                           <span className="px-2 py-0.5 inline-flex text-[10px] sm:text-xs font-medium rounded-lg bg-blue-50 text-[#1e3a5f]">
                             Class {quiz.classNumber}
                           </span>
                         </td>
-                        <td className="px-2 sm:px-3 py-2 whitespace-nowrap text-right text-xs font-medium">
-                          <div className="flex items-center justify-end gap-1 sm:gap-2">
+                        <td className="px-2 sm:px-3 py-2 whitespace-nowrap text-center text-xs font-medium">
+                          <div className="flex items-center justify-center gap-1 sm:gap-2">
                             <button
                               onClick={() => {
                                 setSelectedQuiz(quiz)

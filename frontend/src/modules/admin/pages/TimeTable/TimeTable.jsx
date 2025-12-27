@@ -15,7 +15,7 @@ const TimeTable = () => {
   const [error, setError] = useState('')
   const [filterDay, setFilterDay] = useState('')
   const [filterClass, setFilterClass] = useState('')
-  
+
   // Pagination state
   const [pagination, setPagination] = useState({
     page: 1,
@@ -23,7 +23,7 @@ const TimeTable = () => {
     total: 0,
     count: 0
   })
-  
+
   // Statistics state
   const [statistics, setStatistics] = useState({
     totalTimetables: 0,
@@ -57,12 +57,12 @@ const TimeTable = () => {
         limit: 10
       }
       if (filterDay) params.dayOfWeek = filterDay
-      if (searchTerm) params.search = searchTerm
+      if (searchTerm) params.search = searchTerm.trim()
 
       const response = await timetableAPI.getAll(params)
       if (response.success && response.data?.timetables) {
         setTimeTables(response.data.timetables)
-        
+
         // Update pagination
         setPagination({
           page: response.page || 1,
@@ -93,7 +93,7 @@ const TimeTable = () => {
     }, 500)
     return () => clearTimeout(timer)
   }, [filterDay, searchTerm])
-  
+
   // Handle page change
   const handlePageChange = (newPage) => {
     if (newPage >= 1 && newPage <= pagination.pages) {
@@ -151,7 +151,7 @@ const TimeTable = () => {
   const groupedByCourse = filteredTimeTables.reduce((acc, timetable) => {
     const classId = timetable.classId?._id || timetable.classId
     const classKey = classId?.toString() || 'unknown'
-    
+
     if (!acc[classKey]) {
       acc[classKey] = {
         classInfo: timetable.classId,
@@ -170,7 +170,7 @@ const TimeTable = () => {
       .filter(date => date)
       .sort()
     const earliestCreatedAt = createdAtDates.length > 0 ? createdAtDates[0] : null
-    
+
     return {
       ...group,
       totalClasses: group.timetables.length,
@@ -188,10 +188,10 @@ const TimeTable = () => {
     if (!dateString) return 'N/A'
     try {
       const date = new Date(dateString)
-      return date.toLocaleDateString('en-IN', { 
-        day: '2-digit', 
-        month: 'short', 
-        year: 'numeric' 
+      return date.toLocaleDateString('en-IN', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric'
       })
     } catch (e) {
       return 'N/A'
@@ -335,16 +335,16 @@ const TimeTable = () => {
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50 sticky top-0 z-10">
                   <tr>
-                    <th className="px-2 py-1.5 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    <th className="px-2 py-1.5 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
                       Course/Class
                     </th>
-                    <th className="px-2 py-1.5 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    <th className="px-2 py-1.5 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
                       Total Classes
                     </th>
-                    <th className="px-2 py-1.5 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                      Created At
+                    <th className="px-2 py-1.5 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      Created Date
                     </th>
-                    <th className="px-2 py-1.5 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    <th className="px-2 py-1.5 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
                       Actions
                     </th>
                   </tr>
@@ -367,27 +367,27 @@ const TimeTable = () => {
                   ) : (
                     courseGroups.map((courseGroup) => {
                       return (
-                        <tr 
+                        <tr
                           key={courseGroup.classId}
                           className="bg-blue-50 border-t-2 border-blue-200 hover:bg-blue-100 transition-colors"
                         >
-                          <td className="px-2 py-2">
+                          <td className="px-2 py-2 text-center">
                             <h3 className="text-xs sm:text-sm font-bold text-gray-900">
                               {courseGroup.classDisplay}
                             </h3>
                           </td>
-                          <td className="px-2 py-2">
+                          <td className="px-2 py-2 text-center">
                             <div className="text-xs sm:text-sm font-bold text-[#1e3a5f]">
                               {courseGroup.totalClasses}
                             </div>
                           </td>
-                          <td className="px-2 py-2">
+                          <td className="px-2 py-2 text-center">
                             <div className="text-xs text-gray-600">
                               {formatDate(courseGroup.createdAt)}
                             </div>
                           </td>
-                          <td className="px-2 py-2 text-right">
-                            <div className="flex items-center justify-end gap-1">
+                          <td className="px-2 py-2 text-center">
+                            <div className="flex items-center justify-center gap-1">
                               <button
                                 onClick={(e) => {
                                   e.preventDefault()
@@ -444,7 +444,7 @@ const TimeTable = () => {
               </table>
             )}
           </div>
-          
+
           {/* Pagination Controls */}
           {!isLoading && pagination.pages > 1 && (
             <div className="px-3 sm:px-4 py-3 sm:py-4 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-3">
@@ -459,11 +459,10 @@ const TimeTable = () => {
                 <button
                   onClick={() => handlePageChange(pagination.page - 1)}
                   disabled={pagination.page === 1}
-                  className={`px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-all ${
-                    pagination.page === 1
-                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                      : 'bg-[#1e3a5f] text-white hover:bg-[#2a4a6f]'
-                  }`}
+                  className={`px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-all ${pagination.page === 1
+                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                    : 'bg-[#1e3a5f] text-white hover:bg-[#2a4a6f]'
+                    }`}
                 >
                   Previous
                 </button>
@@ -483,11 +482,10 @@ const TimeTable = () => {
                       <button
                         key={pageNum}
                         onClick={() => handlePageChange(pageNum)}
-                        className={`px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-all ${
-                          pagination.page === pageNum
-                            ? 'bg-[#1e3a5f] text-white'
-                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                        }`}
+                        className={`px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-all ${pagination.page === pageNum
+                          ? 'bg-[#1e3a5f] text-white'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          }`}
                       >
                         {pageNum}
                       </button>
@@ -497,11 +495,10 @@ const TimeTable = () => {
                 <button
                   onClick={() => handlePageChange(pagination.page + 1)}
                   disabled={pagination.page === pagination.pages}
-                  className={`px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-all ${
-                    pagination.page === pagination.pages
-                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                      : 'bg-[#1e3a5f] text-white hover:bg-[#2a4a6f]'
-                  }`}
+                  className={`px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-all ${pagination.page === pagination.pages
+                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                    : 'bg-[#1e3a5f] text-white hover:bg-[#2a4a6f]'
+                    }`}
                 >
                   Next
                 </button>

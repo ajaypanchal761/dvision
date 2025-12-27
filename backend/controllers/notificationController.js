@@ -43,11 +43,11 @@ exports.sendTestNotificationToToken = asyncHandler(async (req, res) => {
 // @access  Private
 exports.sendTestNotificationToMe = asyncHandler(async (req, res) => {
   const { title, body, data } = req.body;
-  
+
   if (!req.user || !req.user._id) {
     throw new ErrorResponse('User not authenticated', 401);
   }
-  
+
   const userId = req.user._id;
   const userRole = req.userRole;
 
@@ -565,12 +565,12 @@ exports.getAllCampaigns = asyncHandler(async (req, res) => {
   const { page = 1, limit = 10, search } = req.query;
 
   const query = {};
-  
+
   // Add search functionality
   if (search) {
     query.$or = [
-      { title: { $regex: search, $options: 'i' } },
-      { body: { $regex: search, $options: 'i' } }
+      { title: { $regex: search.trim(), $options: 'i' } },
+      { body: { $regex: search.trim(), $options: 'i' } }
     ];
   }
 
@@ -670,7 +670,7 @@ exports.createCampaign = asyncHandler(async (req, res) => {
         { fcmToken: { $exists: true, $ne: null } }
       ]
     }).select('_id');
-    
+
     const studentIds = students.map(s => s._id.toString());
     if (studentIds.length > 0) {
       const result = await notificationService.sendToMultipleUsers(
@@ -693,7 +693,7 @@ exports.createCampaign = asyncHandler(async (req, res) => {
         { fcmToken: { $exists: true, $ne: null } }
       ]
     }).select('_id');
-    
+
     const teacherIds = teachers.map(t => t._id.toString());
     if (teacherIds.length > 0) {
       const result = await notificationService.sendToMultipleUsers(
@@ -716,7 +716,7 @@ exports.createCampaign = asyncHandler(async (req, res) => {
         { fcmToken: { $exists: true, $ne: null } }
       ]
     }).select('_id');
-    
+
     const teachers = await Teacher.find({
       isActive: true,
       $or: [
@@ -778,16 +778,16 @@ exports.createCampaign = asyncHandler(async (req, res) => {
         }).select('_id');
         studentIds = students.map(s => s._id.toString());
 
-          // Find teachers who teach this class
-          const teachers = await Teacher.find({
-            isActive: true,
-            classes: { $in: [classItem.class] },
-            $or: [
-              { 'fcmTokens.app': { $exists: true, $ne: null } },
-              { 'fcmTokens.web': { $exists: true, $ne: null } },
-              { fcmToken: { $exists: true, $ne: null } }
-            ]
-          }).select('_id');
+        // Find teachers who teach this class
+        const teachers = await Teacher.find({
+          isActive: true,
+          classes: { $in: [classItem.class] },
+          $or: [
+            { 'fcmTokens.app': { $exists: true, $ne: null } },
+            { 'fcmTokens.web': { $exists: true, $ne: null } },
+            { fcmToken: { $exists: true, $ne: null } }
+          ]
+        }).select('_id');
         teacherIds = teachers.map(t => t._id.toString());
       } else if (classItem.type === 'preparation') {
         // For preparation classes: find students with active subscriptions to this class
@@ -940,7 +940,7 @@ exports.updateCampaign = asyncHandler(async (req, res) => {
           { fcmToken: { $exists: true, $ne: null } }
         ]
       }).select('_id');
-      
+
       const studentIds = students.map(s => s._id.toString());
       if (studentIds.length > 0) {
         const result = await notificationService.sendToMultipleUsers(
@@ -962,7 +962,7 @@ exports.updateCampaign = asyncHandler(async (req, res) => {
           { fcmToken: { $exists: true, $ne: null } }
         ]
       }).select('_id');
-      
+
       const teacherIds = teachers.map(t => t._id.toString());
       if (teacherIds.length > 0) {
         const result = await notificationService.sendToMultipleUsers(
@@ -984,7 +984,7 @@ exports.updateCampaign = asyncHandler(async (req, res) => {
           { fcmToken: { $exists: true, $ne: null } }
         ]
       }).select('_id');
-      
+
       const teachers = await Teacher.find({
         isActive: true,
         $or: [
@@ -1183,7 +1183,7 @@ exports.sendCampaign = asyncHandler(async (req, res) => {
         { fcmToken: { $exists: true, $ne: null } }
       ]
     }).select('_id');
-    
+
     const studentIds = students.map(s => s._id.toString());
     if (studentIds.length > 0) {
       const result = await notificationService.sendToMultipleUsers(
@@ -1206,7 +1206,7 @@ exports.sendCampaign = asyncHandler(async (req, res) => {
         { fcmToken: { $exists: true, $ne: null } }
       ]
     }).select('_id');
-    
+
     const teacherIds = teachers.map(t => t._id.toString());
     if (teacherIds.length > 0) {
       const result = await notificationService.sendToMultipleUsers(
@@ -1229,7 +1229,7 @@ exports.sendCampaign = asyncHandler(async (req, res) => {
         { fcmToken: { $exists: true, $ne: null } }
       ]
     }).select('_id');
-    
+
     const teachers = await Teacher.find({
       isActive: true,
       $or: [
@@ -1292,16 +1292,16 @@ exports.sendCampaign = asyncHandler(async (req, res) => {
         }).select('_id');
         studentIds = students.map(s => s._id.toString());
 
-          // Find teachers who teach this class
-          const teachers = await Teacher.find({
-            isActive: true,
-            classes: { $in: [classItem.class] },
-            $or: [
-              { 'fcmTokens.app': { $exists: true, $ne: null } },
-              { 'fcmTokens.web': { $exists: true, $ne: null } },
-              { fcmToken: { $exists: true, $ne: null } }
-            ]
-          }).select('_id');
+        // Find teachers who teach this class
+        const teachers = await Teacher.find({
+          isActive: true,
+          classes: { $in: [classItem.class] },
+          $or: [
+            { 'fcmTokens.app': { $exists: true, $ne: null } },
+            { 'fcmTokens.web': { $exists: true, $ne: null } },
+            { fcmToken: { $exists: true, $ne: null } }
+          ]
+        }).select('_id');
         teacherIds = teachers.map(t => t._id.toString());
       } else if (classItem.type === 'preparation') {
         // For preparation classes: find students with active subscriptions to this class

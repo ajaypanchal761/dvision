@@ -3,6 +3,7 @@ const Subject = require('../models/Subject');
 const asyncHandler = require('../utils/asyncHandler');
 const ErrorResponse = require('../utils/errorResponse');
 const { uploadToCloudinary, deleteFromCloudinary } = require('../config/cloudinary');
+const sendEmail = require('../utils/sendEmail');
 
 // @desc    Get teacher statistics (Admin)
 // @route   GET /api/admin/teachers/statistics
@@ -12,7 +13,7 @@ exports.getTeacherStatistics = asyncHandler(async (req, res) => {
   const totalTeachers = await Teacher.countDocuments({});
   const activeTeachers = await Teacher.countDocuments({ isActive: true });
   const inactiveTeachers = await Teacher.countDocuments({ isActive: false });
-  
+
   res.status(200).json({
     success: true,
     data: {
@@ -30,30 +31,30 @@ exports.getTeacherStatistics = asyncHandler(async (req, res) => {
 // @access  Private/Admin
 exports.getAllTeachers = asyncHandler(async (req, res) => {
   const { page = 1, limit = 10, search, status } = req.query;
-  
+
   const query = {};
-  
+
   if (search) {
     query.$or = [
-      { name: { $regex: search, $options: 'i' } },
-      { email: { $regex: search, $options: 'i' } },
-      { phone: { $regex: search, $options: 'i' } }
+      { name: { $regex: search.trim(), $options: 'i' } },
+      { email: { $regex: search.trim(), $options: 'i' } },
+      { phone: { $regex: search.trim(), $options: 'i' } }
     ];
   }
-  
+
   if (status) {
     query.isActive = status === 'active';
   }
-  
+
   const skip = (parseInt(page) - 1) * parseInt(limit);
-  
+
   const teachers = await Teacher.find(query)
     .sort({ createdAt: -1 })
     .skip(skip)
     .limit(parseInt(limit));
-  
+
   const total = await Teacher.countDocuments(query);
-  
+
   res.status(200).json({
     success: true,
     count: teachers.length,
@@ -71,11 +72,11 @@ exports.getAllTeachers = asyncHandler(async (req, res) => {
 // @access  Private/Admin
 exports.getTeacher = asyncHandler(async (req, res) => {
   const teacher = await Teacher.findById(req.params.id);
-  
+
   if (!teacher) {
     throw new ErrorResponse('Teacher not found', 404);
   }
-  
+
   res.status(200).json({
     success: true,
     data: {
@@ -88,19 +89,19 @@ exports.getTeacher = asyncHandler(async (req, res) => {
 // @route   POST /api/admin/teachers
 // @access  Private/Admin
 exports.createTeacher = asyncHandler(async (req, res) => {
-  const { 
-    name, 
-    phone, 
-    email, 
-    subjects, 
-    classes, 
-    boards, 
-    isActive, 
-    bio, 
+  const {
+    name,
+    phone,
+    email,
+    subjects,
+    classes,
+    boards,
+    isActive,
+    bio,
     experience,
-    profileImageBase64 
+    profileImageBase64
   } = req.body;
-  
+
   // Log received data for debugging
   console.log('=== Teacher Creation Request ===');
   console.log('Name:', name);
@@ -112,19 +113,19 @@ exports.createTeacher = asyncHandler(async (req, res) => {
   console.log('IsActive:', isActive);
   console.log('Full Request Body:', JSON.stringify(req.body, null, 2));
   console.log('================================');
-  
+
   if (!name || !phone) {
     throw new ErrorResponse('Please provide name and phone', 400);
   }
-  
+
   // Check if teacher exists
   const existingTeacher = await Teacher.findOne({ phone });
   if (existingTeacher) {
     throw new ErrorResponse('Teacher with this phone number already exists', 400);
   }
-  
+
   let profileImageUrl = null;
-  
+
   // Upload profile image if provided
   if (profileImageBase64) {
     try {
@@ -138,7 +139,7 @@ exports.createTeacher = asyncHandler(async (req, res) => {
       throw new ErrorResponse('Failed to upload profile image', 500);
     }
   }
-  
+
   // Validate and process subjects
   let processedSubjects = [];
   if (subjects && Array.isArray(subjects)) {
@@ -147,12 +148,12 @@ exports.createTeacher = asyncHandler(async (req, res) => {
       .filter(subject => subject && typeof subject === 'string' && subject.trim().length > 0)
       .map(subject => subject.trim())
       .slice(0, 2); // Max 2 subjects
-    
+
     if (subjects.length > 2) {
       throw new ErrorResponse('Maximum 2 subjects can be assigned to a teacher', 400);
     }
   }
-  
+
   const teacher = await Teacher.create({
     name,
     phone,
@@ -166,7 +167,40 @@ exports.createTeacher = asyncHandler(async (req, res) => {
     experience: experience ? parseInt(experience) : undefined,
     profileImage: profileImageUrl
   });
-  
+
+  // Send welcome email
+  if (email) {
+    try {
+      const webLink = process.env.WEB_URL || 'https://dvisionacademy.com';
+      const appLink = process.env.APP_URL || 'https://play.google.com/store/apps/details?id=com.dvisionacademy';
+
+      const message = `
+        <h1>Welcome to Dvision Academy!</h1>
+        <p>Hello ${name},</p>
+        <p>Your Teacher account has been created successfully.</p>
+        
+        <h2>Login Credentials</h2>
+        <p><strong>Phone:</strong> ${phone}</p>
+        <p>You can login using OTP sent to your registered phone number.</p>
+        
+        <h2>Access Links</h2>
+        <p><strong>Web:</strong> <a href="${webLink}">${webLink}</a></p>
+        <p><strong>App:</strong> <a href="${appLink}">Download App</a></p>
+        
+        <p>Regards,<br>Dvision Academy Team</p>
+      `;
+
+      await sendEmail({
+        to: email,
+        subject: 'Welcome to Dvision Academy - Login Details',
+        html: message
+      });
+    } catch (error) {
+      console.error('Failed to send welcome email:', error);
+      // Continue execution
+    }
+  }
+
   res.status(201).json({
     success: true,
     message: 'Teacher created successfully',
@@ -180,25 +214,25 @@ exports.createTeacher = asyncHandler(async (req, res) => {
 // @route   PUT /api/admin/teachers/:id
 // @access  Private/Admin
 exports.updateTeacher = asyncHandler(async (req, res) => {
-  const { 
-    name, 
-    phone, 
-    email, 
-    subjects, 
-    classes, 
-    boards, 
-    isActive, 
-    bio, 
+  const {
+    name,
+    phone,
+    email,
+    subjects,
+    classes,
+    boards,
+    isActive,
+    bio,
     experience,
-    profileImageBase64 
+    profileImageBase64
   } = req.body;
-  
+
   let teacher = await Teacher.findById(req.params.id);
-  
+
   if (!teacher) {
     throw new ErrorResponse('Teacher not found', 404);
   }
-  
+
   // Check if phone is being changed and if it's already taken
   if (phone && phone !== teacher.phone) {
     const existingTeacher = await Teacher.findOne({ phone });
@@ -207,7 +241,7 @@ exports.updateTeacher = asyncHandler(async (req, res) => {
     }
     teacher.phone = phone;
   }
-  
+
   if (name) teacher.name = name;
   if (email) teacher.email = email;
   if (subjects !== undefined) {
@@ -218,11 +252,11 @@ exports.updateTeacher = asyncHandler(async (req, res) => {
         .filter(subject => subject && typeof subject === 'string' && subject.trim().length > 0)
         .map(subject => subject.trim())
         .slice(0, 2); // Max 2 subjects
-      
+
       if (subjects.length > 2) {
         throw new ErrorResponse('Maximum 2 subjects can be assigned to a teacher', 400);
       }
-      
+
       teacher.subjects = processedSubjects;
     } else {
       teacher.subjects = [];
@@ -233,7 +267,7 @@ exports.updateTeacher = asyncHandler(async (req, res) => {
   if (isActive !== undefined) teacher.isActive = isActive;
   if (bio !== undefined) teacher.bio = bio;
   if (experience !== undefined) teacher.experience = parseInt(experience);
-  
+
   // Handle profile image update
   if (profileImageBase64) {
     // Delete old image if exists
@@ -247,7 +281,7 @@ exports.updateTeacher = asyncHandler(async (req, res) => {
         console.error('Error deleting old image:', error);
       }
     }
-    
+
     // Upload new image
     try {
       const uploadResult = await uploadToCloudinary(profileImageBase64, {
@@ -260,9 +294,9 @@ exports.updateTeacher = asyncHandler(async (req, res) => {
       throw new ErrorResponse('Failed to upload profile image', 500);
     }
   }
-  
+
   await teacher.save();
-  
+
   res.status(200).json({
     success: true,
     message: 'Teacher updated successfully',
@@ -277,11 +311,11 @@ exports.updateTeacher = asyncHandler(async (req, res) => {
 // @access  Private/Admin
 exports.deleteTeacher = asyncHandler(async (req, res) => {
   const teacher = await Teacher.findById(req.params.id);
-  
+
   if (!teacher) {
     throw new ErrorResponse('Teacher not found', 404);
   }
-  
+
   // Delete profile image from Cloudinary if exists
   if (teacher.profileImage) {
     try {
@@ -293,9 +327,9 @@ exports.deleteTeacher = asyncHandler(async (req, res) => {
       console.error('Error deleting image:', error);
     }
   }
-  
+
   await teacher.deleteOne();
-  
+
   res.status(200).json({
     success: true,
     message: 'Teacher deleted successfully'

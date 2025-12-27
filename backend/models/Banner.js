@@ -18,10 +18,7 @@ const bannerSchema = new mongoose.Schema(
     imagePublicId: {
       type: String // Cloudinary public ID for deletion
     },
-    order: {
-      type: Number,
-      default: 0
-    },
+
     isActive: {
       type: Boolean,
       default: true
@@ -36,7 +33,7 @@ const bannerSchema = new mongoose.Schema(
   }
 );
 
-bannerSchema.index({ isActive: 1, order: 1 });
+bannerSchema.index({ isActive: 1, createdAt: -1 });
 
 module.exports = mongoose.model('Banner', bannerSchema);
 

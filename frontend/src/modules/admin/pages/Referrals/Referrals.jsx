@@ -152,32 +152,32 @@ const Referrals = () => {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                    <th className="px-2 sm:px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  <th className="px-2 sm:px-3 py-2 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
                     Referrer Name
                   </th>
-                  <th className="px-2 sm:px-3 md:px-4 lg:px-6 py-2 sm:py-3 md:py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider hidden sm:table-cell">
+                  <th className="px-2 sm:px-3 md:px-4 lg:px-6 py-2 sm:py-3 md:py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider hidden sm:table-cell">
                     Email
                   </th>
-                  <th className="px-2 sm:px-3 md:px-4 lg:px-6 py-2 sm:py-3 md:py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider hidden md:table-cell">
+                  <th className="px-2 sm:px-3 md:px-4 lg:px-6 py-2 sm:py-3 md:py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider hidden md:table-cell">
                     Mobile
                   </th>
-                    <th className="px-2 sm:px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  <th className="px-2 sm:px-3 py-2 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
                     Referral Code
                   </th>
-                  <th className="px-2 sm:px-3 md:px-4 lg:px-6 py-2 sm:py-3 md:py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider hidden md:table-cell">
+                  <th className="px-2 sm:px-3 md:px-4 lg:px-6 py-2 sm:py-3 md:py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider hidden md:table-cell">
                     Total Referred
                   </th>
-                  <th className="px-2 sm:px-3 md:px-4 lg:px-6 py-2 sm:py-3 md:py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider hidden lg:table-cell">
+                  <th className="px-2 sm:px-3 md:px-4 lg:px-6 py-2 sm:py-3 md:py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider hidden lg:table-cell">
                     Verified
                   </th>
-                    <th className="px-2 sm:px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  <th className="px-2 sm:px-3 py-2 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
                     Active
                   </th>
-                  <th className="px-2 sm:px-3 md:px-4 lg:px-6 py-2 sm:py-3 md:py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider hidden xl:table-cell">
-                    First Referral
+                  <th className="px-2 sm:px-3 md:px-4 lg:px-6 py-2 sm:py-3 md:py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider hidden xl:table-cell">
+                    First Referral Date & Time
                   </th>
-                  <th className="px-2 sm:px-3 md:px-4 lg:px-6 py-2 sm:py-3 md:py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider hidden xl:table-cell">
-                    Latest Referral
+                  <th className="px-2 sm:px-3 md:px-4 lg:px-6 py-2 sm:py-3 md:py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider hidden xl:table-cell">
+                    Latest Referral Date & Time
                   </th>
                 </tr>
               </thead>
@@ -199,45 +199,43 @@ const Referrals = () => {
                 ) : (
                   filteredReferrals.map((referral) => (
                     <tr key={referral.id} className="hover:bg-gray-50 transition-all duration-200">
-                        <td className="px-2 sm:px-3 py-2 whitespace-nowrap">
+                      <td className="px-2 sm:px-3 py-2 whitespace-nowrap text-center">
                         <div className="text-xs sm:text-sm font-semibold text-gray-900">{referral.referrerName}</div>
                       </td>
-                      <td className="px-2 sm:px-3 md:px-4 lg:px-6 py-2 sm:py-3 md:py-4 whitespace-nowrap hidden sm:table-cell">
+                      <td className="px-2 sm:px-3 md:px-4 lg:px-6 py-2 sm:py-3 md:py-4 whitespace-nowrap hidden sm:table-cell text-center">
                         <div className="text-xs sm:text-sm text-gray-600">{referral.email}</div>
                       </td>
-                      <td className="px-2 sm:px-3 md:px-4 lg:px-6 py-2 sm:py-3 md:py-4 whitespace-nowrap hidden md:table-cell">
+                      <td className="px-2 sm:px-3 md:px-4 lg:px-6 py-2 sm:py-3 md:py-4 whitespace-nowrap hidden md:table-cell text-center">
                         <div className="text-xs sm:text-sm text-gray-600">{referral.mobile}</div>
                       </td>
-                        <td className="px-2 sm:px-3 py-2 whitespace-nowrap">
+                      <td className="px-2 sm:px-3 py-2 whitespace-nowrap text-center">
                         <span className="px-2 sm:px-3 py-1 inline-flex text-xs font-medium rounded-lg bg-dvision-blue-lightestBg text-dvision-blue-dark font-mono">
                           {referral.referralCode}
                         </span>
                       </td>
-                      <td className="px-2 sm:px-3 md:px-4 lg:px-6 py-2 sm:py-3 md:py-4 whitespace-nowrap hidden md:table-cell">
+                      <td className="px-2 sm:px-3 md:px-4 lg:px-6 py-2 sm:py-3 md:py-4 whitespace-nowrap hidden md:table-cell text-center">
                         <div className="text-xs sm:text-sm font-semibold text-gray-900">{referral.totalReferred || 0}</div>
                       </td>
-                      <td className="px-2 sm:px-3 md:px-4 lg:px-6 py-2 sm:py-3 md:py-4 whitespace-nowrap hidden lg:table-cell">
-                        <span className={`px-2 sm:px-3 py-1 inline-flex text-xs font-semibold rounded-lg ${
-                          referral.verified
+                      <td className="px-2 sm:px-3 md:px-4 lg:px-6 py-2 sm:py-3 md:py-4 whitespace-nowrap hidden lg:table-cell text-center">
+                        <span className={`px-2 sm:px-3 py-1 inline-flex text-xs font-semibold rounded-lg ${referral.verified
                             ? 'bg-green-100 text-green-700'
                             : 'bg-red-100 text-red-700'
-                        }`}>
+                          }`}>
                           {referral.verified ? 'Yes' : 'No'}
                         </span>
                       </td>
-                        <td className="px-2 sm:px-3 py-2 whitespace-nowrap">
-                        <span className={`px-2 sm:px-3 py-1 inline-flex text-xs font-semibold rounded-lg ${
-                          referral.active
+                      <td className="px-2 sm:px-3 py-2 whitespace-nowrap text-center">
+                        <span className={`px-2 sm:px-3 py-1 inline-flex text-xs font-semibold rounded-lg ${referral.active
                             ? 'bg-green-100 text-green-700'
                             : 'bg-gray-100 text-gray-700'
-                        }`}>
+                          }`}>
                           {referral.active ? 'Active' : 'Inactive'}
                         </span>
                       </td>
-                      <td className="px-2 sm:px-3 md:px-4 lg:px-6 py-2 sm:py-3 md:py-4 whitespace-nowrap hidden xl:table-cell">
+                      <td className="px-2 sm:px-3 md:px-4 lg:px-6 py-2 sm:py-3 md:py-4 whitespace-nowrap hidden xl:table-cell text-center">
                         <div className="text-xs sm:text-sm text-gray-500">{referral.firstReferral}</div>
                       </td>
-                      <td className="px-2 sm:px-3 md:px-4 lg:px-6 py-2 sm:py-3 md:py-4 whitespace-nowrap hidden xl:table-cell">
+                      <td className="px-2 sm:px-3 md:px-4 lg:px-6 py-2 sm:py-3 md:py-4 whitespace-nowrap hidden xl:table-cell text-center">
                         <div className="text-xs sm:text-sm text-gray-500">{referral.latestReferral}</div>
                       </td>
                     </tr>

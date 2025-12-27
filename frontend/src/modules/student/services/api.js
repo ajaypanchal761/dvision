@@ -244,6 +244,14 @@ export const studentAPI = {
     });
   },
 
+  // Request demo plan
+  requestDemoPlan: async (planId, planName) => {
+    return apiRequest('/student/request-demo', {
+      method: 'POST',
+      body: { planId, planName },
+    });
+  },
+
   // Login student (with password)
   login: async (phone, password) => {
     return apiRequest('/student/login', {
@@ -273,6 +281,14 @@ export const studentAPI = {
     return apiRequest('/student/resend-otp', {
       method: 'POST',
       body: { phone },
+    });
+  },
+
+  // Reset Password
+  resetPassword: async (phone, otp, password) => {
+    return apiRequest('/student/reset-password', {
+      method: 'POST',
+      body: { phone, otp, password },
     });
   },
 

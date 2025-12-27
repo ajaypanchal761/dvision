@@ -108,9 +108,9 @@ const AddStudent = () => {
       allClassesData
         .filter(c => {
           const classBoard = (c.board || '').trim()
-          return classBoard.toLowerCase() === selectedBoard.toLowerCase() && 
-                 c.type === 'regular' && 
-                 c.class != null
+          return classBoard.toLowerCase() === selectedBoard.toLowerCase() &&
+            c.type === 'regular' &&
+            c.class != null
         })
         .map(c => parseInt(c.class))
         .filter(c => !isNaN(c) && c >= 1 && c <= 12)
@@ -166,24 +166,24 @@ const AddStudent = () => {
     const fetchPrepData = async () => {
       try {
         setLoadingPrepPlans(true)
-        
+
         // Fetch preparation classes - pass all=true to get all active classes
         const classesResponse = await subscriptionPlanAPI.getPreparationClasses(true)
         if (classesResponse.success && classesResponse.data?.classes) {
           const prepClasses = classesResponse.data.classes.filter(c => c.isActive !== false)
           setPreparationClasses(prepClasses)
         }
-        
+
         // Fetch all preparation plans
         const plansResponse = await subscriptionPlanAPI.getAll({
           type: 'preparation',
           isActive: true
         })
-        
+
         if (plansResponse.success && (plansResponse.data?.plans || plansResponse.data?.subscriptionPlans)) {
           const plans = plansResponse.data.plans || plansResponse.data.subscriptionPlans || []
           setPrepPlans(plans)
-          
+
           // Group plans by classId
           const plansByClass = {}
           plans.forEach(plan => {
@@ -266,9 +266,9 @@ const AddStudent = () => {
         throw new Error('Please select a valid class for the selected board')
       }
 
-      // Validate password if provided
-      if (formData.password && formData.password.length < 6) {
-        setError('Password must be at least 6 characters long')
+      // Validate password (now mandatory)
+      if (!formData.password || formData.password.length < 6) {
+        setError('Password is required and must be at least 6 characters long')
         setIsLoading(false)
         return
       }
@@ -418,18 +418,22 @@ const AddStudent = () => {
                     placeholder="Enter email address"
                     disabled={isLoading}
                   />
+                  <p className="text-[10px] sm:text-xs text-gray-500 mt-1">
+                    Login credentials and welcome email will be sent to this address.
+                  </p>
                 </div>
 
                 <div>
                   <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1.5 sm:mb-2">
-                    Password <span className="text-gray-500 text-[10px]">(Optional - min 6 characters)</span>
+                    Password <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="password"
+                    required
                     value={formData.password}
                     onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                     className="w-full px-3 sm:px-4 py-2 sm:py-2.5 md:py-3 border-2 border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-[#1e3a5f] focus:border-[#1e3a5f] outline-none transition-all duration-200 text-sm sm:text-base"
-                    placeholder="Enter password (optional)"
+                    placeholder="Enter password (min 6 characters)"
                     disabled={isLoading}
                     minLength={6}
                   />
@@ -630,7 +634,7 @@ const AddStudent = () => {
                   Preparation Subscriptions (optional)
                 </label>
                 <p className="text-[10px] text-gray-500 mb-1">Assign one subscription per preparation class. You can assign multiple subscriptions for different preparation classes.</p>
-                
+
                 {loadingPrepPlans ? (
                   <div className="text-center py-4">
                     <p className="text-xs text-gray-500">Loading preparation classes...</p>
@@ -645,7 +649,7 @@ const AddStudent = () => {
                       const classId = prepClass._id?.toString() || prepClass._id
                       const plansForClass = prepPlansByClass[classId] || []
                       const selectedPlanId = formData.prepSubscriptions[classId] || ''
-                      
+
                       return (
                         <div key={classId} className="border border-gray-200 rounded-lg p-2 sm:p-3">
                           <label className="block text-[10px] sm:text-xs font-semibold text-gray-700 mb-1.5">

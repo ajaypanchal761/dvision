@@ -21,13 +21,13 @@ export const ROUTES = {
   VIEW_QUIZ: '/teacher/quizzes/:id',
   QUIZ_RESULTS: '/teacher/quizzes/:id/results',
   // Agent Routes
-  AGENT_DASHBOARD: '/teacher/agent/dashboard',
-  AGENT_STATISTICS: '/teacher/agent/statistics',
-  AGENT_REFERRALS: '/teacher/agent/referrals',
-  AGENT_PROFILE: '/teacher/agent/profile',
-  AGENT_EDIT_PROFILE: '/teacher/agent/edit-profile',
-  AGENT_PERSONAL_INFORMATION: '/teacher/agent/personal-information',
-  AGENT_BANK_DETAILS: '/teacher/agent/bank-details',
-  AGENT_NOTIFICATIONS: '/teacher/agent/notifications',
+  AGENT_DASHBOARD: '/agent/dashboard',
+  AGENT_STATISTICS: '/agent/statistics',
+  AGENT_REFERRALS: '/agent/referrals',
+  AGENT_PROFILE: '/agent/profile',
+  AGENT_EDIT_PROFILE: '/agent/edit-profile',
+  AGENT_PERSONAL_INFORMATION: '/agent/personal-information',
+  AGENT_BANK_DETAILS: '/agent/bank-details',
+  AGENT_NOTIFICATIONS: '/agent/notifications',
 };
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiBell, FiUser, FiVideo, FiBook, FiFileText, FiClock, FiCalendar } from 'react-icons/fi';
 import { ROUTES } from '../constants/routes';
@@ -22,6 +22,7 @@ const Dashboard = () => {
   const [currentBannerSlide, setCurrentBannerSlide] = useState(0);
   const [failedBannerImages, setFailedBannerImages] = useState(new Set());
   const [banners, setBanners] = useState([]);
+  const bannerScrollRef = useRef(null);
 
   // Fetch unread notification count
   const fetchUnreadCount = async () => {
@@ -96,10 +97,25 @@ const Dashboard = () => {
     return defaultBannerData;
   }, [banners, defaultBannerData]);
 
-  // Auto-slide banner
+
+  // Auto-slide banner logic for horizontal scroll
   useEffect(() => {
+    if (bannerData.length <= 1) return;
+
     const interval = setInterval(() => {
-      setCurrentBannerSlide((prev) => (prev + 1) % bannerData.length);
+      if (bannerScrollRef.current) {
+        const container = bannerScrollRef.current;
+        const scrollAmount = container.offsetWidth;
+        const maxScroll = container.scrollWidth - container.offsetWidth;
+
+        if (container.scrollLeft >= maxScroll - 10) {
+          // Go back to start
+          container.scrollTo({ left: 0, behavior: 'smooth' });
+        } else {
+          // Scroll to next
+          container.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+        }
+      }
     }, 4000); // Change slide every 4 seconds
 
     return () => clearInterval(interval);
@@ -486,69 +502,54 @@ const Dashboard = () => {
           </div>
         )}
 
-        {/* Banner Carousel Section */}
-        <div className="mb-4 sm:mb-5 md:mb-6">
-          <div className="relative w-full rounded-lg sm:rounded-xl md:rounded-2xl overflow-hidden shadow-lg">
-            <div className="relative h-36 sm:h-44 md:h-52 lg:h-64 overflow-hidden">
-              {bannerData.map((banner, index) => (
-                <div
-                  key={index}
-                  className={`absolute inset-0 transition-opacity duration-700 ease-in-out ${index === currentBannerSlide ? 'opacity-100' : 'opacity-0'
-                    }`}
-                >
-                  {/* Banner Image */}
-                  <img
-                    src={failedBannerImages.has(index)
-                      ? 'https://via.placeholder.com/1200x600/1e3a8a/ffffff?text=D%27Vision+Academy'
-                      : banner.image}
-                    alt={banner.title}
-                    className="w-full h-full object-cover"
-                    loading="lazy"
-                    onError={(e) => {
-                      // Prevent infinite loop - only set fallback once per image
-                      if (!failedBannerImages.has(index)) {
-                        setFailedBannerImages(prev => new Set([...prev, index]));
-                        e.target.src = 'https://via.placeholder.com/1200x600/1e3a8a/ffffff?text=D%27Vision+Academy';
-                      } else {
-                        // If fallback also fails, hide the image to prevent continuous calls
-                        e.target.style.display = 'none';
-                      }
-                    }}
-                  />
-                  {/* Overlay for better text readability */}
-                  <div className="absolute inset-0 bg-gradient-to-r from-[var(--app-dark-blue)]/85 via-[var(--app-dark-blue)]/70 to-[var(--app-dark-blue)]/40"></div>
+        {/* Banner Section - Horizontal Scrollable with Auto-Slide */}
+        <div className="mb-4 sm:mb-5 md:mb-6 -mx-3 sm:-mx-4 md:-mx-6 px-3 sm:px-4 md:px-6">
+          <div
+            ref={bannerScrollRef}
+            className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory scroll-smooth"
+          >
+            {bannerData.map((banner, index) => (
+              <div
+                key={index}
+                className="relative flex-none w-[90%] sm:w-[85%] md:w-[80%] rounded-lg sm:rounded-xl md:rounded-2xl overflow-hidden shadow-lg snap-center h-40 sm:h-48 md:h-56 lg:h-64"
+              >
+                {/* Banner Image */}
+                <img
+                  src={failedBannerImages.has(index)
+                    ? 'https://via.placeholder.com/1200x600/1e3a8a/ffffff?text=D%27Vision+Academy'
+                    : banner.image}
+                  alt={banner.title}
+                  className="w-full h-full object-cover"
+                  loading="lazy"
+                  onError={(e) => {
+                    if (!failedBannerImages.has(index)) {
+                      setFailedBannerImages(prev => new Set([...prev, index]));
+                      e.target.src = 'https://via.placeholder.com/1200x600/1e3a8a/ffffff?text=D%27Vision+Academy';
+                    } else {
+                      e.target.style.display = 'none';
+                    }
+                  }}
+                />
 
-                  {/* Banner Text Content */}
-                  <div className="absolute inset-0 flex items-center px-4 sm:px-6 md:px-8 lg:px-12">
-                    <div className="max-w-2xl animate-slide-in-up">
-                      <h2 className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-extrabold text-white mb-2 sm:mb-3 leading-tight drop-shadow-lg">
-                        {banner.title}
-                      </h2>
-                      <p className="text-sm sm:text-base md:text-lg text-white font-semibold mb-2 sm:mb-3 drop-shadow-md">
+                {/* Overlay with combined gradients for better text readability */}
+                <div className="absolute inset-0 bg-gradient-to-r from-[var(--app-dark-blue)]/85 via-[var(--app-dark-blue)]/60 to-transparent"></div>
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
+
+                {/* Banner Text Content - Positioned at Bottom */}
+                <div className="absolute inset-0 flex items-end px-4 sm:px-6 md:px-8 lg:px-12 pb-5 sm:pb-6 md:pb-8">
+                  <div className="max-w-2xl animate-fade-in-up">
+                    <h2 className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-extrabold text-white mb-1.5 sm:mb-2 leading-tight drop-shadow-lg lg:max-w-md">
+                      {banner.title}
+                    </h2>
+                    {banner.subtitle && (
+                      <p className="text-sm sm:text-base md:text-lg text-white/95 font-semibold line-clamp-2 lg:max-w-md drop-shadow-md">
                         {banner.subtitle}
                       </p>
-                      <p className="text-xs sm:text-sm md:text-base text-white/95 font-medium drop-shadow-sm">
-                        {banner.description}
-                      </p>
-                    </div>
+                    )}
                   </div>
                 </div>
-              ))}
-            </div>
-            {/* Pagination Dots */}
-            <div className="absolute bottom-3 sm:bottom-4 left-1/2 transform -translate-x-1/2 flex gap-2 z-10">
-              {bannerData.map((_, index) => (
-                <button
-                  key={index}
-                  onClick={() => setCurrentBannerSlide(index)}
-                  className={`h-2 rounded-full transition-all duration-300 ${index === currentBannerSlide
-                    ? 'bg-white w-8 shadow-md'
-                    : 'bg-white/50 w-2 hover:bg-white/70'
-                    }`}
-                  aria-label={`Go to banner ${index + 1}`}
-                />
-              ))}
-            </div>
+              </div>
+            ))}
           </div>
         </div>
 
@@ -585,7 +586,7 @@ const Dashboard = () => {
                     minute: '2-digit',
                     hour12: true
                   });
-                  
+
                   // Format end time if available
                   let endTimeStr = null;
                   if (liveClass.scheduledEndTime) {

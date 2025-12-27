@@ -11,7 +11,7 @@ const Classes = () => {
   const [searchTerm, setSearchTerm] = useState('')
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
-  
+
   // Pagination state
   const [pagination, setPagination] = useState({
     page: 1,
@@ -19,7 +19,7 @@ const Classes = () => {
     total: 0,
     count: 0
   })
-  
+
   // Statistics state
   const [statistics, setStatistics] = useState({
     totalClasses: 0,
@@ -54,7 +54,7 @@ const Classes = () => {
         page,
         limit: 10
       }
-      if (searchTerm) params.search = searchTerm
+      if (searchTerm) params.search = searchTerm.trim()
 
       const response = await classAPI.getAll(params)
       if (response.success && response.data?.classes) {
@@ -72,7 +72,7 @@ const Classes = () => {
           createDateTime: classItem.createdAt ? new Date(classItem.createdAt).toLocaleString() : ''
         }))
         setClasses(mappedClasses)
-        
+
         // Update pagination
         setPagination({
           page: response.page || 1,
@@ -105,7 +105,7 @@ const Classes = () => {
     }, 500)
     return () => clearTimeout(timer)
   }, [searchTerm])
-  
+
   // Handle page change
   const handlePageChange = (newPage) => {
     if (newPage >= 1 && newPage <= pagination.pages) {
@@ -257,135 +257,133 @@ const Classes = () => {
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-2 sm:px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    <th className="px-2 sm:px-3 py-2 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
                       Type
                     </th>
-                    <th className="px-2 sm:px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    <th className="px-2 sm:px-3 py-2 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
                       Class / Name
                     </th>
-                    <th className="px-2 sm:px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    <th className="px-2 sm:px-3 py-2 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
                       Board / Description
                     </th>
-                    <th className="px-2 sm:px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider hidden sm:table-cell">
+                    <th className="px-2 sm:px-3 py-2 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider hidden sm:table-cell">
                       Class Code
                     </th>
-                    <th className="px-2 sm:px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    <th className="px-2 sm:px-3 py-2 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
                       Status
                     </th>
-                    <th className="px-2 sm:px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider hidden lg:table-cell">
-                      Create Date & Time
+                    <th className="px-2 sm:px-3 py-2 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider hidden lg:table-cell">
+                      Created Date & Time
                     </th>
-                    <th className="px-2 sm:px-3 py-2 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    <th className="px-2 sm:px-3 py-2 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
                       Actions
                     </th>
                   </tr>
                 </thead>
-              <tbody className="bg-white divide-y divide-gray-100">
-                {error ? (
-                  <tr>
-                    <td colSpan="6" className="px-3 sm:px-4 md:px-6 py-8 sm:py-12 md:py-16 text-center">
-                      <div className="flex flex-col items-center justify-center">
-                        <div className="h-12 w-12 sm:h-14 sm:w-14 md:h-16 md:w-16 rounded-full bg-red-100 flex items-center justify-center mb-3 sm:mb-4">
-                          <svg className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:w-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                        </div>
-                        <p className="text-red-600 font-medium text-sm sm:text-base md:text-lg">{error}</p>
-                        <button
-                          onClick={fetchClasses}
-                          className="mt-3 sm:mt-4 px-3 sm:px-4 py-2 bg-dvision-blue text-white rounded-lg hover:bg-dvision-blue-dark transition-colors text-xs sm:text-sm"
-                        >
-                          Retry
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ) : filteredClasses.length === 0 ? (
-                  <tr>
-                    <td colSpan="6" className="px-3 sm:px-4 py-6 sm:py-8 text-center">
-                      <div className="flex flex-col items-center justify-center">
-                        <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-gray-100 flex items-center justify-center mb-2 sm:mb-3">
-                          <svg className="w-5 h-5 sm:w-6 sm:h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z" />
-                          </svg>
-                        </div>
-                        <p className="text-gray-500 font-medium text-xs sm:text-sm">{searchTerm ? 'No classes found matching your search.' : 'No classes found.'}</p>
-                        <p className="text-gray-400 text-[10px] sm:text-xs mt-1">{searchTerm ? 'Try adjusting your search criteria.' : 'Click "Add Class" to create one.'}</p>
-                      </div>
-                    </td>
-                  </tr>
-                ) : (
-                  filteredClasses.map((classItem) => (
-                    <tr key={classItem.id || classItem._id} className="hover:bg-gray-50 transition-all duration-200">
-                      <td className="px-2 sm:px-3 py-2 whitespace-nowrap">
-                        <span className={`px-2 py-0.5 inline-flex text-[10px] sm:text-xs font-semibold rounded-lg ${
-                          classItem.type === 'preparation'
-                            ? 'bg-purple-100 text-purple-700'
-                            : 'bg-blue-100 text-blue-700'
-                        }`}>
-                          {classItem.type === 'preparation' ? 'Prep' : 'Regular'}
-                        </span>
-                      </td>
-                      <td className="px-2 sm:px-3 py-2 whitespace-nowrap">
-                        <div className="text-xs font-semibold text-gray-900">
-                          {classItem.type === 'preparation' ? classItem.name : `Class ${classItem.class}`}
-                        </div>
-                      </td>
-                      <td className="px-2 sm:px-3 py-2">
-                        <div className="text-xs text-gray-600">
-                          {classItem.type === 'preparation' 
-                            ? (classItem.description || '-')
-                            : classItem.board
-                          }
-                        </div>
-                      </td>
-                      <td className="px-2 sm:px-3 py-2 whitespace-nowrap hidden sm:table-cell">
-                        <span className="px-2 py-0.5 inline-flex text-[10px] sm:text-xs font-medium rounded-lg bg-blue-50 text-[#1e3a5f] font-mono">
-                          {classItem.classCode}
-                        </span>
-                      </td>
-                      <td className="px-2 sm:px-3 py-2 whitespace-nowrap">
-                        <span className={`px-2 py-0.5 inline-flex text-[10px] sm:text-xs font-semibold rounded-lg ${
-                          classItem.status === 'Active'
-                            ? 'bg-green-100 text-green-700'
-                            : 'bg-red-100 text-red-700'
-                        }`}>
-                          {classItem.status}
-                        </span>
-                      </td>
-                      <td className="px-2 sm:px-3 py-2 whitespace-nowrap hidden lg:table-cell">
-                        <div className="text-[10px] sm:text-xs text-gray-500">{classItem.createDateTime}</div>
-                      </td>
-                      <td className="px-2 sm:px-3 py-2 whitespace-nowrap text-right text-xs font-medium">
-                        <div className="flex items-center justify-end space-x-1 sm:space-x-2">
-                          <button
-                            onClick={() => navigate(`/admin/classes/edit/${classItem.id || classItem._id}`)}
-                            className="p-1.5 sm:p-2 text-[#1e3a5f] hover:bg-blue-50 rounded-lg transition-all duration-200"
-                            title="Edit"
-                          >
-                            <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                <tbody className="bg-white divide-y divide-gray-100">
+                  {error ? (
+                    <tr>
+                      <td colSpan="7" className="px-3 sm:px-4 md:px-6 py-8 sm:py-12 md:py-16 text-center">
+                        <div className="flex flex-col items-center justify-center">
+                          <div className="h-12 w-12 sm:h-14 sm:w-14 md:h-16 md:w-16 rounded-full bg-red-100 flex items-center justify-center mb-3 sm:mb-4">
+                            <svg className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:w-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                             </svg>
-                          </button>
+                          </div>
+                          <p className="text-red-600 font-medium text-sm sm:text-base md:text-lg">{error}</p>
                           <button
-                            onClick={() => handleDeleteClick(classItem.id || classItem._id)}
-                            className="p-1.5 sm:p-2 text-red-600 hover:bg-red-50 rounded-lg transition-all duration-200"
-                            title="Delete"
+                            onClick={fetchClasses}
+                            className="mt-3 sm:mt-4 px-3 sm:px-4 py-2 bg-dvision-blue text-white rounded-lg hover:bg-dvision-blue-dark transition-colors text-xs sm:text-sm"
                           >
-                            <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
+                            Retry
                           </button>
                         </div>
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                  ) : filteredClasses.length === 0 ? (
+                    <tr>
+                      <td colSpan="7" className="px-3 sm:px-4 py-6 sm:py-8 text-center">
+                        <div className="flex flex-col items-center justify-center">
+                          <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-gray-100 flex items-center justify-center mb-2 sm:mb-3">
+                            <svg className="w-5 h-5 sm:w-6 sm:h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z" />
+                            </svg>
+                          </div>
+                          <p className="text-gray-500 font-medium text-xs sm:text-sm">{searchTerm ? 'No classes found matching your search.' : 'No classes found.'}</p>
+                          <p className="text-gray-400 text-[10px] sm:text-xs mt-1">{searchTerm ? 'Try adjusting your search criteria.' : 'Click "Add Class" to create one.'}</p>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredClasses.map((classItem) => (
+                      <tr key={classItem.id || classItem._id} className="hover:bg-gray-50 transition-all duration-200">
+                        <td className="px-2 sm:px-3 py-2 whitespace-nowrap text-center">
+                          <span className={`px-2 py-0.5 inline-flex text-[10px] sm:text-xs font-semibold rounded-lg ${classItem.type === 'preparation'
+                            ? 'bg-purple-100 text-purple-700'
+                            : 'bg-blue-100 text-blue-700'
+                            }`}>
+                            {classItem.type === 'preparation' ? 'Prep' : 'Regular'}
+                          </span>
+                        </td>
+                        <td className="px-2 sm:px-3 py-2 whitespace-nowrap text-center">
+                          <div className="text-xs font-semibold text-gray-900">
+                            {classItem.type === 'preparation' ? classItem.name : `Class ${classItem.class}`}
+                          </div>
+                        </td>
+                        <td className="px-2 sm:px-3 py-2 text-center">
+                          <div className="text-xs text-gray-600">
+                            {classItem.type === 'preparation'
+                              ? (classItem.description || '-')
+                              : classItem.board
+                            }
+                          </div>
+                        </td>
+                        <td className="px-2 sm:px-3 py-2 whitespace-nowrap hidden sm:table-cell text-center">
+                          <span className="px-2 py-0.5 inline-flex text-[10px] sm:text-xs font-medium rounded-lg bg-blue-50 text-[#1e3a5f] font-mono">
+                            {classItem.classCode}
+                          </span>
+                        </td>
+                        <td className="px-2 sm:px-3 py-2 whitespace-nowrap text-center">
+                          <span className={`px-2 py-0.5 inline-flex text-[10px] sm:text-xs font-semibold rounded-lg ${classItem.status === 'Active'
+                            ? 'bg-green-100 text-green-700'
+                            : 'bg-red-100 text-red-700'
+                            }`}>
+                            {classItem.status}
+                          </span>
+                        </td>
+                        <td className="px-2 sm:px-3 py-2 whitespace-nowrap hidden lg:table-cell text-center">
+                          <div className="text-[10px] sm:text-xs text-gray-500">{classItem.createDateTime}</div>
+                        </td>
+                        <td className="px-2 sm:px-3 py-2 whitespace-nowrap text-center text-xs font-medium">
+                          <div className="flex items-center justify-center space-x-1 sm:space-x-2">
+                            <button
+                              onClick={() => navigate(`/admin/classes/edit/${classItem.id || classItem._id}`)}
+                              className="p-1.5 sm:p-2 text-[#1e3a5f] hover:bg-blue-50 rounded-lg transition-all duration-200"
+                              title="Edit"
+                            >
+                              <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                              </svg>
+                            </button>
+                            <button
+                              onClick={() => handleDeleteClick(classItem.id || classItem._id)}
+                              className="p-1.5 sm:p-2 text-red-600 hover:bg-red-50 rounded-lg transition-all duration-200"
+                              title="Delete"
+                            >
+                              <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
             )}
           </div>
-          
+
           {/* Pagination Controls */}
           {!isLoading && pagination.pages > 1 && (
             <div className="px-3 sm:px-4 py-3 sm:py-4 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-3">
@@ -400,11 +398,10 @@ const Classes = () => {
                 <button
                   onClick={() => handlePageChange(pagination.page - 1)}
                   disabled={pagination.page === 1}
-                  className={`px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-all ${
-                    pagination.page === 1
-                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                      : 'bg-[#1e3a5f] text-white hover:bg-[#2a4a6f]'
-                  }`}
+                  className={`px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-all ${pagination.page === 1
+                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                    : 'bg-[#1e3a5f] text-white hover:bg-[#2a4a6f]'
+                    }`}
                 >
                   Previous
                 </button>
@@ -424,11 +421,10 @@ const Classes = () => {
                       <button
                         key={pageNum}
                         onClick={() => handlePageChange(pageNum)}
-                        className={`px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-all ${
-                          pagination.page === pageNum
-                            ? 'bg-[#1e3a5f] text-white'
-                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                        }`}
+                        className={`px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-all ${pagination.page === pageNum
+                          ? 'bg-[#1e3a5f] text-white'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          }`}
                       >
                         {pageNum}
                       </button>
@@ -438,11 +434,10 @@ const Classes = () => {
                 <button
                   onClick={() => handlePageChange(pagination.page + 1)}
                   disabled={pagination.page === pagination.pages}
-                  className={`px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-all ${
-                    pagination.page === pagination.pages
-                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                      : 'bg-[#1e3a5f] text-white hover:bg-[#2a4a6f]'
-                  }`}
+                  className={`px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-all ${pagination.page === pagination.pages
+                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                    : 'bg-[#1e3a5f] text-white hover:bg-[#2a4a6f]'
+                    }`}
                 >
                   Next
                 </button>

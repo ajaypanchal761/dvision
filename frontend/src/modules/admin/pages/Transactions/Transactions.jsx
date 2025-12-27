@@ -13,7 +13,7 @@ const Transactions = () => {
   const [filterStatus, setFilterStatus] = useState('')
   const [filterStartDate, setFilterStartDate] = useState('')
   const [filterEndDate, setFilterEndDate] = useState('')
-  
+
   // Pagination state
   const [pagination, setPagination] = useState({
     page: 1,
@@ -28,7 +28,7 @@ const Transactions = () => {
       const params = {}
       if (filterStartDate) params.startDate = filterStartDate
       if (filterEndDate) params.endDate = filterEndDate
-      
+
       const statsResponse = await paymentAPI.getStats(params)
       if (statsResponse.success && statsResponse.data?.stats) {
         setStats(statsResponse.data.stats)
@@ -49,13 +49,13 @@ const Transactions = () => {
       if (filterStatus) params.status = filterStatus
       if (filterStartDate) params.startDate = filterStartDate
       if (filterEndDate) params.endDate = filterEndDate
-      if (searchTerm) params.search = searchTerm
-      
+      if (searchTerm) params.search = searchTerm.trim()
+
       const paymentsResponse = await paymentAPI.getAll(params)
-      
+
       if (paymentsResponse.success && paymentsResponse.data?.payments) {
         setPayments(paymentsResponse.data.payments)
-        
+
         // Update pagination
         setPagination({
           page: paymentsResponse.page || 1,
@@ -85,7 +85,7 @@ const Transactions = () => {
     }, 500)
     return () => clearTimeout(timer)
   }, [searchTerm, filterStatus, filterStartDate, filterEndDate])
-  
+
   // Handle page change
   const handlePageChange = (newPage) => {
     if (newPage >= 1 && newPage <= pagination.pages) {
@@ -253,26 +253,26 @@ const Transactions = () => {
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-2 sm:px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    <th className="px-2 sm:px-3 py-2 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
                       Student
                     </th>
-                    <th className="px-2 sm:px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider hidden sm:table-cell">
+                    <th className="px-2 sm:px-3 py-2 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider hidden sm:table-cell">
                       Plan
                     </th>
-                    <th className="px-2 sm:px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider hidden md:table-cell">
+                    <th className="px-2 sm:px-3 py-2 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider hidden md:table-cell">
                       Order ID
                     </th>
-                    <th className="px-2 sm:px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider hidden lg:table-cell">
+                    <th className="px-2 sm:px-3 py-2 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider hidden lg:table-cell">
                       Payment ID
                     </th>
-                    <th className="px-2 sm:px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    <th className="px-2 sm:px-3 py-2 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
                       Amount
                     </th>
-                    <th className="px-2 sm:px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    <th className="px-2 sm:px-3 py-2 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
                       Status
                     </th>
-                    <th className="px-2 sm:px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider hidden xl:table-cell">
-                      Date
+                    <th className="px-2 sm:px-3 py-2 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider hidden xl:table-cell">
+                      Created Date & Time
                     </th>
                   </tr>
                 </thead>
@@ -293,37 +293,36 @@ const Transactions = () => {
                   ) : (
                     filteredPayments.map((payment) => (
                       <tr key={payment._id} className="hover:bg-gray-50 transition-all duration-200">
-                        <td className="px-2 sm:px-3 py-2 whitespace-nowrap">
+                        <td className="px-2 sm:px-3 py-2 whitespace-nowrap text-center">
                           <div className="text-xs font-semibold text-gray-900">{payment.student?.name || 'N/A'}</div>
                           <div className="text-[10px] text-gray-500">{payment.student?.phone || ''}</div>
                         </td>
-                        <td className="px-2 sm:px-3 py-2 whitespace-nowrap hidden sm:table-cell">
+                        <td className="px-2 sm:px-3 py-2 whitespace-nowrap hidden sm:table-cell text-center">
                           <div className="text-xs text-gray-900">{payment.plan?.name || 'N/A'}</div>
                           <div className="text-[10px] text-gray-500 capitalize">{payment.plan?.duration || ''}</div>
                         </td>
-                        <td className="px-2 sm:px-3 py-2 whitespace-nowrap hidden md:table-cell">
+                        <td className="px-2 sm:px-3 py-2 whitespace-nowrap hidden md:table-cell text-center">
                           <div className="text-[10px] sm:text-xs text-gray-600 font-mono">{payment.cashfreeOrderId || 'N/A'}</div>
                         </td>
-                        <td className="px-2 sm:px-3 py-2 whitespace-nowrap hidden lg:table-cell">
+                        <td className="px-2 sm:px-3 py-2 whitespace-nowrap hidden lg:table-cell text-center">
                           <div className="text-[10px] sm:text-xs text-gray-600 font-mono">{payment.cashfreePaymentId || 'N/A'}</div>
                         </td>
-                        <td className="px-2 sm:px-3 py-2 whitespace-nowrap">
+                        <td className="px-2 sm:px-3 py-2 whitespace-nowrap text-center">
                           <div className="text-xs font-semibold text-gray-900">{formatCurrency(payment.amount)}</div>
                         </td>
-                        <td className="px-2 sm:px-3 py-2 whitespace-nowrap">
-                          <span className={`px-2 py-0.5 inline-flex text-[10px] sm:text-xs font-semibold rounded-lg ${
-                            payment.status === 'completed'
-                              ? 'bg-green-100 text-green-700'
-                              : payment.status === 'pending'
+                        <td className="px-2 sm:px-3 py-2 whitespace-nowrap text-center">
+                          <span className={`px-2 py-0.5 inline-flex text-[10px] sm:text-xs font-semibold rounded-lg ${payment.status === 'completed'
+                            ? 'bg-green-100 text-green-700'
+                            : payment.status === 'pending'
                               ? 'bg-yellow-100 text-yellow-700'
                               : payment.status === 'failed'
-                              ? 'bg-red-100 text-red-700'
-                              : 'bg-gray-100 text-gray-700'
-                          }`}>
+                                ? 'bg-red-100 text-red-700'
+                                : 'bg-gray-100 text-gray-700'
+                            }`}>
                             {payment.status}
                           </span>
                         </td>
-                        <td className="px-2 sm:px-3 py-2 whitespace-nowrap hidden xl:table-cell">
+                        <td className="px-2 sm:px-3 py-2 whitespace-nowrap hidden xl:table-cell text-center">
                           <div className="text-[10px] sm:text-xs text-gray-500">{formatDate(payment.createdAt)}</div>
                         </td>
                       </tr>
@@ -333,7 +332,7 @@ const Transactions = () => {
               </table>
             )}
           </div>
-          
+
           {/* Pagination Controls */}
           {!isLoading && pagination.pages > 1 && (
             <div className="px-3 sm:px-4 py-3 sm:py-4 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-3">
@@ -348,11 +347,10 @@ const Transactions = () => {
                 <button
                   onClick={() => handlePageChange(pagination.page - 1)}
                   disabled={pagination.page === 1}
-                  className={`px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-all ${
-                    pagination.page === 1
-                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                      : 'bg-[#1e3a5f] text-white hover:bg-[#2a4a6f]'
-                  }`}
+                  className={`px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-all ${pagination.page === 1
+                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                    : 'bg-[#1e3a5f] text-white hover:bg-[#2a4a6f]'
+                    }`}
                 >
                   Previous
                 </button>
@@ -372,11 +370,10 @@ const Transactions = () => {
                       <button
                         key={pageNum}
                         onClick={() => handlePageChange(pageNum)}
-                        className={`px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-all ${
-                          pagination.page === pageNum
-                            ? 'bg-[#1e3a5f] text-white'
-                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                        }`}
+                        className={`px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-all ${pagination.page === pageNum
+                          ? 'bg-[#1e3a5f] text-white'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          }`}
                       >
                         {pageNum}
                       </button>
@@ -386,11 +383,10 @@ const Transactions = () => {
                 <button
                   onClick={() => handlePageChange(pagination.page + 1)}
                   disabled={pagination.page === pagination.pages}
-                  className={`px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-all ${
-                    pagination.page === pagination.pages
-                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                      : 'bg-[#1e3a5f] text-white hover:bg-[#2a4a6f]'
-                  }`}
+                  className={`px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-all ${pagination.page === pagination.pages
+                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                    : 'bg-[#1e3a5f] text-white hover:bg-[#2a4a6f]'
+                    }`}
                 >
                   Next
                 </button>

@@ -12,7 +12,7 @@ exports.getSubscriptionPlanStatistics = asyncHandler(async (req, res) => {
   const activePlans = await SubscriptionPlan.countDocuments({ isActive: true });
   const regularPlans = await SubscriptionPlan.countDocuments({ type: 'regular' });
   const preparationPlans = await SubscriptionPlan.countDocuments({ type: 'preparation' });
-  
+
   res.status(200).json({
     success: true,
     data: {
@@ -51,8 +51,8 @@ exports.getAllSubscriptionPlans = asyncHandler(async (req, res, next) => {
   // Add search functionality
   if (search) {
     query.$or = [
-      { name: { $regex: search, $options: 'i' } },
-      { description: { $regex: search, $options: 'i' } }
+      { name: { $regex: search.trim(), $options: 'i' } },
+      { description: { $regex: search.trim(), $options: 'i' } }
     ];
   }
 
@@ -663,8 +663,7 @@ exports.getPublicSubscriptionPlans = asyncHandler(async (req, res, next) => {
         isActive: true,
         type: 'regular',
         board: board,
-        classes: { $in: [classNum] }, // Check if the student's class is in the plan's classes array
-        duration: { $ne: 'demo' } // Exclude demo plans from student view
+        classes: { $in: [classNum] } // Check if the student's class is in the plan's classes array
       };
 
       console.log('Regular Query:', regularQuery);
@@ -681,8 +680,7 @@ exports.getPublicSubscriptionPlans = asyncHandler(async (req, res, next) => {
   // Build query for preparation plans (always show all active preparation plans, but exclude demo)
   const preparationQuery = {
     isActive: true,
-    type: 'preparation',
-    duration: { $ne: 'demo' } // Exclude demo plans from student view
+    type: 'preparation'
   };
 
   console.log('Preparation Query:', preparationQuery);

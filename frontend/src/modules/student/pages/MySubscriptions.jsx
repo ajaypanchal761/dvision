@@ -173,25 +173,6 @@ const MySubscriptions = () => {
 
                       {/* Subscription Details */}
                       <div className="space-y-2 mb-3">
-                        <div className="flex items-center justify-between text-xs sm:text-sm">
-                          <span className="text-[var(--app-black)]/70 flex items-center gap-1.5">
-                            <FiClock className="text-[var(--app-dark-blue)] text-sm" />
-                            <span>Expires:</span>
-                          </span>
-                          <span className={`font-semibold ${expiringSoon ? 'text-[var(--app-orange)]' : 'text-[var(--app-black)]'}`}>
-                            {subscription.endDate ? formatDate(subscription.endDate) : 'N/A'}
-                          </span>
-                        </div>
-
-                        {daysRemaining > 0 && (
-                          <div className="flex items-center justify-between text-xs sm:text-sm">
-                            <span className="text-[var(--app-black)]/70">Days Remaining:</span>
-                            <span className={`font-semibold ${expiringSoon ? 'text-[var(--app-orange)]' : 'text-[var(--app-black)]'}`}>
-                              {daysRemaining} {daysRemaining === 1 ? 'day' : 'days'}
-                            </span>
-                          </div>
-                        )}
-
                         {subscription.startDate && (
                           <div className="flex items-center justify-between text-xs sm:text-sm">
                             <span className="text-[var(--app-black)]/70">Start Date:</span>
@@ -215,6 +196,25 @@ const MySubscriptions = () => {
                               {plan.duration === 'demo'
                                 ? `${plan.validityDays || 7} Days`
                                 : plan.duration}
+                            </span>
+                          </div>
+                        )}
+
+                        <div className="flex items-center justify-between text-xs sm:text-sm">
+                          <span className="text-[var(--app-black)]/70 flex items-center gap-1.5">
+                            <FiClock className="text-[var(--app-dark-blue)] text-sm" />
+                            <span>Expires:</span>
+                          </span>
+                          <span className={`font-semibold ${expiringSoon ? 'text-[var(--app-orange)]' : 'text-[var(--app-black)]'}`}>
+                            {subscription.endDate ? formatDate(subscription.endDate) : 'N/A'}
+                          </span>
+                        </div>
+
+                        {daysRemaining > 0 && (
+                          <div className="flex items-center justify-between text-xs sm:text-sm">
+                            <span className="text-[var(--app-black)]/70">Days Remaining:</span>
+                            <span className={`font-semibold ${expiringSoon ? 'text-[var(--app-orange)]' : 'text-[var(--app-black)]'}`}>
+                              {daysRemaining} {daysRemaining === 1 ? 'day' : 'days'}
                             </span>
                           </div>
                         )}
@@ -300,25 +300,6 @@ const MySubscriptions = () => {
 
                       {/* Subscription Details */}
                       <div className="space-y-2 mb-3">
-                        <div className="flex items-center justify-between text-xs sm:text-sm">
-                          <span className="text-[var(--app-black)]/70 flex items-center gap-1.5">
-                            <FiClock className="text-[var(--app-dark-blue)] text-sm" />
-                            <span>Expires:</span>
-                          </span>
-                          <span className={`font-semibold ${expiringSoon ? 'text-[var(--app-orange)]' : 'text-[var(--app-black)]'}`}>
-                            {subscription.endDate ? formatDate(subscription.endDate) : 'N/A'}
-                          </span>
-                        </div>
-
-                        {daysRemaining > 0 && (
-                          <div className="flex items-center justify-between text-xs sm:text-sm">
-                            <span className="text-[var(--app-black)]/70">Days Remaining:</span>
-                            <span className={`font-semibold ${expiringSoon ? 'text-[var(--app-orange)]' : 'text-[var(--app-black)]'}`}>
-                              {daysRemaining} {daysRemaining === 1 ? 'day' : 'days'}
-                            </span>
-                          </div>
-                        )}
-
                         {subscription.startDate && (
                           <div className="flex items-center justify-between text-xs sm:text-sm">
                             <span className="text-[var(--app-black)]/70">Start Date:</span>
@@ -342,6 +323,25 @@ const MySubscriptions = () => {
                               {plan.duration === 'demo'
                                 ? `${plan.validityDays || 7} Days`
                                 : plan.duration}
+                            </span>
+                          </div>
+                        )}
+
+                        <div className="flex items-center justify-between text-xs sm:text-sm">
+                          <span className="text-[var(--app-black)]/70 flex items-center gap-1.5">
+                            <FiClock className="text-[var(--app-dark-blue)] text-sm" />
+                            <span>Expires:</span>
+                          </span>
+                          <span className={`font-semibold ${expiringSoon ? 'text-[var(--app-orange)]' : 'text-[var(--app-black)]'}`}>
+                            {subscription.endDate ? formatDate(subscription.endDate) : 'N/A'}
+                          </span>
+                        </div>
+
+                        {daysRemaining > 0 && (
+                          <div className="flex items-center justify-between text-xs sm:text-sm">
+                            <span className="text-[var(--app-black)]/70">Days Remaining:</span>
+                            <span className={`font-semibold ${expiringSoon ? 'text-[var(--app-orange)]' : 'text-[var(--app-black)]'}`}>
+                              {daysRemaining} {daysRemaining === 1 ? 'day' : 'days'}
                             </span>
                           </div>
                         )}

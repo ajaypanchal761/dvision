@@ -953,7 +953,7 @@ function App() {
           <Route path={TeacherRoutes.QUIZ_RESULTS} element={<TeacherQuizResults />} />
           <Route path="/teacher/content/:type" element={<TeacherContentView />} />
 
-          {/* Agent Routes - /teacher/agent/* */}
+          {/* Agent Routes - /agent/* */}
           <Route path={TeacherRoutes.AGENT_DASHBOARD} element={<AgentDashboard />} />
           <Route path={TeacherRoutes.AGENT_STATISTICS} element={<AgentStatistics />} />
           <Route path={TeacherRoutes.AGENT_REFERRALS} element={<AgentReferrals />} />
