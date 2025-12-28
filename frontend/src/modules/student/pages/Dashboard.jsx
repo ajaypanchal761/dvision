@@ -611,9 +611,14 @@ const Dashboard = () => {
                           <h3 className="text-base sm:text-lg font-bold text-gray-800 mb-1.5">
                             {liveClass.title}
                           </h3>
-                          <p className="text-gray-600 text-xs sm:text-sm mb-2.5 font-medium">
+                          <p className="text-gray-600 text-xs sm:text-sm mb-1 font-medium">
                             {liveClass.subject || 'Subject'} · {liveClass.teacher || 'Teacher'}
                           </p>
+                          {liveClass.teacherSubjects && liveClass.teacherSubjects.length > 0 && (
+                            <p className="text-[10px] sm:text-xs text-gray-500 mb-2.5 italic">
+                              Expert in: {liveClass.teacherSubjects.join(', ')}
+                            </p>
+                          )}
                           <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs sm:text-sm text-gray-600">
                             <div className="flex items-center gap-1.5">
                               <div className="p-1 bg-[var(--app-dark-blue)]/10 rounded-lg">

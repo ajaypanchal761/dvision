@@ -25,6 +25,7 @@ const StudentTermsAndConditions = lazy(() => import('./modules/student/pages/Ter
 const StudentLiveClasses = lazy(() => import('./modules/student/pages/LiveClasses'));
 const StudentLiveClassRoom = lazy(() => import('./modules/student/pages/LiveClassRoom'));
 const StudentRecordings = lazy(() => import('./modules/student/pages/Recordings'));
+const StudentLiveClassView = lazy(() => import('./modules/student/pages/LiveClassView'));
 const StudentTimetable = lazy(() => import('./modules/student/pages/Timetable'));
 const StudentDoubts = lazy(() => import('./modules/student/pages/Doubts'));
 const StudentQuizzes = lazy(() => import('./modules/student/pages/Quizzes'));
@@ -286,7 +287,7 @@ function App() {
             path="/recording/:id"
             element={
               <StudentProtectedRoute>
-                <StudentRecordings />
+                <StudentLiveClassView />
               </StudentProtectedRoute>
             }
           />

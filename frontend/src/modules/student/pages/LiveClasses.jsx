@@ -231,7 +231,7 @@ const LiveClasses = () => {
               </button>
             </div>
           </div>
-          
+
           {/* Hidden Date Input */}
           <input
             type="date"
@@ -241,7 +241,7 @@ const LiveClasses = () => {
             className="hidden"
             id="date-picker-hidden"
           />
-          
+
           {/* Date Picker Modal */}
           {showDatePicker && (
             <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-lg border border-gray-200 p-4 z-50">
@@ -329,7 +329,7 @@ const LiveClasses = () => {
                       {liveNow.map((liveClass) => {
                         const scheduledTime = new Date(liveClass.scheduledStartTime);
                         const { date, time: startTime } = formatDateTime(scheduledTime.toISOString());
-                        
+
                         // Format end time if available
                         let endTimeDisplay = null;
                         if (liveClass.scheduledEndTime) {
@@ -341,16 +341,22 @@ const LiveClasses = () => {
                         return (
                           <div
                             key={liveClass._id}
-                            className="bg-white rounded-lg sm:rounded-xl p-3 sm:p-4 shadow-md hover:shadow-lg transition-all border-2 border-green-200"
+                            onClick={() => handleJoinClass(liveClass._id)}
+                            className="bg-white rounded-lg sm:rounded-xl p-3 sm:p-4 shadow-md hover:shadow-lg transition-all border-2 border-green-200 cursor-pointer"
                           >
                             <div className="flex items-start justify-between mb-3">
                               <div className="flex-1 min-w-0">
                                 <h3 className="text-base sm:text-lg font-bold text-gray-800 mb-1.5">
                                   {liveClass.title}
                                 </h3>
-                                <p className="text-gray-600 text-xs sm:text-sm mb-2.5 font-medium">
+                                <p className="text-gray-600 text-xs sm:text-sm mb-1 font-medium">
                                   {liveClass.subjectId?.name || 'Subject'} · {liveClass.teacherId?.name || 'Teacher'}
                                 </p>
+                                {liveClass.teacherId?.subjects && liveClass.teacherId.subjects.length > 0 && (
+                                  <p className="text-[10px] sm:text-xs text-gray-500 mb-2.5 italic">
+                                    Expert in: {liveClass.teacherId.subjects.join(', ')}
+                                  </p>
+                                )}
                                 <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs sm:text-sm text-gray-600">
                                   <div className="flex items-center gap-1.5">
                                     <div className="p-1 bg-[var(--app-dark-blue)]/10 rounded-lg">
@@ -398,7 +404,7 @@ const LiveClasses = () => {
                       {startsSoon.map((liveClass) => {
                         const scheduledTime = new Date(liveClass.scheduledStartTime);
                         const { date, time: startTime } = formatDateTime(scheduledTime.toISOString());
-                        
+
                         // Format end time if available
                         let endTimeDisplay = null;
                         if (liveClass.scheduledEndTime) {
@@ -410,16 +416,22 @@ const LiveClasses = () => {
                         return (
                           <div
                             key={liveClass._id}
-                            className="bg-white rounded-lg sm:rounded-xl p-3 sm:p-4 shadow-md hover:shadow-lg transition-all border border-gray-200"
+                            onClick={() => handleJoinClass(liveClass._id)}
+                            className="bg-white rounded-lg sm:rounded-xl p-3 sm:p-4 shadow-md hover:shadow-lg transition-all border border-gray-200 cursor-pointer"
                           >
                             <div className="flex items-start justify-between mb-3">
                               <div className="flex-1 min-w-0">
                                 <h3 className="text-base sm:text-lg font-bold text-gray-800 mb-1.5">
                                   {liveClass.title}
                                 </h3>
-                                <p className="text-gray-600 text-xs sm:text-sm mb-2.5 font-medium">
+                                <p className="text-gray-600 text-xs sm:text-sm mb-1 font-medium">
                                   {liveClass.subjectId?.name || 'Subject'} · {liveClass.teacherId?.name || 'Teacher'}
                                 </p>
+                                {liveClass.teacherId?.subjects && liveClass.teacherId.subjects.length > 0 && (
+                                  <p className="text-[10px] sm:text-xs text-gray-500 mb-2.5 italic">
+                                    Expert in: {liveClass.teacherId.subjects.join(', ')}
+                                  </p>
+                                )}
                                 <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs sm:text-sm text-gray-600">
                                   <div className="flex items-center gap-1.5">
                                     <div className="p-1 bg-[var(--app-dark-blue)]/10 rounded-lg">
@@ -457,7 +469,7 @@ const LiveClasses = () => {
                       {ended.map((liveClass) => {
                         const scheduledTime = new Date(liveClass.scheduledStartTime);
                         const { date, time: startTime } = formatDateTime(scheduledTime.toISOString());
-                        
+
                         // Format end time if available
                         let endTimeDisplay = null;
                         if (liveClass.scheduledEndTime) {
@@ -469,16 +481,22 @@ const LiveClasses = () => {
                         return (
                           <div
                             key={liveClass._id}
-                            className="bg-white rounded-lg sm:rounded-xl p-3 sm:p-4 shadow-md hover:shadow-lg transition-all border border-gray-200 opacity-75"
+                            onClick={() => liveClass.recording?.isAvailable && handlePlayRecording(liveClass)}
+                            className={`bg-white rounded-lg sm:rounded-xl p-3 sm:p-4 shadow-md hover:shadow-lg transition-all border border-gray-200 opacity-75 ${liveClass.recording?.isAvailable ? 'cursor-pointer' : ''}`}
                           >
                             <div className="flex items-start justify-between mb-3">
                               <div className="flex-1 min-w-0">
                                 <h3 className="text-base sm:text-lg font-bold text-gray-800 mb-1.5">
                                   {liveClass.title}
                                 </h3>
-                                <p className="text-gray-600 text-xs sm:text-sm mb-2.5 font-medium">
+                                <p className="text-gray-600 text-xs sm:text-sm mb-1 font-medium">
                                   {liveClass.subjectId?.name || 'Subject'} · {liveClass.teacherId?.name || 'Teacher'}
                                 </p>
+                                {liveClass.teacherId?.subjects && liveClass.teacherId.subjects.length > 0 && (
+                                  <p className="text-[10px] sm:text-xs text-gray-500 mb-2.5 italic">
+                                    Expert in: {liveClass.teacherId.subjects.join(', ')}
+                                  </p>
+                                )}
                                 <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs sm:text-sm text-gray-600">
                                   <div className="flex items-center gap-1.5">
                                     <div className="p-1 bg-[var(--app-dark-blue)]/10 rounded-lg">
@@ -541,7 +559,7 @@ const LiveClasses = () => {
                 const today = new Date();
                 today.setHours(0, 0, 0, 0);
                 selected.setHours(0, 0, 0, 0);
-                
+
                 if (selected < today) {
                   return 'No live classes on this date';
                 } else if (selected > today) {
@@ -560,7 +578,7 @@ const LiveClasses = () => {
                 const today = new Date();
                 today.setHours(0, 0, 0, 0);
                 selected.setHours(0, 0, 0, 0);
-                
+
                 if (selected < today) {
                   return 'There were no live classes scheduled for this date';
                 } else if (selected > today) {

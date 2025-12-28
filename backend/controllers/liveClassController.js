@@ -1049,7 +1049,7 @@ exports.getStudentLiveClasses = asyncHandler(async (req, res) => {
   let liveClasses = await LiveClass.find(query)
     .populate('classId', 'type class board name classCode')
     .populate('timetableId', 'dayOfWeek startTime endTime topic')
-    .populate('teacherId', 'name email phone profileImage')
+    .populate('teacherId', 'name email phone profileImage subjects')
     .populate('subjectId', 'name')
     .sort({ scheduledStartTime: -1 }); // Latest first (descending order)
 
@@ -1281,7 +1281,7 @@ exports.getUpcomingLiveClasses = asyncHandler(async (req, res) => {
 
   let liveClasses = await LiveClass.find(query)
     .populate('classId', 'type class board name classCode')
-    .populate('teacherId', 'name email phone profileImage')
+    .populate('teacherId', 'name email phone profileImage subjects')
     .populate('subjectId', 'name')
     .sort({ scheduledStartTime: -1 }) // Latest first (descending order)
     .limit(10); // Limit to 10 upcoming classes
@@ -1302,6 +1302,7 @@ exports.getUpcomingLiveClasses = asyncHandler(async (req, res) => {
       title: liveClass.title,
       teacher: liveClass.teacherId?.name || 'Teacher',
       teacherId: liveClass.teacherId?._id || liveClass.teacherId,
+      teacherSubjects: liveClass.teacherId?.subjects || [],
       subject: liveClass.subjectId?.name || 'Subject',
       subjectId: liveClass.subjectId?._id || liveClass.subjectId,
       image: null, // No image in live class model
@@ -1703,7 +1704,7 @@ exports.createLiveClass = asyncHandler(async (req, res) => {
   // Populate and return
   const populatedLiveClass = await LiveClass.findById(liveClass._id)
     .populate('timetableId', 'dayOfWeek startTime endTime topic')
-    .populate('teacherId', 'name email phone profileImage')
+    .populate('teacherId', 'name email phone profileImage subjects')
     .populate('classId', 'type class board name classCode')
     .populate('subjectId', 'name');
 
@@ -2937,7 +2938,7 @@ exports.getStudentRecordings = asyncHandler(async (req, res) => {
     status: 'completed',
     isActive: true
   })
-    .populate('teacherId', 'name email phone profileImage')
+    .populate('teacherId', 'name email phone profileImage subjects')
     .populate('subjectId', 'name')
     .populate('timetableId', 'dayOfWeek startTime endTime topic')
     .sort({ createdAt: -1 });
@@ -2977,18 +2978,20 @@ exports.getStudentRecordings = asyncHandler(async (req, res) => {
 // @access  Private
 exports.getRecording = asyncHandler(async (req, res) => {
   let recording = await Recording.findById(req.params.id)
-    .populate('teacherId', 'name email phone profileImage')
+    .populate('teacherId', 'name email phone profileImage subjects')
     .populate('subjectId', 'name')
     .populate('classId', 'type class board name classCode')
-    .populate('timetableId', 'dayOfWeek startTime endTime topic');
+    .populate('timetableId', 'dayOfWeek startTime endTime topic')
+    .populate('liveClassId', 'actualStartTime endTime');
 
   // If not found by ID, try finding by liveClassId (for deep linking from LiveClasses)
   if (!recording) {
     recording = await Recording.findOne({ liveClassId: req.params.id })
-      .populate('teacherId', 'name email phone profileImage')
+      .populate('teacherId', 'name email phone profileImage subjects')
       .populate('subjectId', 'name')
       .populate('classId', 'type class board name classCode')
-      .populate('timetableId', 'dayOfWeek startTime endTime topic');
+      .populate('timetableId', 'dayOfWeek startTime endTime topic')
+      .populate('liveClassId', 'actualStartTime endTime');
   }
 
   if (!recording) {

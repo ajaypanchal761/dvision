@@ -44,28 +44,8 @@ const Recordings = () => {
     }
   };
 
-  const handlePlayRecording = async (recording) => {
-    try {
-      // Check if recording already has playbackUrl from the list
-      if (recording.playbackUrl) {
-        setSelectedRecording(recording);
-        setPlaybackUrl(recording.playbackUrl);
-        return;
-      }
-
-      // If not, fetch the recording to get presigned URL
-      const response = await liveClassAPI.getRecording(recording._id);
-      if (response.success && response.data?.recording) {
-        const recordingData = response.data.recording;
-        setSelectedRecording(recordingData);
-        setPlaybackUrl(recordingData.playbackUrl || recordingData.s3Url);
-      } else {
-        alert('Recording is not available. Please try again later.');
-      }
-    } catch (err) {
-      console.error('Error loading recording:', err);
-      alert(err.message || 'Failed to load recording');
-    }
+  const handlePlayRecording = (recording) => {
+    navigate(`/recording/${recording.liveClassId?._id || recording.liveClassId || recording._id}`);
   };
 
   // Auto-play recording if ID is present in URL
@@ -137,9 +117,14 @@ const Recordings = () => {
                     <h3 className="text-base sm:text-lg font-bold text-gray-800 mb-1.5">
                       {recording.title}
                     </h3>
-                    <p className="text-gray-600 text-xs sm:text-sm mb-2.5 font-medium">
+                    <p className="text-gray-600 text-xs sm:text-sm mb-1 font-medium">
                       {recording.subjectId?.name || 'Subject'} · {recording.teacherId?.name || 'Teacher'}
                     </p>
+                    {recording.teacherId?.subjects && recording.teacherId.subjects.length > 0 && (
+                      <p className="text-[10px] sm:text-xs text-gray-500 mb-2.5 italic">
+                        Expert in: {recording.teacherId.subjects.join(', ')}
+                      </p>
+                    )}
                     {recording.description && (
                       <p className="text-gray-500 text-xs sm:text-sm mb-2.5">
                         {recording.description}
@@ -186,75 +171,7 @@ const Recordings = () => {
         )}
       </main>
 
-      {/* Video Player Modal */}
-      {selectedRecording && playbackUrl && (
-        <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4">
-          <div className="bg-gray-900 rounded-xl p-4 max-w-4xl w-full">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex flex-col gap-1">
-                <h3 className="text-white font-bold text-lg">{selectedRecording.title}</h3>
-                <div className="flex items-center gap-2 text-gray-400 text-sm">
-                  <FiClock size={14} />
-                  <span>Duration: {formatDuration(selectedRecording.duration)}</span>
-                </div>
-              </div>
-              <button
-                onClick={() => {
-                  setSelectedRecording(null);
-                  setPlaybackUrl('');
-                  if (id) {
-                    navigate(-1);
-                  }
-                }}
-                className="text-white hover:bg-gray-800 p-2 rounded-lg"
-              >
-                <FiArrowLeft className="text-xl" />
-              </button>
-            </div>
-            <video
-              ref={setVideoRef}
-              src={playbackUrl}
-              controls
-              controlsList="nodownload"
-              preload="metadata"
-              className="w-full rounded-lg"
-              style={{
-                maxHeight: '70vh',
-                // Ensure controls are visible
-                backgroundColor: '#000'
-              }}
-              onLoadedMetadata={(e) => {
-                // Ensure duration is available and displayed
-                const video = e.target;
-                if (video.duration && !isNaN(video.duration)) {
-                  console.log('[Video] Duration loaded:', formatDuration(video.duration));
-                  // Force controls to show duration
-                  video.controls = true;
-                }
-              }}
-              onCanPlay={(e) => {
-                // Ensure video is ready and duration is available
-                const video = e.target;
-                if (video.duration && !isNaN(video.duration)) {
-                  console.log('[Video] Can play - Duration:', formatDuration(video.duration));
-                }
-              }}
-              onTimeUpdate={(e) => {
-                // Track current time - this ensures seek bar updates
-                const video = e.target;
-                const current = video.currentTime;
-                const duration = video.duration;
-                if (duration && current && !isNaN(duration) && !isNaN(current)) {
-                  // This ensures the seek bar shows progress
-                  // Native controls will show: currentTime / duration
-                }
-              }}
-            >
-              Your browser does not support the video tag.
-            </video>
-          </div>
-        </div>
-      )}
+
 
       {/* Bottom Navigation Bar */}
       <BottomNav />
