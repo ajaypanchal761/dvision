@@ -12,6 +12,7 @@ const Students = () => {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
 
+
   // Pagination state
   const [pagination, setPagination] = useState({
     page: 1,
@@ -58,24 +59,53 @@ const Students = () => {
       const response = await studentAPI.getAll(params)
       if (response.success && response.data?.students) {
         // Map backend data to frontend format
-        const mappedStudents = response.data.students.map(student => ({
-          _id: student._id,
-          id: student._id, // For compatibility
-          name: student.name || '',
-          email: student.email || '',
-          mobile: student.phone || '',
-          class: student.class ? `Class ${student.class}` : '',
-          classNumber: student.class,
-          board: student.board || '',
-          status: student.isActive ? 'Active' : 'Inactive',
-          image: student.profileImage || null,
-          imagePreview: student.profileImage || null,
-          subscriptionStatus: student.subscription?.status === 'active' ? 'Active' :
-            student.subscription?.status === 'expired' ? 'Expired' : 'None',
-          referralCode: student.referralCode || 'N/A',
-          joinReferralCodeCount: student.joinReferralCodeCount || 0,
-          createDateTime: student.createdAt ? new Date(student.createdAt).toLocaleString() : ''
-        }))
+        const mappedStudents = response.data.students.map(student => {
+          // Format active plans
+          let activePlans = 'None';
+          const now = new Date();
+
+          if (student.activeSubscriptions && student.activeSubscriptions.length > 0) {
+            const activeSubs = student.activeSubscriptions.filter(sub => new Date(sub.endDate) > now);
+            if (activeSubs.length > 0) {
+              activePlans = activeSubs.map(sub => {
+                const planName = sub.planId?.name || (sub.type === 'regular' ? `Regular Class ${sub.class}` : 'Prep Plan');
+                const expiry = new Date(sub.endDate).toLocaleDateString();
+                return `${planName} (Exp: ${expiry})`;
+              }).join(', ');
+            } else {
+              activePlans = 'Expired';
+            }
+          } else if (student.subscription?.status === 'active' && new Date(student.subscription.endDate) > now) {
+            const planName = student.subscription.planId?.name || 'Regular Plan';
+            const expiry = new Date(student.subscription.endDate).toLocaleDateString();
+            activePlans = `${planName} (Exp: ${expiry})`;
+          } else if (student.subscription?.status === 'expired') {
+            activePlans = 'Expired';
+          }
+
+          return {
+            _id: student._id,
+            id: student._id, // For compatibility
+            name: student.name || '',
+            email: student.email || '',
+            mobile: student.phone || '',
+            class: student.class ? `Class ${student.class}` : '',
+            classNumber: student.class,
+            board: student.board || '',
+            status: student.isActive ? 'Active' : 'Inactive',
+            image: student.profileImage || null,
+            imagePreview: student.profileImage || null,
+            subscriptionStatus: student.subscription?.status === 'active' ? 'Active' :
+              student.subscription?.status === 'expired' ? 'Expired' : 'None',
+            activePlans: activePlans,
+            // Keep raw subscriptions for Detail View
+            rawActiveSubscriptions: student.activeSubscriptions || [],
+            rawSubscription: student.subscription,
+            referralCode: student.referralCode || 'N/A',
+            joinReferralCodeCount: student.joinReferralCodeCount || 0,
+            createDateTime: student.createdAt ? new Date(student.createdAt).toLocaleString() : ''
+          };
+        })
         setStudents(mappedStudents)
 
         // Update pagination
@@ -117,6 +147,10 @@ const Students = () => {
     if (newPage >= 1 && newPage <= pagination.pages) {
       fetchStudents(newPage)
     }
+  }
+
+  const handleViewClick = (student) => {
+    navigate(`/admin/students/view/${student._id || student.id}`)
   }
 
   const handleDeleteClick = (id) => {
@@ -274,9 +308,6 @@ const Students = () => {
                     <th className="px-2 sm:px-3 py-2 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
                       Status
                     </th>
-                    <th className="px-2 sm:px-3 py-2 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider hidden lg:table-cell">
-                      Subscription
-                    </th>
                     <th className="px-2 sm:px-3 py-2 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider hidden xl:table-cell">
                       Created Date & Time
                     </th>
@@ -342,16 +373,7 @@ const Students = () => {
                             {student.status}
                           </span>
                         </td>
-                        <td className="px-2 sm:px-3 py-2 whitespace-nowrap hidden lg:table-cell text-center">
-                          <span className={`px-2 py-0.5 inline-flex text-[10px] sm:text-xs font-semibold rounded-lg ${student.subscriptionStatus === 'Active'
-                            ? 'bg-blue-100 text-blue-700'
-                            : student.subscriptionStatus === 'Expired'
-                              ? 'bg-orange-100 text-orange-700'
-                              : 'bg-gray-100 text-gray-700'
-                            }`}>
-                            {student.subscriptionStatus}
-                          </span>
-                        </td>
+
                         <td className="px-2 sm:px-3 py-2 whitespace-nowrap hidden xl:table-cell text-center">
                           <div className="text-[10px] sm:text-xs text-gray-500">{student.createDateTime}</div>
                         </td>
@@ -364,6 +386,16 @@ const Students = () => {
                             >
                               <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                              </svg>
+                            </button>
+                            <button
+                              onClick={() => handleViewClick(student)}
+                              className="p-1.5 sm:p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all duration-200"
+                              title="View Details"
+                            >
+                              <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                               </svg>
                             </button>
                             <button
@@ -449,43 +481,45 @@ const Students = () => {
       </div>
 
       {/* Delete Confirmation Modal */}
-      {isDeleteModalOpen && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4">
-          <div className="bg-white rounded-lg sm:rounded-xl md:rounded-2xl shadow-2xl max-w-md w-full transform transition-all">
-            <div className="p-4 sm:p-6 md:p-8">
-              <div className="flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 mx-auto bg-red-100 rounded-xl sm:rounded-2xl mb-4 sm:mb-5 md:mb-6">
-                <svg className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                </svg>
-              </div>
-              <h3 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 text-center mb-2">
-                Delete Student
-              </h3>
-              <p className="text-sm sm:text-base text-gray-600 text-center mb-6 sm:mb-8">
-                Are you sure you want to delete this student? This action cannot be undone.
-              </p>
-              <div className="flex items-center justify-center space-x-3 sm:space-x-4">
-                <button
-                  onClick={() => {
-                    setIsDeleteModalOpen(false)
-                    setDeleteStudentId(null)
-                  }}
-                  className="px-4 sm:px-5 md:px-6 py-2 sm:py-2.5 md:py-3 border-2 border-gray-300 text-gray-700 rounded-lg sm:rounded-xl font-semibold text-sm sm:text-base hover:bg-gray-50 transition-all duration-200"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleDeleteConfirm}
-                  className="px-4 sm:px-5 md:px-6 py-2 sm:py-2.5 md:py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg sm:rounded-xl font-semibold text-sm sm:text-base transition-all duration-200 shadow-lg hover:shadow-xl"
-                >
-                  Delete
-                </button>
+      {
+        isDeleteModalOpen && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4">
+            <div className="bg-white rounded-lg sm:rounded-xl md:rounded-2xl shadow-2xl max-w-md w-full transform transition-all">
+              <div className="p-4 sm:p-6 md:p-8">
+                <div className="flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 mx-auto bg-red-100 rounded-xl sm:rounded-2xl mb-4 sm:mb-5 md:mb-6">
+                  <svg className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                </div>
+                <h3 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 text-center mb-2">
+                  Delete Student
+                </h3>
+                <p className="text-sm sm:text-base text-gray-600 text-center mb-6 sm:mb-8">
+                  Are you sure you want to delete this student? This action cannot be undone.
+                </p>
+                <div className="flex items-center justify-center space-x-3 sm:space-x-4">
+                  <button
+                    onClick={() => {
+                      setIsDeleteModalOpen(false)
+                      setDeleteStudentId(null)
+                    }}
+                    className="px-4 sm:px-5 md:px-6 py-2 sm:py-2.5 md:py-3 border-2 border-gray-300 text-gray-700 rounded-lg sm:rounded-xl font-semibold text-sm sm:text-base hover:bg-gray-50 transition-all duration-200"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleDeleteConfirm}
+                    className="px-4 sm:px-5 md:px-6 py-2 sm:py-2.5 md:py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg sm:rounded-xl font-semibold text-sm sm:text-base transition-all duration-200 shadow-lg hover:shadow-xl"
+                  >
+                    Delete
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
-    </div>
+        )
+      }
+    </div >
   )
 }
 

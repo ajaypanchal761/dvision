@@ -647,6 +647,28 @@ exports.createCampaign = asyncHandler(async (req, res) => {
     }
   }
 
+  // Check for duplicate campaign within last 2 minutes to prevent double submission
+  const duplicateCampaign = await NotificationCampaign.findOne({
+    title,
+    body,
+    notificationType,
+    classId: notificationType === 'class' && classId ? classId : null,
+    classNumber: notificationType === 'class' && !classId && classNumber ? parseInt(classNumber) : null,
+    createdBy: adminId,
+    createdAt: { $gt: new Date(Date.now() - 2 * 60 * 1000) } // Created in last 2 mins
+  });
+
+  if (duplicateCampaign) {
+    console.log('[INFO] Duplicate campaign detected, returning existing one');
+    return res.status(200).json({
+      success: true,
+      message: 'Campaign already exists (duplicate submission prevented)',
+      data: {
+        campaign: duplicateCampaign
+      }
+    });
+  }
+
   const campaign = await NotificationCampaign.create({
     title,
     body,
@@ -1383,6 +1405,91 @@ exports.sendCampaign = asyncHandler(async (req, res) => {
     data: {
       successCount: totalSent,
       totalRecipients: totalSent
+    }
+  });
+});
+
+// @desc    Remove duplicate notifications
+// @route   DELETE /api/notifications/admin/duplicates
+// @access  Private (Admin)
+exports.removeDuplicateNotifications = asyncHandler(async (req, res) => {
+  // 1. Check for Duplicate Campaigns
+  const duplicateCampaigns = await NotificationCampaign.aggregate([
+    {
+      $group: {
+        _id: { title: "$title", body: "$body", notificationType: "$notificationType", classId: "$classId", classNumber: "$classNumber" },
+        count: { $sum: 1 },
+        ids: { $push: "$_id" },
+        createdAts: { $push: "$createdAt" }
+      }
+    },
+    {
+      $match: {
+        count: { $gt: 1 }
+      }
+    }
+  ]);
+
+  let deletedCampaignsCount = 0;
+  for (const group of duplicateCampaigns) {
+    // Keep the oldest one
+    const docs = group.ids.map((id, index) => ({ id, createdAt: group.createdAts[index] }));
+    docs.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+
+    // Keep docs[0], delete rest
+    const idsToDelete = docs.slice(1).map(d => d.id);
+
+    if (idsToDelete.length > 0) {
+      const result = await NotificationCampaign.deleteMany({ _id: { $in: idsToDelete } });
+      deletedCampaignsCount += result.deletedCount;
+    }
+  }
+
+  // 2. Check for Duplicate Notifications (User Inbox)
+  const matchDate = new Date();
+  matchDate.setDate(matchDate.getDate() - 30); // Look back 30 days
+
+  const duplicateNotifications = await Notification.aggregate([
+    {
+      $match: {
+        createdAt: { $gte: matchDate }
+      }
+    },
+    {
+      $group: {
+        _id: { userId: "$userId", title: "$title", body: "$body", type: "$type" },
+        count: { $sum: 1 },
+        ids: { $push: "$_id" },
+        createdAts: { $push: "$createdAt" }
+      }
+    },
+    {
+      $match: {
+        count: { $gt: 1 }
+      }
+    }
+  ]);
+
+  let deletedNotificationsCount = 0;
+  for (const group of duplicateNotifications) {
+    const docs = group.ids.map((id, index) => ({ id, createdAt: new Date(group.createdAts[index]) }));
+    docs.sort((a, b) => a.createdAt - b.createdAt);
+
+    // Delete all except the first one
+    const idsToDelete = docs.slice(1).map(d => d.id);
+
+    if (idsToDelete.length > 0) {
+      const result = await Notification.deleteMany({ _id: { $in: idsToDelete } });
+      deletedNotificationsCount += result.deletedCount;
+    }
+  }
+
+  res.status(200).json({
+    success: true,
+    message: 'Cleanup completed',
+    data: {
+      deletedCampaigns: deletedCampaignsCount,
+      deletedNotifications: deletedNotificationsCount
     }
   });
 });

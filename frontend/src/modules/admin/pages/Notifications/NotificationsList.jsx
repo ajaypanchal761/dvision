@@ -174,7 +174,8 @@ const NotificationsList = () => {
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-2 sm:px-3 py-2 text-center text-[10px] sm:text-xs font-semibold text-gray-700 uppercase tracking-wider">Title</th>
+                    <th className="px-2 sm:px-3 py-2 text-center text-[10px] sm:text-xs font-semibold text-gray-700 uppercase tracking-wider">Topic</th>
+                    <th className="px-2 sm:px-3 py-2 text-center text-[10px] sm:text-xs font-semibold text-gray-700 uppercase tracking-wider">Message</th>
                     <th className="px-2 sm:px-3 py-2 text-center text-[10px] sm:text-xs font-semibold text-gray-700 uppercase tracking-wider">Recipient Type</th>
                     <th className="px-2 sm:px-3 py-2 text-center text-[10px] sm:text-xs font-semibold text-gray-700 uppercase tracking-wider">Created Date & Time</th>
                     <th className="px-2 sm:px-3 py-2 text-center text-[10px] sm:text-xs font-semibold text-gray-700 uppercase tracking-wider">Actions</th>
@@ -185,7 +186,9 @@ const NotificationsList = () => {
                     <tr key={campaign._id} className="hover:bg-gray-50">
                       <td className="px-2 sm:px-3 py-2 text-center">
                         <div className="text-xs sm:text-sm font-medium text-gray-900">{campaign.title}</div>
-                        <div className="text-[10px] sm:text-xs text-gray-500 truncate max-w-xs mx-auto">{campaign.body}</div>
+                      </td>
+                      <td className="px-2 sm:px-3 py-2 text-center">
+                        <div className="text-[10px] sm:text-xs text-gray-500 truncate max-w-xs mx-auto" title={campaign.body}>{campaign.body}</div>
                       </td>
                       <td className="px-2 sm:px-3 py-2 text-center">
                         {(() => {

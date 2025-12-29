@@ -78,7 +78,9 @@ exports.getAllStudents = asyncHandler(async (req, res) => {
   const students = await Student.find(query)
     .sort({ createdAt: -1 })
     .skip(skip)
-    .limit(parseInt(limit));
+    .limit(parseInt(limit))
+    .populate('subscription.planId', 'name type duration')
+    .populate('activeSubscriptions.planId', 'name type duration');
 
   const total = await Student.countDocuments(query);
 
@@ -98,7 +100,11 @@ exports.getAllStudents = asyncHandler(async (req, res) => {
 // @route   GET /api/admin/students/:id
 // @access  Private/Admin
 exports.getStudent = asyncHandler(async (req, res) => {
-  const student = await Student.findById(req.params.id);
+  const student = await Student.findById(req.params.id)
+    .populate('subscription.planId', 'name type duration')
+    .populate('activeSubscriptions.planId', 'name type duration')
+    .populate('activeSubscriptions.classId', 'name board class')
+    .populate('referralAgentId', 'name');
 
   if (!student) {
     throw new ErrorResponse('Student not found', 404);

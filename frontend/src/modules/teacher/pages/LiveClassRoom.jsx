@@ -2008,9 +2008,9 @@ const LiveClassRoom = () => {
           return;
         }
 
-        // If recording is active, stop it first
-        if (recordingStatus === 'recording') {
-          console.log('[End Class] Stopping cloud recording before ending class...');
+        // If recording is active or paused, stop it first
+        if (recordingStatus === 'recording' || recordingStatus === 'paused') {
+          console.log('[End Class] Stopping recording before ending class...');
           try {
             await handleStopRecording();
           } catch (recordingError) {
@@ -2373,71 +2373,77 @@ const LiveClassRoom = () => {
 
       {/* Controls */}
       {showChrome && (
-        <div className="bg-gray-800 px-4 py-3 flex items-center justify-center gap-4">
+        <div className="bg-gray-800/95 backdrop-blur-md px-2 sm:px-4 py-3 sm:py-4 flex items-center justify-center gap-2 sm:gap-6 fixed bottom-0 left-0 right-0 z-50 border-t border-gray-700">
+          {/* Mic */}
           <button
             onClick={toggleMute}
-            className={`p-3 rounded-full ${isMuted ? 'bg-red-600' : 'bg-gray-700'} hover:bg-opacity-80`}
+            className={`p-2.5 sm:p-4 rounded-full ${isMuted ? 'bg-red-600' : 'bg-gray-700/80'} hover:bg-opacity-80 transition-all active:scale-95 shadow-lg`}
             title={isMuted ? 'Unmute' : 'Mute'}
           >
-            {isMuted ? <FiMicOff className="text-xl" /> : <FiMic className="text-xl" />}
+            {isMuted ? <FiMicOff className="text-lg sm:text-2xl" /> : <FiMic className="text-lg sm:text-2xl" />}
           </button>
+
+          {/* Video */}
           <button
             onClick={toggleVideo}
-            className={`p-3 rounded-full ${!isVideoEnabled ? 'bg-red-600' : 'bg-gray-700'} hover:bg-opacity-80`}
+            className={`p-2.5 sm:p-4 rounded-full ${!isVideoEnabled ? 'bg-red-600' : 'bg-gray-700/80'} hover:bg-opacity-80 transition-all active:scale-95 shadow-lg`}
             title={isVideoEnabled ? 'Turn off camera' : 'Turn on camera'}
           >
-            {isVideoEnabled ? <FiVideo className="text-xl" /> : <FiVideoOff className="text-xl" />}
+            {isVideoEnabled ? <FiVideo className="text-lg sm:text-2xl" /> : <FiVideoOff className="text-lg sm:text-2xl" />}
           </button>
+
+          {/* Switch Camera */}
           <button
             onClick={switchCamera}
-            className="p-3 rounded-full bg-gray-700 hover:bg-opacity-80"
+            className="p-2.5 sm:p-4 rounded-full bg-gray-700/80 hover:bg-opacity-80 transition-all active:scale-95 shadow-lg"
             title="Switch camera"
           >
-            <RiCameraSwitchLine className="text-xl" />
+            <RiCameraSwitchLine className="text-lg sm:text-2xl" />
           </button>
-          {recordingStatus === 'idle' || recordingStatus === 'processing' ? (
-            <button
-              onClick={handleStartRecording}
-              className="p-3 rounded-full bg-gray-700 hover:bg-gray-600 flex items-center gap-2"
-              title="Start recording"
-              disabled={recordingStatus === 'starting'}
-            >
-              <FiCircle className="text-xl text-red-500" />
-              {recordingStatus === 'starting' && <span className="text-xs">Starting...</span>}
-            </button>
-          ) : recordingStatus === 'stopping' ? (
-            <button disabled className="p-3 rounded-full bg-red-600 opacity-50 flex items-center gap-2">
-              <FiSquare className="text-xl fill-white" />
-              <span className="text-xs">Stopping...</span>
-            </button>
-          ) : (
-            <>
-              {/* Pause/Resume Button */}
-              <button
-                onClick={recordingStatus === 'recording' ? handlePauseRecording : handleResumeRecording}
-                className="p-3 rounded-full bg-gray-700 hover:bg-gray-600"
-                title={recordingStatus === 'recording' ? "Pause recording" : "Resume recording"}
-              >
-                {recordingStatus === 'recording' ? <FiPause className="text-xl" /> : <FiPlay className="text-xl" />}
-              </button>
 
-              {/* Stop Button */}
+          {/* Recording Control (Toggles between Start/Pause/Resume) */}
+          <div className="flex items-center gap-2">
+            {recordingStatus === 'idle' || recordingStatus === 'processing' ? (
               <button
-                onClick={handleStopRecording}
-                className={`p-3 rounded-full bg-red-600 hover:bg-red-700 flex items-center gap-2 ${recordingStatus === 'recording' ? 'animate-pulse' : ''}`}
-                title="Stop recording"
+                onClick={handleStartRecording}
+                className="p-2.5 sm:p-4 rounded-full bg-gray-700/80 hover:bg-gray-600 transition-all active:scale-95 shadow-lg flex items-center gap-2"
+                title="Start recording"
+                disabled={recordingStatus === 'starting' || recordingStatus === 'processing'}
               >
-                <FiSquare className="text-xl fill-white" />
-                <span className="text-xs">REC</span>
+                {recordingStatus === 'processing' ? (
+                  <div className="w-5 h-5 sm:w-6 sm:h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                ) : (
+                  <FiCircle className="text-lg sm:text-2xl text-red-500 animate-pulse" />
+                )}
               </button>
-            </>
-          )}
+            ) : recordingStatus === 'starting' || recordingStatus === 'stopping' ? (
+              <div className="p-2.5 sm:p-4 rounded-full bg-gray-800 border-2 border-gray-700 flex items-center">
+                <div className="w-5 h-5 sm:w-6 sm:h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+              </div>
+            ) : (
+              <>
+                {/* Pause/Resume button replaces Start button */}
+                <button
+                  onClick={recordingStatus === 'recording' ? handlePauseRecording : handleResumeRecording}
+                  className="p-2.5 sm:p-4 rounded-full bg-gray-700/80 hover:bg-gray-600 transition-all active:scale-95 shadow-lg border border-gray-600"
+                  title={recordingStatus === 'recording' ? "Pause recording" : "Resume recording"}
+                >
+                  {recordingStatus === 'recording' ?
+                    <FiPause className="text-lg sm:text-2xl text-white" /> :
+                    <FiPlay className="text-lg sm:text-2xl text-green-400" />
+                  }
+                </button>
+              </>
+            )}
+          </div>
+
+          {/* End Call / End Class */}
           <button
             onClick={handleEndClass}
-            className="p-3 rounded-full bg-red-600 hover:bg-red-700"
+            className="p-2.5 sm:p-4 rounded-full bg-red-600 hover:bg-red-700 transition-all active:scale-75 shadow-lg"
             title="End class"
           >
-            <FiPhone className="text-xl rotate-135" />
+            <FiPhone className="text-lg sm:text-2xl rotate-135" />
           </button>
         </div>
       )}

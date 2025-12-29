@@ -19,7 +19,8 @@ const {
   createCampaign,
   updateCampaign,
   deleteCampaign,
-  sendCampaign
+  sendCampaign,
+  removeDuplicateNotifications
 } = require('../controllers/notificationController');
 const { protect, authorize } = require('../middlewares/auth');
 
@@ -47,6 +48,7 @@ router.get('/admin/students', protect, authorize('admin', 'super_admin'), getFil
 router.get('/admin/teachers', protect, authorize('admin', 'super_admin'), getFilteredTeachers);
 router.post('/admin/send', protect, authorize('admin', 'super_admin'), sendNotificationToFiltered);
 router.get('/admin/history', protect, authorize('admin', 'super_admin'), getNotificationHistory);
+router.delete('/admin/duplicates', protect, authorize('admin', 'super_admin'), removeDuplicateNotifications);
 
 // Admin notification campaigns routes
 router.get('/admin/campaigns', protect, authorize('admin', 'super_admin'), getAllCampaigns);
