@@ -518,7 +518,7 @@ exports.getDashboardStatistics = asyncHandler(async (req, res) => {
   }
 
   // Get Recent Transactions (Last 5)
-  const recentTransactions = await Payment.find({ status: 'completed' })
+  const recentTransactions = await Payment.find({ status: 'completed', paymentMethod: { $ne: 'manual' } })
     .sort({ createdAt: -1 })
     .limit(5)
     .populate('studentId', 'name')

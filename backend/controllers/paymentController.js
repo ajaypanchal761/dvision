@@ -913,6 +913,9 @@ exports.getAllPayments = asyncHandler(async (req, res, next) => {
   const { status, startDate, endDate, studentId, page = 1, limit = 10, search } = req.query;
 
   const query = {};
+  // Exclude manual payments from transactions list
+  query.paymentMethod = { $ne: 'manual' };
+
   if (status) query.status = status;
   if (studentId) query.studentId = studentId;
   if (startDate || endDate) {
