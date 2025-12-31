@@ -302,7 +302,13 @@ const Transactions = () => {
                           <div className="text-[10px] text-gray-500 capitalize">{payment.plan?.duration || ''}</div>
                         </td>
                         <td className="px-2 sm:px-3 py-2 whitespace-nowrap hidden md:table-cell text-center">
-                          <div className="text-[10px] sm:text-xs text-gray-600 font-mono">{payment.cashfreeOrderId || 'N/A'}</div>
+                          <div className="text-[10px] sm:text-xs text-gray-600 font-mono">
+                            {payment.cashfreeOrderId
+                              ? (payment.cashfreeOrderId.toString().startsWith('#')
+                                ? payment.cashfreeOrderId
+                                : `#${payment.cashfreeOrderId}`)
+                              : 'N/A'}
+                          </div>
                         </td>
                         <td className="px-2 sm:px-3 py-2 whitespace-nowrap hidden lg:table-cell text-center">
                           <div className="text-[10px] sm:text-xs text-gray-600 font-mono">{payment.cashfreePaymentId || 'N/A'}</div>

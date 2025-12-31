@@ -131,11 +131,11 @@ exports.forgotPassword = asyncHandler(async (req, res) => {
   // Example: ADMIN_FRONTEND_URL=https://appzetoapp.com/dvision/admin
   // Or for local: ADMIN_FRONTEND_URL=http://localhost:3000
   let adminFrontendUrl = process.env.ADMIN_FRONTEND_URL;
-  
+
   // If ADMIN_FRONTEND_URL is not set, try to derive from FRONTEND_URL
   if (!adminFrontendUrl) {
     const frontendUrl = process.env.FRONTEND_URL || '';
-    
+
     // If FRONTEND_URL contains backend paths like /server or /api, remove them
     if (frontendUrl.includes('/server')) {
       adminFrontendUrl = frontendUrl.replace(/\/server.*$/, '') + '/admin';
@@ -149,13 +149,13 @@ exports.forgotPassword = asyncHandler(async (req, res) => {
       adminFrontendUrl = 'http://localhost:3000';
     }
   }
-  
+
   // Clean up the URL - remove trailing slashes
   adminFrontendUrl = adminFrontendUrl.replace(/\/+$/, '');
-  
+
   // Construct reset URL (should be: https://appzetoapp.com/dvision/admin/reset-password/{token})
   const resetUrl = `${adminFrontendUrl}/reset-password/${resetToken}`;
-  
+
   // Log for debugging
   console.log('Admin Frontend URL:', adminFrontendUrl);
   console.log('Reset URL generated:', resetUrl);
@@ -183,7 +183,7 @@ exports.forgotPassword = asyncHandler(async (req, res) => {
     });
   } catch (error) {
     console.error('Email send error:', error);
-    
+
     // Reset token fields if email fails
     admin.resetPasswordToken = undefined;
     admin.resetPasswordExpire = undefined;
@@ -286,7 +286,7 @@ exports.updateProfile = asyncHandler(async (req, res) => {
   }
 
   if (name) admin.name = name;
-  
+
   if (email && email !== admin.email) {
     // Check if email already exists
     const emailExists = await Admin.findOne({ email });
@@ -396,8 +396,9 @@ exports.getDashboardStatistics = asyncHandler(async (req, res) => {
   const Course = require('../models/Course');
   const Quiz = require('../models/Quiz');
   const SubscriptionPlan = require('../models/SubscriptionPlan');
+  const Payment = require('../models/Payment');
 
-  // Get all statistics in parallel for better performance
+  // Get all basic statistics in parallel
   const [
     totalStudents,
     activeStudents,
@@ -408,7 +409,8 @@ exports.getDashboardStatistics = asyncHandler(async (req, res) => {
     totalSubjects,
     totalCourses,
     totalQuizzes,
-    totalSubscriptions
+    totalSubscriptions,
+    totalPayments
   ] = await Promise.all([
     Student.countDocuments({}),
     Student.countDocuments({ isActive: true }),
@@ -419,7 +421,8 @@ exports.getDashboardStatistics = asyncHandler(async (req, res) => {
     Subject.countDocuments({}),
     Course.countDocuments({}),
     Quiz.countDocuments({}),
-    SubscriptionPlan.countDocuments({})
+    SubscriptionPlan.countDocuments({}),
+    Payment.countDocuments({ status: 'completed' })
   ]);
 
   // Count students with active subscriptions
@@ -437,6 +440,99 @@ exports.getDashboardStatistics = asyncHandler(async (req, res) => {
     ]
   });
 
+  // Calculate Total Revenue
+  const allCompletedPayments = await Payment.find({ status: 'completed' }).select('amount');
+  const totalRevenue = allCompletedPayments.reduce((acc, curr) => acc + (curr.amount || 0), 0);
+
+  // Get Monthly Revenue Trend (Last 6 Months)
+  const sixMonthsAgo = new Date();
+  sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5);
+  sixMonthsAgo.setDate(1); // Start of the month 6 months ago
+
+  const revenueAggregation = await Payment.aggregate([
+    {
+      $match: {
+        status: 'completed',
+        createdAt: { $gte: sixMonthsAgo }
+      }
+    },
+    {
+      $group: {
+        _id: {
+          year: { $year: "$createdAt" },
+          month: { $month: "$createdAt" }
+        },
+        total: { $sum: "$amount" }
+      }
+    },
+    { $sort: { "_id.year": 1, "_id.month": 1 } }
+  ]);
+
+  // Format revenue data for charts
+  const revenueData = [];
+  for (let i = 0; i < 6; i++) {
+    const d = new Date();
+    d.setDate(1); // Set to 1st of month to avoid issues with 31st dates
+    d.setMonth(d.getMonth() - (5 - i));
+    const month = d.toLocaleString('default', { month: 'short' });
+    const year = d.getFullYear();
+    const found = revenueAggregation.find(r => r._id.year === year && r._id.month === (d.getMonth() + 1));
+    revenueData.push({
+      name: month,
+      revenue: found ? found.total : 0
+    });
+  }
+
+  // Get Monthly Student Registration Trend (Last 6 Months)
+  const studentAggregation = await Student.aggregate([
+    {
+      $match: {
+        createdAt: { $gte: sixMonthsAgo }
+      }
+    },
+    {
+      $group: {
+        _id: {
+          year: { $year: "$createdAt" },
+          month: { $month: "$createdAt" }
+        },
+        count: { $sum: 1 }
+      }
+    },
+    { $sort: { "_id.year": 1, "_id.month": 1 } }
+  ]);
+
+  // Format student data for charts
+  const studentData = [];
+  for (let i = 0; i < 6; i++) {
+    const d = new Date();
+    d.setDate(1); // Set to 1st of month to avoid issues with 31st dates
+    d.setMonth(d.getMonth() - (5 - i));
+    const month = d.toLocaleString('default', { month: 'short' });
+    const year = d.getFullYear();
+    const found = studentAggregation.find(r => r._id.year === year && r._id.month === (d.getMonth() + 1));
+    studentData.push({
+      name: month,
+      students: found ? found.count : 0
+    });
+  }
+
+  // Get Recent Transactions (Last 5)
+  const recentTransactions = await Payment.find({ status: 'completed' })
+    .sort({ createdAt: -1 })
+    .limit(5)
+    .populate('studentId', 'name')
+    .populate('subscriptionPlanId', 'name');
+
+  const formattedTransactions = recentTransactions.map(tx => ({
+    id: tx._id,
+    studentName: tx.studentId?.name || 'Unknown',
+    planName: tx.subscriptionPlanId?.name || 'Unknown',
+    amount: tx.amount,
+    date: tx.createdAt,
+    status: tx.status
+  }));
+
   res.status(200).json({
     success: true,
     data: {
@@ -450,10 +546,17 @@ exports.getDashboardStatistics = asyncHandler(async (req, res) => {
         activeClasses,
         activeSubscriptions,
         totalSubscriptions,
+        totalRevenue,
+        totalPayments,
         // Content overview section
         totalSubjects,
         totalCourses,
-        totalQuizzes
+        totalQuizzes,
+        // Chart data
+        revenueData,
+        studentData,
+        // Recent activity
+        recentTransactions: formattedTransactions
       }
     }
   });

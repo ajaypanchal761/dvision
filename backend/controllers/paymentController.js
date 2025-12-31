@@ -333,10 +333,30 @@ exports.createOrder = asyncHandler(async (req, res, next) => {
   });
 
   // Generate unique order ID for Cashfree
-  const timestamp = Date.now();
-  const studentIdStr = studentId.toString();
-  const studentIdShort = studentIdStr.length > 8 ? studentIdStr.slice(-8) : studentIdStr;
-  const orderId = `order_${studentIdShort}_${timestamp}`;
+  // Generate unique order ID for Cashfree (6 digits)
+  // Logic: Generate 6 digits, check DB for uniqueness
+  // Note: We generate a pure number "123456" here.
+  // The "#" prefix requested will be added in the frontend display to avoid URL parameter issues with Cashfree return URLs.
+  let orderId;
+  let isUnique = false;
+  let attempts = 0;
+
+  while (!isUnique && attempts < 10) {
+    // Generate 6 random digits
+    const random6 = Math.floor(100000 + Math.random() * 900000);
+    orderId = random6.toString();
+
+    const existingPayment = await Payment.findOne({ cashfreeOrderId: orderId });
+    if (!existingPayment) {
+      isUnique = true;
+    }
+    attempts++;
+  }
+
+  // Fallback if loop fails (extremely unlikely)
+  if (!isUnique) {
+    orderId = Date.now().toString().slice(-6);
+  }
 
   // Get return URL (frontend URL)
   // IMPORTANT: Cashfree production requires HTTPS URLs only
@@ -902,10 +922,19 @@ exports.getAllPayments = asyncHandler(async (req, res, next) => {
   }
 
   // Add search functionality - search in order IDs first
+  // Add search functionality - search in order IDs first
   if (search) {
-    const searchRegex = { $regex: search.trim(), $options: 'i' };
+    const searchTerm = search.trim();
+    const searchRegex = { $regex: searchTerm, $options: 'i' };
+
+    // Also strip '#' if present for searching purely numeric order ID stored in DB
+    // This allows users to search by "#123456" and find "123456"
+    const cleanSearch = searchTerm.startsWith('#') ? searchTerm.substring(1) : searchTerm;
+    const cleanSearchRegex = { $regex: cleanSearch, $options: 'i' };
+
     query.$or = [
       { cashfreeOrderId: searchRegex },
+      { cashfreeOrderId: cleanSearchRegex },
       { cashfreePaymentId: searchRegex }
     ];
   }

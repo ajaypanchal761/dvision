@@ -26,19 +26,19 @@ const SubscriptionHistory = () => {
 
   const formatDate = (dateString) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString('en-IN', { 
-      year: 'numeric', 
-      month: 'short', 
-      day: 'numeric' 
+    return date.toLocaleDateString('en-IN', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
     });
   };
 
   const formatDateTime = (dateString) => {
     const date = new Date(dateString);
-    const dateStr = date.toLocaleDateString('en-IN', { 
-      year: 'numeric', 
-      month: 'short', 
-      day: 'numeric' 
+    const dateStr = date.toLocaleDateString('en-IN', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
     });
     const timeStr = date.toLocaleTimeString('en-IN', {
       hour: '2-digit',
@@ -62,7 +62,10 @@ const SubscriptionHistory = () => {
   };
 
   const generateTransactionId = (courseId, subscribedAt) => {
-    return `ADMIN_${Date.parse(subscribedAt)}`;
+    // Generate format like #123456 using timestamp
+    const timestamp = Date.parse(subscribedAt);
+    const suffix = timestamp ? timestamp.toString().slice(-6) : '000000';
+    return `#${suffix}`;
   };
 
   const handleCancelSubscription = (courseId) => {
@@ -110,7 +113,7 @@ const SubscriptionHistory = () => {
               const purchaseDate = formatDateTime(course.subscription.subscribedAt);
               const transactionId = generateTransactionId(course.id, course.subscription.subscribedAt);
               const planPrice = course.plans?.[course.subscription.plan]?.price || 0;
-              
+
               return (
                 <div
                   key={course.id}
@@ -121,11 +124,10 @@ const SubscriptionHistory = () => {
                     <h3 className="text-lg sm:text-xl font-bold text-[var(--app-dark-blue)]">
                       {planName}
                     </h3>
-                    <span className={`px-3 py-1.5 rounded-lg text-sm font-bold ${
-                      expired 
-                        ? 'bg-red-100 text-red-700 border border-red-300' 
+                    <span className={`px-3 py-1.5 rounded-lg text-sm font-bold ${expired
+                        ? 'bg-red-100 text-red-700 border border-red-300'
                         : 'bg-green-100 text-green-700 border border-green-300'
-                    }`}>
+                      }`}>
                       {expired ? 'Expired' : 'Active'}
                     </span>
                   </div>
@@ -152,9 +154,8 @@ const SubscriptionHistory = () => {
                     </div>
                     <div className="text-sm">
                       <span className="text-gray-600 font-medium">End Date: </span>
-                      <span className={`font-bold ${
-                        expired ? 'text-red-600' : 'text-gray-800'
-                      }`}>
+                      <span className={`font-bold ${expired ? 'text-red-600' : 'text-gray-800'
+                        }`}>
                         {endDate}
                       </span>
                     </div>
