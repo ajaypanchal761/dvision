@@ -15,7 +15,7 @@ const paymentSchema = new mongoose.Schema(
     // Cashfree identifiers
     cashfreeOrderId: {
       type: String,
-      required: [true, 'Please provide Cashfree order ID'],
+      required: function () { return this.paymentMethod === 'cashfree'; },
       unique: true,
       sparse: true
     },
@@ -44,7 +44,7 @@ const paymentSchema = new mongoose.Schema(
     paymentMethod: {
       type: String,
       default: 'cashfree',
-      enum: ['cashfree'] // Only Cashfree is supported now
+      enum: ['cashfree', 'manual']
     },
     subscriptionStartDate: {
       type: Date

@@ -562,3 +562,119 @@ exports.getDashboardStatistics = asyncHandler(async (req, res) => {
   });
 });
 
+// @desc    Get subscription history (Admin)
+// @route   GET /api/admin/subscription-history
+// @access  Private/Admin
+exports.getSubscriptionHistory = asyncHandler(async (req, res) => {
+  const Payment = require('../models/Payment');
+  const { page = 1, limit = 10, search, status, type } = req.query;
+
+  const query = {};
+
+  // Default filter
+  const pipeline = [];
+
+  // 1. Initial Match (Status)
+  if (status && status !== 'all') {
+    pipeline.push({ $match: { status: status } });
+  } else if (!status) {
+    // Default to show completed if no status specified
+    pipeline.push({ $match: { status: 'completed' } });
+  }
+
+  // 2. Lookup Student
+  pipeline.push({
+    $lookup: {
+      from: 'students',
+      localField: 'studentId',
+      foreignField: '_id',
+      as: 'student'
+    }
+  });
+  pipeline.push({ $unwind: { path: '$student', preserveNullAndEmptyArrays: true } });
+
+  // 3. Lookup Plan
+  pipeline.push({
+    $lookup: {
+      from: 'subscriptionplans',
+      localField: 'subscriptionPlanId',
+      foreignField: '_id',
+      as: 'plan'
+    }
+  });
+  pipeline.push({ $unwind: { path: '$plan', preserveNullAndEmptyArrays: true } });
+
+  // 4. Apply Search (Name, Phone, Plan Name, Payment IDs)
+  if (search) {
+    const searchRegex = new RegExp(search.trim(), 'i');
+    pipeline.push({
+      $match: {
+        $or: [
+          { 'student.name': searchRegex },
+          { 'student.phone': searchRegex },
+          { 'plan.name': searchRegex },
+          { cashfreeOrderId: searchRegex }
+        ]
+      }
+    });
+  }
+
+  // 5. Apply Plan Type Filter
+  if (type) {
+    pipeline.push({
+      $match: {
+        'plan.type': type
+      }
+    });
+  }
+
+  // 6. Pagination & Sort
+  const sortStage = { $sort: { createdAt: -1 } };
+
+  // Count Total
+  const countPipeline = [...pipeline, { $count: 'total' }];
+
+  // Execute Queries
+  const [totalResult, results] = await Promise.all([
+    Payment.aggregate(countPipeline),
+    Payment.aggregate([
+      ...pipeline,
+      sortStage,
+      { $skip: (parseInt(page) - 1) * parseInt(limit) },
+      { $limit: parseInt(limit) },
+      {
+        $project: {
+          _id: 1,
+          amount: 1,
+          status: 1,
+          createdAt: 1,
+          subscriptionStartDate: 1,
+          subscriptionEndDate: 1,
+          cashfreeOrderId: 1,
+          paymentMethod: 1,
+          'student.name': 1,
+          'student.phone': 1,
+          'student.profileImage': 1,
+          'plan.name': 1,
+          'plan.type': 1,
+          'plan.duration': 1,
+          'plan.price': 1
+        }
+      }
+    ])
+  ]);
+
+  const total = totalResult.length > 0 ? totalResult[0].total : 0;
+
+  res.status(200).json({
+    success: true,
+    count: results.length,
+    total,
+    page: parseInt(page),
+    pages: Math.ceil(total / parseInt(limit)),
+    data: {
+      subscriptions: results
+    }
+  });
+});
+

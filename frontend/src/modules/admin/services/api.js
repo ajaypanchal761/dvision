@@ -258,6 +258,14 @@ export const adminAPI = {
       body: { currentPassword, newPassword },
     });
   },
+
+  // Get Subscription History
+  getSubscriptionHistory: async (params = {}) => {
+    const queryString = new URLSearchParams(params).toString();
+    return apiRequest(`/admin/subscription-history${queryString ? `?${queryString}` : ''}`, {
+      method: 'GET',
+    });
+  },
 };
 
 // Student Management API

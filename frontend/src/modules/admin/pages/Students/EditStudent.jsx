@@ -50,7 +50,7 @@ const EditStudent = () => {
   // Extract country code from phone number
   const extractCountryCode = (phone) => {
     if (!phone) return { code: '+91', number: '' }
-    
+
     for (const country of countryCodes) {
       if (phone.startsWith(country.code)) {
         return {
@@ -68,12 +68,12 @@ const EditStudent = () => {
     const fetchData = async () => {
       try {
         setLoadingClasses(true)
-        
+
         // Fetch all classes without pagination
         const classesResponse = await classAPI.getAllWithoutPagination({ isActive: true })
         if (classesResponse.success && classesResponse.data?.classes) {
           const classesData = classesResponse.data.classes
-          
+
           // Store all classes data for filtering
           setAllClassesData(classesData)
 
@@ -83,12 +83,12 @@ const EditStudent = () => {
             prepMap[c._id] = c.name || c.classCode || 'Preparation Class'
           })
           setPrepClassesMap(prepMap)
-          
+
           // Extract unique boards (regular only) and sort them
           const uniqueBoards = [...new Set(classesData.filter(c => c.type === 'regular').map(c => c.board))]
             .filter(Boolean)
             .sort()
-          
+
           setBoards(uniqueBoards)
         }
 
@@ -128,9 +128,9 @@ const EditStudent = () => {
       allClassesData
         .filter(c => {
           const classBoard = (c.board || '').trim()
-          return classBoard.toLowerCase() === selectedBoard.toLowerCase() && 
-                 c.type === 'regular' && 
-                 c.class != null
+          return classBoard.toLowerCase() === selectedBoard.toLowerCase() &&
+            c.type === 'regular' &&
+            c.class != null
         })
         .map(c => parseInt(c.class))
         .filter(c => !isNaN(c) && c >= 1 && c <= 12)
@@ -188,24 +188,24 @@ const EditStudent = () => {
     const fetchPrepData = async () => {
       try {
         setLoadingPrepPlans(true)
-        
+
         // Fetch preparation classes - pass all=true to get all active classes
         const classesResponse = await subscriptionPlanAPI.getPreparationClasses(true)
         if (classesResponse.success && classesResponse.data?.classes) {
           const prepClasses = classesResponse.data.classes.filter(c => c.isActive !== false)
           setPreparationClasses(prepClasses)
         }
-        
+
         // Fetch all preparation plans
         const plansResponse = await subscriptionPlanAPI.getAll({
           type: 'preparation',
           isActive: true
         })
-        
+
         if (plansResponse.success && (plansResponse.data?.plans || plansResponse.data?.subscriptionPlans)) {
           const plans = plansResponse.data.plans || plansResponse.data.subscriptionPlans || []
           setPrepPlans(plans)
-          
+
           // Group plans by classId
           const plansByClass = {}
           plans.forEach(plan => {
@@ -244,15 +244,15 @@ const EditStudent = () => {
         const response = await studentAPI.getById(id)
         if (response.success && response.data?.student) {
           const student = response.data.student
-          
+
           // Extract country code and phone number
           const { code, number } = extractCountryCode(student.phone || '')
-          
+
           setSelectedCountryCode(code)
           // Check if student has active regular subscription
           const hasActiveSubscription = student.subscription && student.subscription.status === 'active' && student.subscription.planId
           const subscriptionStatus = hasActiveSubscription ? 'active' : 'none'
-          const selectedPlanId = hasActiveSubscription && student.subscription.planId ? student.subscription.planId.toString() : ''
+          const selectedPlanId = hasActiveSubscription && student.subscription.planId ? (student.subscription.planId._id || student.subscription.planId).toString() : ''
 
           // Prep subscriptions from activeSubscriptions - convert to { classId: planId } format
           const prepSubscriptions = {}
@@ -322,7 +322,7 @@ const EditStudent = () => {
     try {
       // Validate phone number
       const phoneNumber = formData.mobile.replace(/\D/g, '')
-      
+
       if (!phoneNumber || phoneNumber.length < 10) {
         setError('Please enter a valid mobile number (minimum 10 digits)')
         setIsLoading(false)
@@ -347,7 +347,7 @@ const EditStudent = () => {
 
       // Parse class number
       const classNumber = parseInt(formData.class)
-      
+
       if (isNaN(classNumber) || !availableClasses.includes(classNumber)) {
         throw new Error('Please select a valid class for the selected board')
       }
@@ -394,7 +394,7 @@ const EditStudent = () => {
       }
 
       const response = await studentAPI.update(id, studentData)
-      
+
       if (response.success) {
         navigate('/admin/students')
       } else {
@@ -474,7 +474,7 @@ const EditStudent = () => {
                       </span>
                     </div>
                   )}
-                <label className="absolute bottom-0 right-0 bg-linear-to-r from-[#1e3a5f] to-[#2a4a6f] hover:from-[#2a4a6f] hover:to-[#1e3a5f] text-white rounded-full p-2 sm:p-2.5 cursor-pointer transition-all duration-200 shadow-lg hover:shadow-xl">
+                  <label className="absolute bottom-0 right-0 bg-linear-to-r from-[#1e3a5f] to-[#2a4a6f] hover:from-[#2a4a6f] hover:to-[#1e3a5f] text-white rounded-full p-2 sm:p-2.5 cursor-pointer transition-all duration-200 shadow-lg hover:shadow-xl">
                     <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -546,7 +546,7 @@ const EditStudent = () => {
                   </label>
                   <div className="relative flex items-stretch">
                     {/* Country Code Dropdown */}
-                  <div className="relative shrink-0">
+                    <div className="relative shrink-0">
                       <button
                         type="button"
                         onClick={() => setShowCountryDropdown(!showCountryDropdown)}
@@ -557,12 +557,12 @@ const EditStudent = () => {
                         </span>
                         <FiChevronDown className="text-gray-500 text-xs shrink-0" />
                       </button>
-                      
+
                       {/* Dropdown Menu */}
                       {showCountryDropdown && (
                         <>
-                          <div 
-                            className="fixed inset-0 z-10" 
+                          <div
+                            className="fixed inset-0 z-10"
                             onClick={() => setShowCountryDropdown(false)}
                           />
                           <div className="absolute top-full left-0 mt-1 bg-white border-2 border-gray-200 rounded-lg shadow-2xl z-20 max-h-60 overflow-y-auto w-56">
@@ -574,9 +574,8 @@ const EditStudent = () => {
                                   setSelectedCountryCode(country.code)
                                   setShowCountryDropdown(false)
                                 }}
-                                className={`w-full flex items-center gap-2 px-3 py-2 hover:bg-gray-50 transition-colors text-xs ${
-                                  selectedCountryCode === country.code ? 'bg-[#1e3a5f]/10' : ''
-                                }`}
+                                className={`w-full flex items-center gap-2 px-3 py-2 hover:bg-gray-50 transition-colors text-xs ${selectedCountryCode === country.code ? 'bg-[#1e3a5f]/10' : ''
+                                  }`}
                               >
                                 <span className="text-gray-700 font-bold w-8">
                                   {country.countryCode}
@@ -593,7 +592,7 @@ const EditStudent = () => {
                         </>
                       )}
                     </div>
-                    
+
                     {/* Mobile Number Input */}
                     <input
                       type="tel"
@@ -727,63 +726,63 @@ const EditStudent = () => {
                 )}
               </div>
 
-            {/* Preparation subscriptions */}
-            <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4">
-              <label className="block text-[11px] sm:text-sm font-semibold text-gray-700 mb-1">
-                Preparation Subscriptions (optional)
-              </label>
-              <p className="text-[10px] sm:text-xs text-gray-500 mb-2">Assign one subscription per preparation class. You can assign multiple subscriptions for different preparation classes.</p>
-              
-              {loadingPrepPlans ? (
-                <div className="text-center py-4">
-                  <p className="text-xs text-gray-500">Loading preparation classes...</p>
-                </div>
-              ) : preparationClasses.length === 0 ? (
-                <div className="text-center py-4">
-                  <p className="text-xs text-gray-500">No preparation classes available</p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {preparationClasses.map(prepClass => {
-                    const classId = prepClass._id?.toString() || prepClass._id
-                    const plansForClass = prepPlansByClass[classId] || []
-                    const selectedPlanId = formData.prepSubscriptions[classId] || ''
-                    
-                    return (
-                      <div key={classId} className="border border-gray-200 rounded-lg p-2 sm:p-3">
-                        <label className="block text-[10px] sm:text-xs font-semibold text-gray-700 mb-1.5">
-                          {prepClass.name || prepClass.classCode || 'Preparation Class'}
-                        </label>
-                        <select
-                          value={selectedPlanId}
-                          onChange={(e) => {
-                            const newPrepSubs = { ...formData.prepSubscriptions }
-                            if (e.target.value) {
-                              newPrepSubs[classId] = e.target.value
-                            } else {
-                              delete newPrepSubs[classId]
-                            }
-                            setFormData(prev => ({ ...prev, prepSubscriptions: newPrepSubs }))
-                          }}
-                          className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-200 rounded-lg focus:ring-1 focus:ring-[#1e3a5f] focus:border-[#1e3a5f] outline-none transition-all duration-200 bg-white text-[10px] sm:text-xs"
-                          disabled={isLoading || loadingPrepPlans}
-                        >
-                          <option value="">No subscription</option>
-                          {plansForClass.map(plan => (
-                            <option key={plan._id} value={plan._id}>
-                              {plan.name} - ₹{plan.price} ({plan.duration})
-                            </option>
-                          ))}
-                        </select>
-                        {plansForClass.length === 0 && (
-                          <p className="text-[9px] text-gray-400 mt-1">No subscriptions available for this class</p>
-                        )}
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
+              {/* Preparation subscriptions */}
+              <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4">
+                <label className="block text-[11px] sm:text-sm font-semibold text-gray-700 mb-1">
+                  Preparation Subscriptions (optional)
+                </label>
+                <p className="text-[10px] sm:text-xs text-gray-500 mb-2">Assign one subscription per preparation class. You can assign multiple subscriptions for different preparation classes.</p>
+
+                {loadingPrepPlans ? (
+                  <div className="text-center py-4">
+                    <p className="text-xs text-gray-500">Loading preparation classes...</p>
+                  </div>
+                ) : preparationClasses.length === 0 ? (
+                  <div className="text-center py-4">
+                    <p className="text-xs text-gray-500">No preparation classes available</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {preparationClasses.map(prepClass => {
+                      const classId = prepClass._id?.toString() || prepClass._id
+                      const plansForClass = prepPlansByClass[classId] || []
+                      const selectedPlanId = formData.prepSubscriptions[classId] || ''
+
+                      return (
+                        <div key={classId} className="border border-gray-200 rounded-lg p-2 sm:p-3">
+                          <label className="block text-[10px] sm:text-xs font-semibold text-gray-700 mb-1.5">
+                            {prepClass.name || prepClass.classCode || 'Preparation Class'}
+                          </label>
+                          <select
+                            value={selectedPlanId}
+                            onChange={(e) => {
+                              const newPrepSubs = { ...formData.prepSubscriptions }
+                              if (e.target.value) {
+                                newPrepSubs[classId] = e.target.value
+                              } else {
+                                delete newPrepSubs[classId]
+                              }
+                              setFormData(prev => ({ ...prev, prepSubscriptions: newPrepSubs }))
+                            }}
+                            className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-200 rounded-lg focus:ring-1 focus:ring-[#1e3a5f] focus:border-[#1e3a5f] outline-none transition-all duration-200 bg-white text-[10px] sm:text-xs"
+                            disabled={isLoading || loadingPrepPlans}
+                          >
+                            <option value="">No subscription</option>
+                            {plansForClass.map(plan => (
+                              <option key={plan._id} value={plan._id}>
+                                {plan.name} - ₹{plan.price} ({plan.duration})
+                              </option>
+                            ))}
+                          </select>
+                          {plansForClass.length === 0 && (
+                            <p className="text-[9px] text-gray-400 mt-1">No subscriptions available for this class</p>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2 sm:gap-3 pt-3 sm:pt-4">

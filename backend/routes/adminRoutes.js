@@ -10,7 +10,8 @@ const {
   changePassword,
   updateFcmToken,
   getAllAdmins,
-  getDashboardStatistics
+  getDashboardStatistics,
+  getSubscriptionHistory
 } = require('../controllers/adminController');
 const {
   getAllStudents,
@@ -88,6 +89,7 @@ router.put('/fcm-token', protect, updateFcmToken);
 
 // Admin Dashboard Statistics
 router.get('/dashboard/statistics', protect, authorize('admin', 'super_admin'), getDashboardStatistics);
+router.get('/subscription-history', protect, authorize('admin', 'super_admin'), getSubscriptionHistory);
 
 // Admin Student Management Routes
 router.get('/students/statistics', protect, authorize('admin', 'super_admin'), getStudentStatistics);

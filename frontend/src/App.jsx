@@ -77,6 +77,7 @@ const AdminQuizResults = lazy(() => import('./modules/admin/pages/Quizzes/QuizRe
 const AdminSubscriptions = lazy(() => import('./modules/admin/pages/Subscriptions/Subscriptions'));
 const AdminAddSubscription = lazy(() => import('./modules/admin/pages/Subscriptions/AddSubscription'));
 const AdminEditSubscription = lazy(() => import('./modules/admin/pages/Subscriptions/EditSubscription'));
+const AdminSubscriptionHistory = lazy(() => import('./modules/admin/pages/Subscriptions/SubscriptionHistory'));
 const AdminTransactions = lazy(() => import('./modules/admin/pages/Transactions/Transactions'));
 const AdminBanners = lazy(() => import('./modules/admin/pages/Banners/Banners'));
 const AdminAddBanner = lazy(() => import('./modules/admin/pages/Banners/AddBanner'));
@@ -689,6 +690,16 @@ function App() {
               <AdminProtectedRoute>
                 <AdminLayout>
                   <AdminEditSubscription />
+                </AdminLayout>
+              </AdminProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/subscription-history"
+            element={
+              <AdminProtectedRoute>
+                <AdminLayout>
+                  <AdminSubscriptionHistory />
                 </AdminLayout>
               </AdminProtectedRoute>
             }

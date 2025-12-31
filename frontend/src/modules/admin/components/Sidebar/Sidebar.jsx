@@ -54,13 +54,22 @@ const Sidebar = ({ isOpen, setIsOpen, isCollapsed }) => {
           path: '/admin/teachers',
         },
         {
-          name: 'Subscriptions',
+          name: 'Subscription Plans',
           icon: (
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
             </svg>
           ),
           path: '/admin/subscriptions',
+        },
+        {
+          name: 'Subscription History',
+          icon: (
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          ),
+          path: '/admin/subscription-history',
         },
         {
           name: 'Transactions',
@@ -359,8 +368,8 @@ const Sidebar = ({ isOpen, setIsOpen, isCollapsed }) => {
                         item.onClick()
                       }}
                       className={`flex items-center justify-center p-3 rounded-xl transition-all duration-200 sidebar-tooltip w-full ${isActive(item.path)
-                          ? 'bg-white/20 text-white shadow-sm'
-                          : 'text-white/70 hover:bg-white/10 hover:text-white'
+                        ? 'bg-white/20 text-white shadow-sm'
+                        : 'text-white/70 hover:bg-white/10 hover:text-white'
                         }`}
                       data-tooltip={item.name}
                       title={item.name}
@@ -376,8 +385,8 @@ const Sidebar = ({ isOpen, setIsOpen, isCollapsed }) => {
                         navigate(item.path)
                       }}
                       className={`flex items-center justify-center p-3 rounded-xl transition-all duration-200 sidebar-tooltip w-full ${isActive(item.path)
-                          ? 'bg-white/20 text-white shadow-sm'
-                          : 'text-white/70 hover:bg-white/10 hover:text-white'
+                        ? 'bg-white/20 text-white shadow-sm'
+                        : 'text-white/70 hover:bg-white/10 hover:text-white'
                         }`}
                       data-tooltip={item.name}
                       title={item.name}
@@ -435,8 +444,8 @@ const Sidebar = ({ isOpen, setIsOpen, isCollapsed }) => {
                             item.onClick()
                           }}
                           className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 w-full text-left ${isActive(item.path)
-                              ? 'bg-white/20 text-white shadow-sm'
-                              : 'text-white/70 hover:bg-white/10 hover:text-white'
+                            ? 'bg-white/20 text-white shadow-sm'
+                            : 'text-white/70 hover:bg-white/10 hover:text-white'
                             }`}
                         >
                           <span className={`flex-shrink-0 ${isActive(item.path) ? 'text-white' : 'text-white/60'}`}>
@@ -449,8 +458,8 @@ const Sidebar = ({ isOpen, setIsOpen, isCollapsed }) => {
                           to={item.path}
                           onClick={() => setIsOpen(false)}
                           className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 ${isActive(item.path)
-                              ? 'bg-white/20 text-white shadow-sm'
-                              : 'text-white/70 hover:bg-white/10 hover:text-white'
+                            ? 'bg-white/20 text-white shadow-sm'
+                            : 'text-white/70 hover:bg-white/10 hover:text-white'
                             }`}
                         >
                           <span className={`flex-shrink-0 ${isActive(item.path) ? 'text-white' : 'text-white/60'}`}>

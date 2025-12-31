@@ -55,6 +55,7 @@ const notificationSchema = new mongoose.Schema(
         'student_subscribed',
         'doubt',
         'doubt_answer',
+        'subscription_updated',
         'general'
       ],
       default: 'general'

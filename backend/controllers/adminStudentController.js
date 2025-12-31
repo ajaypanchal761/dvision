@@ -1,5 +1,7 @@
+const mongoose = require('mongoose');
 const Student = require('../models/Student');
 const SubscriptionPlan = require('../models/SubscriptionPlan');
+const Payment = require('../models/Payment');
 const asyncHandler = require('../utils/asyncHandler');
 const ErrorResponse = require('../utils/errorResponse');
 const { uploadToCloudinary, deleteFromCloudinary } = require('../config/cloudinary');
@@ -130,10 +132,17 @@ exports.createStudent = asyncHandler(async (req, res) => {
     board,
     isActive,
     profileImageBase64,
-    subscriptionPlanId, // regular plan
-    preparationPlanIds = [], // array of prep plan ids
+    subscriptionPlanId: rawSubscriptionPlanId, // regular plan
+    preparationPlanIds: rawPreparationPlanIds = [], // array of prep plan ids
     password
   } = req.body;
+
+  // Sanitize subscriptionPlanId if it's an object
+  const subscriptionPlanId = (rawSubscriptionPlanId && typeof rawSubscriptionPlanId === 'object') ? (rawSubscriptionPlanId.value || rawSubscriptionPlanId._id || rawSubscriptionPlanId.id) : rawSubscriptionPlanId;
+
+  // Sanitize preparationPlanIds if they contain objects
+  const preparationPlanIds = Array.isArray(rawPreparationPlanIds) ? rawPreparationPlanIds.map(id => (id && typeof id === 'object') ? (id.value || id._id || id.id) : id) : [];
+
 
   if (!name || !phone || !studentClass || !board) {
     throw new ErrorResponse('Please provide name, phone, class, and board', 400);
@@ -171,7 +180,9 @@ exports.createStudent = asyncHandler(async (req, res) => {
   }
 
   // Prepare student data
+  const studentId = new mongoose.Types.ObjectId();
   const studentData = {
+    _id: studentId,
     name,
     phone,
     email,
@@ -179,7 +190,8 @@ exports.createStudent = asyncHandler(async (req, res) => {
     board,
     isActive: isActive !== undefined ? isActive : true,
     isPhoneVerified: true,
-    profileImage: profileImageUrl
+    profileImage: profileImageUrl,
+    activeSubscriptions: []
   };
 
   // Add password if provided (will be hashed by pre-save hook)
@@ -218,8 +230,6 @@ exports.createStudent = asyncHandler(async (req, res) => {
     return { startDate, endDate };
   };
 
-  studentData.activeSubscriptions = [];
-
   // Handle regular subscription (legacy fields + activeSubscriptions entry)
   if (subscriptionPlanId) {
     const plan = await SubscriptionPlan.findById(subscriptionPlanId);
@@ -229,14 +239,30 @@ exports.createStudent = asyncHandler(async (req, res) => {
     if (!plan.isActive) {
       throw new ErrorResponse('Cannot assign inactive subscription plan', 400);
     }
-    if (plan.type !== 'regular') {
-      throw new ErrorResponse('Selected plan is not a regular plan', 400);
+    // Relaxed validation
+    if (plan.board && (board && plan.board !== board)) {
+      throw new ErrorResponse('Selected plan does not match student board', 400);
     }
-    if (!plan.board || !plan.classes?.length || !plan.classes.includes(parseInt(studentClass))) {
-      throw new ErrorResponse('Selected plan does not match student board/class', 400);
+    if (plan.classes && plan.classes.length > 0 && studentClass && !plan.classes.includes(parseInt(studentClass))) {
+      throw new ErrorResponse('Selected plan does not match student class', 400);
     }
 
     const { startDate, endDate } = computeEndDate(plan.duration, plan.validityDays);
+
+    // Create manual payment
+    const payment = await Payment.create({
+      studentId: studentId,
+      subscriptionPlanId: plan._id,
+      amount: 0,
+      status: 'completed',
+      paymentMethod: 'manual',
+      subscriptionStartDate: startDate,
+      subscriptionEndDate: endDate,
+      metadata: {
+        assignedBy: req.user.id,
+        note: 'Manually assigned by admin on creation'
+      }
+    });
 
     // Legacy subscription field
     studentData.subscription = {
@@ -246,15 +272,16 @@ exports.createStudent = asyncHandler(async (req, res) => {
       endDate
     };
 
-    // Active subscriptions array entry
     studentData.activeSubscriptions.push({
       planId: plan._id,
+      paymentId: payment._id,
       startDate,
       endDate,
       type: 'regular',
-      board: plan.board,
+      board: board,
       class: parseInt(studentClass)
     });
+
   } else {
     // Default subscription status
     studentData.subscription = {
@@ -273,16 +300,33 @@ exports.createStudent = asyncHandler(async (req, res) => {
       throw new ErrorResponse('One or more preparation plans are invalid or inactive', 400);
     }
 
-    prepPlans.forEach((plan) => {
+    for (const plan of prepPlans) {
       const { startDate, endDate } = computeEndDate(plan.duration, plan.validityDays);
+
+      // Create manual payment
+      const payment = await Payment.create({
+        studentId: studentId,
+        subscriptionPlanId: plan._id,
+        amount: 0,
+        status: 'completed',
+        paymentMethod: 'manual',
+        subscriptionStartDate: startDate,
+        subscriptionEndDate: endDate,
+        metadata: {
+          assignedBy: req.user.id,
+          note: 'Manually assigned by admin on creation'
+        }
+      });
+
       studentData.activeSubscriptions.push({
         planId: plan._id,
+        paymentId: payment._id,
         startDate,
         endDate,
         type: 'preparation',
         classId: plan.classId
       });
-    });
+    }
   }
 
   const student = await Student.create(studentData);
@@ -361,11 +405,18 @@ exports.updateStudent = asyncHandler(async (req, res) => {
     board,
     isActive,
     profileImageBase64,
-    subscriptionPlanId,
-    preparationPlanIds = [],
+    subscriptionPlanId: rawSubscriptionPlanId,
+    preparationPlanIds: rawPreparationPlanIds = [],
     removeSubscription,
     password
   } = req.body;
+
+  // Sanitize subscriptionPlanId if it's an object
+  const subscriptionPlanId = (rawSubscriptionPlanId && typeof rawSubscriptionPlanId === 'object') ? (rawSubscriptionPlanId.value || rawSubscriptionPlanId._id || rawSubscriptionPlanId.id) : rawSubscriptionPlanId;
+
+  // Sanitize preparationPlanIds if they contain objects
+  const preparationPlanIds = Array.isArray(rawPreparationPlanIds) ? rawPreparationPlanIds.map(id => (id && typeof id === 'object') ? (id.value || id._id || id.id) : id) : [];
+
 
   let student = await Student.findById(req.params.id);
 
@@ -490,6 +541,9 @@ exports.updateStudent = asyncHandler(async (req, res) => {
   };
 
   // Handle subscription + activeSubscriptions update
+  const boardToCheck = student.board;
+  const classToCheck = student.class;
+
   if (removeSubscription === true || removeSubscription === 'true') {
     student.subscription = {
       status: 'none',
@@ -510,22 +564,35 @@ exports.updateStudent = asyncHandler(async (req, res) => {
       if (!plan.isActive) {
         throw new ErrorResponse('Cannot assign inactive subscription plan', 400);
       }
-      if (plan.type !== 'regular') {
-        throw new ErrorResponse('Selected plan is not a regular plan', 400);
+      // if (plan.type !== 'regular') {
+      //   throw new ErrorResponse('Selected plan is not a regular plan', 400);
+      // }
+      // Relaxed validation: Only check board/class match if the plan explicitly requires them.
+      // If plan has no board/classes defined (e.g. some prep plans), allow assignment.
+      if (plan.board && (boardToCheck && plan.board !== boardToCheck)) {
+        throw new ErrorResponse('Plan board does not match student board', 400);
       }
-      if (!plan.board || !plan.classes?.length || (student.board && !plan.classes.includes(student.class))) {
-        // Re-validate with provided board/class if present in request
-        const boardToCheck = board !== undefined ? board : student.board;
-        const classToCheck = studentClass !== undefined ? parseInt(studentClass) : student.class;
-        if (boardToCheck && plan.board !== boardToCheck) {
-          throw new ErrorResponse('Regular plan does not match student board', 400);
-        }
-        if (classToCheck && !plan.classes.includes(classToCheck)) {
-          throw new ErrorResponse('Regular plan does not match student class', 400);
-        }
+      if (plan.classes && plan.classes.length > 0 && classToCheck && !plan.classes.includes(classToCheck)) {
+        throw new ErrorResponse('Plan class does not match student class', 400);
       }
 
       const { startDate, endDate } = computeEndDate(plan.duration, plan.validityDays);
+
+      // Create manual payment record for history tracking
+      const payment = await Payment.create({
+        studentId: student._id,
+        subscriptionPlanId: plan._id,
+        amount: 0, // Manual assignment usually free/already paid
+        status: 'completed',
+        paymentMethod: 'manual',
+        subscriptionStartDate: startDate,
+        subscriptionEndDate: endDate,
+        metadata: {
+          assignedBy: req.user.id,
+          note: 'Manually assigned by admin'
+        }
+      });
+
       student.subscription = {
         status: 'active',
         planId: plan._id,
@@ -534,6 +601,7 @@ exports.updateStudent = asyncHandler(async (req, res) => {
       };
       newActiveSubs.push({
         planId: plan._id,
+        paymentId: payment._id,
         startDate,
         endDate,
         type: 'regular',
@@ -557,16 +625,35 @@ exports.updateStudent = asyncHandler(async (req, res) => {
       if (prepPlans.length !== prepIds.length) {
         throw new ErrorResponse('One or more preparation plans are invalid or inactive', 400);
       }
-      prepPlans.forEach((plan) => {
+
+      // Process prep plans sequentially to await payment creation
+      for (const plan of prepPlans) {
         const { startDate, endDate } = computeEndDate(plan.duration, plan.validityDays);
+
+        // Create manual payment record for history tracking
+        const payment = await Payment.create({
+          studentId: student._id,
+          subscriptionPlanId: plan._id,
+          amount: 0,
+          status: 'completed',
+          paymentMethod: 'manual',
+          subscriptionStartDate: startDate,
+          subscriptionEndDate: endDate,
+          metadata: {
+            assignedBy: req.user.id,
+            note: 'Manually assigned by admin'
+          }
+        });
+
         newActiveSubs.push({
           planId: plan._id,
+          paymentId: payment._id,
           startDate,
           endDate,
           type: 'preparation',
           classId: plan.classId
         });
-      });
+      }
     }
 
     if (newActiveSubs.length > 0) {
