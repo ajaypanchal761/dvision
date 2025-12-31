@@ -144,28 +144,29 @@ const SubscriptionHistory = () => {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Student</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Plan</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Duration</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Validity</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Method</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Image</th>
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Student Info</th>
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Plan</th>
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Duration</th>
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Validity</th>
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Method</th>
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Date & Time</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {isLoading ? (
                   Array.from({ length: 5 }).map((_, i) => (
                     <tr key={i} className="animate-pulse">
-                      <td colSpan="8" className="px-6 py-4">
+                      <td colSpan="9" className="px-6 py-4">
                         <div className="h-4 bg-gray-200 rounded w-full"></div>
                       </td>
                     </tr>
                   ))
                 ) : subscriptions.length === 0 ? (
                   <tr>
-                    <td colSpan="8" className="px-6 py-8 text-center text-gray-500">
+                    <td colSpan="9" className="px-6 py-8 text-center text-gray-500">
                       No subscription history found matching your filters.
                     </td>
                   </tr>
@@ -174,31 +175,29 @@ const SubscriptionHistory = () => {
                     const subStatus = getSubscriptionStatus(sub.subscriptionEndDate)
                     return (
                       <tr key={sub._id} className="hover:bg-gray-50 transition-colors">
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center">
-                            <div className="h-10 w-10 flex-shrink-0">
-                              <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 font-bold overflow-hidden">
-                                {sub.student?.profileImage ? (
-                                  <img src={sub.student.profileImage} alt="" className="h-full w-full object-cover" />
-                                ) : (
-                                  (sub.student?.name?.[0] || '?')
-                                )}
-                              </div>
-                            </div>
-                            <div className="ml-4">
-                              <div className="text-sm font-medium text-gray-900">{sub.student?.name || 'Unknown'}</div>
-                              <div className="text-sm text-gray-500">{sub.student?.phone || 'N/A'}</div>
+                        <td className="px-6 py-4 whitespace-nowrap text-center">
+                          <div className="h-10 w-10 mx-auto">
+                            <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 font-bold overflow-hidden">
+                              {sub.student?.profileImage ? (
+                                <img src={sub.student.profileImage} alt="" className="h-full w-full object-cover" />
+                              ) : (
+                                (sub.student?.name?.[0] || '?')
+                              )}
                             </div>
                           </div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-6 py-4 whitespace-nowrap text-center">
+                          <div className="text-sm font-medium text-gray-900">{sub.student?.name || 'Unknown'}</div>
+                          <div className="text-sm text-gray-500">{sub.student?.phone || 'N/A'}</div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-center">
                           <div className="text-sm text-gray-900 font-semibold">{sub.plan?.name || 'Unknown Plan'}</div>
                           <div className="text-xs text-gray-500 capitalize">{sub.plan?.type || 'N/A'}</div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 capitalize">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 capitalize text-center">
                           {sub.plan?.duration || 'N/A'}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-6 py-4 whitespace-nowrap text-center">
                           <div className="text-xs text-gray-900">
                             <span className="font-medium">Start:</span> {formatDate(sub.subscriptionStartDate)}
                           </div>
@@ -208,16 +207,16 @@ const SubscriptionHistory = () => {
                             </div>
                           )}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 text-center">
                           {sub.paymentMethod === 'manual' && sub.amount === 0 ? 'FREE' : formatCurrency(sub.amount)}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
                           <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${sub.paymentMethod === 'manual' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'
                             }`}>
                             {sub.paymentMethod === 'manual' ? 'Admin Assigned' : 'Online'}
                           </span>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-6 py-4 whitespace-nowrap text-center">
                           {/* Payment Status Badge */}
                           <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${sub.status === 'completed' ? 'bg-green-100 text-green-800' :
                             sub.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
@@ -232,7 +231,7 @@ const SubscriptionHistory = () => {
                             </div>
                           )}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
                           {formatDate(sub.createdAt, true)}
                         </td>
                       </tr>
