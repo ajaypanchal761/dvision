@@ -356,7 +356,7 @@ const Quizzes = () => {
                       <FiEye className="w-4 h-4 sm:w-5 sm:h-5" />
                     </button>
 
-                    {!isDeadlinePassed(quiz.deadline) && (
+                    {!isDeadlinePassed(quiz.deadline) ? (
                       <>
                         <button
                           onClick={() => navigate(`/teacher/quizzes/edit/${quiz._id}`)}
@@ -373,15 +373,23 @@ const Quizzes = () => {
                           <FiTrash2 className="w-4 h-4 sm:w-5 sm:h-5" />
                         </button>
                       </>
-                    )}
-                    {isDeadlinePassed(quiz.deadline) && (
-                      <button
-                        onClick={() => navigate(`/teacher/quizzes/${quiz._id}/results`)}
-                        className="p-1.5 sm:p-2 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg transition-all"
-                        title="View Results"
-                      >
-                        <FiBarChart2 className="w-4 h-4 sm:w-5 sm:h-5" />
-                      </button>
+                    ) : (
+                      <>
+                        <button
+                          onClick={() => navigate(`/teacher/quizzes/${quiz._id}/results`)}
+                          className="p-1.5 sm:p-2 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg transition-all"
+                          title="View Results"
+                        >
+                          <FiBarChart2 className="w-4 h-4 sm:w-5 sm:h-5" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteClick(quiz._id)}
+                          className="p-1.5 sm:p-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg transition-all"
+                          title="Delete"
+                        >
+                          <FiTrash2 className="w-4 h-4 sm:w-5 sm:h-5" />
+                        </button>
+                      </>
                     )}
                   </div>
                 </div>

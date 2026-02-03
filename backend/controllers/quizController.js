@@ -730,6 +730,7 @@ exports.updateQuiz = asyncHandler(async (req, res) => {
 // @access  Private/Admin or Private/Teacher
 exports.deleteQuiz = asyncHandler(async (req, res) => {
   const { id } = req.params;
+  const QuizSubmission = require('../models/QuizSubmission');
 
   const quiz = await Quiz.findById(id);
 
@@ -737,6 +738,15 @@ exports.deleteQuiz = asyncHandler(async (req, res) => {
     throw new ErrorResponse('Quiz not found', 404);
   }
 
+  // Check ownership if teacher
+  if (req.user.role === 'teacher' && quiz.createdBy.toString() !== req.user._id.toString()) {
+    throw new ErrorResponse('Not authorized to delete this quiz', 403);
+  }
+
+  // Delete all submissions for this quiz
+  await QuizSubmission.deleteMany({ quizId: id });
+
+  // Delete the quiz
   await quiz.deleteOne();
 
   res.status(200).json({

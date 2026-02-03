@@ -658,7 +658,21 @@ exports.getSubscriptionHistory = asyncHandler(async (req, res) => {
           'plan.name': 1,
           'plan.type': 1,
           'plan.duration': 1,
-          'plan.price': 1
+          'plan.price': 1,
+          validityDays: {
+            $cond: {
+              if: { $and: ["$subscriptionStartDate", "$subscriptionEndDate"] },
+              then: {
+                $ceil: {
+                  $divide: [
+                    { $subtract: ["$subscriptionEndDate", "$subscriptionStartDate"] },
+                    1000 * 60 * 60 * 24
+                  ]
+                }
+              },
+              else: 0
+            }
+          }
         }
       }
     ])

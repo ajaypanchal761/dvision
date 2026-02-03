@@ -206,6 +206,11 @@ const SubscriptionHistory = () => {
                               <span className="font-medium">End:</span> {formatDate(sub.subscriptionEndDate)}
                             </div>
                           )}
+                          {sub.validityDays > 0 && (
+                            <div className="text-xs text-gray-500 mt-1">
+                              {sub.validityDays} {sub.validityDays === 1 ? 'Day' : 'Days'} Validity
+                            </div>
+                          )}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 text-center">
                           {sub.paymentMethod === 'manual' && sub.amount === 0 ? 'FREE' : formatCurrency(sub.amount)}

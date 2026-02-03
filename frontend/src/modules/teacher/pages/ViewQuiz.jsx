@@ -57,9 +57,9 @@ const ViewQuiz = () => {
   const formatDate = (dateString) => {
     if (!dateString) return null
     const date = new Date(dateString)
-    return date.toLocaleDateString('en-US', { 
-      year: 'numeric', 
-      month: 'short', 
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
       day: 'numeric',
       hour: 'numeric',
       minute: '2-digit',
@@ -98,14 +98,34 @@ const ViewQuiz = () => {
       {/* Dark Blue Header */}
       <header className="sticky top-0 z-50 bg-[var(--app-dark-blue)] text-white relative" style={{ borderRadius: '0 0 50% 50% / 0 0 30px 30px' }}>
         <div className="px-3 sm:px-4 md:px-6 pt-3 sm:pt-4 md:pt-6 pb-4 sm:pb-6 md:pb-8">
-          <div className="flex items-center gap-3 sm:gap-4">
-            <button
-              onClick={() => navigate('/teacher/quizzes')}
-              className="p-1.5 sm:p-2 hover:bg-white/10 rounded-full transition-colors"
-            >
-              <FiArrowLeft className="text-white text-lg sm:text-xl md:text-2xl" />
-            </button>
-            <h1 className="text-base sm:text-lg md:text-xl lg:text-2xl font-bold">Quiz Details</h1>
+          <div className="flex items-center justify-between gap-3 sm:gap-4">
+            <div className="flex items-center gap-3 sm:gap-4">
+              <button
+                onClick={() => navigate('/teacher/quizzes')}
+                className="p-1.5 sm:p-2 hover:bg-white/10 rounded-full transition-colors"
+              >
+                <FiArrowLeft className="text-white text-lg sm:text-xl md:text-2xl" />
+              </button>
+              <h1 className="text-base sm:text-lg md:text-xl lg:text-2xl font-bold">Quiz Details</h1>
+            </div>
+            <div className="flex items-center gap-2">
+              {!isDeadlinePassed() && (
+                <button
+                  onClick={() => navigate(`/teacher/quizzes/edit/${id}`)}
+                  className="p-1.5 sm:p-2 bg-white/20 hover:bg-white/30 text-white rounded-lg transition-all"
+                  title="Edit"
+                >
+                  <FiEdit2 className="w-4 h-4 sm:w-5 sm:h-5" />
+                </button>
+              )}
+              <button
+                onClick={handleDeleteClick}
+                className="p-1.5 sm:p-2 bg-red-500/80 hover:bg-red-600 text-white rounded-lg transition-all"
+                title="Delete"
+              >
+                <FiTrash2 className="w-4 h-4 sm:w-5 sm:h-5" />
+              </button>
+            </div>
           </div>
         </div>
       </header>
@@ -116,7 +136,7 @@ const ViewQuiz = () => {
           <h2 className="text-base sm:text-lg md:text-xl font-bold text-gray-900 mb-3 sm:mb-4">
             {quiz.name}
           </h2>
-          
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-3 sm:mb-4">
             <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-600">
               <FiFileText className="w-4 h-4" />
@@ -129,7 +149,7 @@ const ViewQuiz = () => {
               <span><strong>Board:</strong> {quiz.board}</span>
             </div>
             <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-600">
-              <span><strong>Status:</strong> 
+              <span><strong>Status:</strong>
                 {(() => {
                   const deadlinePassed = isDeadlinePassed()
                   if (deadlinePassed) {
@@ -140,11 +160,10 @@ const ViewQuiz = () => {
                     )
                   } else {
                     return (
-                      <span className={`ml-1 px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-semibold ${
-                        quiz.isActive 
-                          ? 'bg-green-100 text-green-700' 
+                      <span className={`ml-1 px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-semibold ${quiz.isActive
+                          ? 'bg-green-100 text-green-700'
                           : 'bg-gray-100 text-gray-700'
-                      }`}>
+                        }`}>
                         {quiz.isActive ? 'Active' : 'Inactive'}
                       </span>
                     )
@@ -180,7 +199,7 @@ const ViewQuiz = () => {
           <h3 className="text-sm sm:text-base md:text-lg font-bold text-gray-900">
             Questions ({quiz.questions?.length || 0})
           </h3>
-          
+
           {quiz.questions && quiz.questions.length > 0 ? (
             quiz.questions.map((question, index) => {
               const isExpanded = expandedQuestions[index]
@@ -225,11 +244,10 @@ const ViewQuiz = () => {
                           {question.options?.map((option, optIndex) => (
                             <div
                               key={optIndex}
-                              className={`flex items-center gap-2 p-2 sm:p-2.5 rounded-lg ${
-                                optIndex === question.correctAnswer
+                              className={`flex items-center gap-2 p-2 sm:p-2.5 rounded-lg ${optIndex === question.correctAnswer
                                   ? 'bg-green-50 border-2 border-green-300'
                                   : 'bg-gray-50 border-2 border-gray-200'
-                              }`}
+                                }`}
                             >
                               <span className="w-5 h-5 sm:w-6 sm:h-6 bg-[var(--app-dark-blue)] text-white rounded-full flex items-center justify-center text-[10px] sm:text-xs font-bold flex-shrink-0">
                                 {String.fromCharCode(65 + optIndex)}
