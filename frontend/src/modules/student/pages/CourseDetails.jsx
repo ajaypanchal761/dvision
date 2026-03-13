@@ -9,26 +9,30 @@ import BottomNav from '../components/common/BottomNav';
 // Helper function to get API base URL
 // Helper function to get API base URL
 const getApiBaseUrl = () => {
-  // Priority 1: Check if we are in production on the specific domain
-  // This overrides env vars which might be set incorrectly or relatively
-  if (typeof window !== 'undefined' && window.location.hostname.includes('dvisionacademy.com')) {
-    const hostname = window.location.hostname;
-    const protocol = window.location.protocol;
-
-    // Return base URL without /api suffix, as handlePdfView appends it
-    if (hostname.startsWith('www.')) {
-      return `${protocol}//api.${hostname.substring(4)}`;
-    } else if (!hostname.startsWith('api.')) {
-      return `${protocol}//api.${hostname}`;
-    } else {
-      // Fallback if we are securely on api subdomain or something else
-      return `${protocol}//${hostname}`;
+  // 1. If explicitly set via environment variable, use that
+  if (import.meta.env.VITE_API_BASE_URL) {
+    const envUrl = import.meta.env.VITE_API_BASE_URL;
+    if (envUrl.startsWith('http')) {
+      return envUrl.replace(/\/api$/, '');
     }
   }
 
-  // Priority 2: Env var
-  if (import.meta.env.VITE_API_BASE_URL) {
-    return import.meta.env.VITE_API_BASE_URL.replace('/api', '');
+  // 2. Auto-detect environment based on window.location
+  if (typeof window !== 'undefined') {
+    const { hostname, protocol } = window.location;
+    const isProduction = hostname.includes('dvisionacademy.com');
+
+    if (isProduction) {
+      // Production domain logic (return domain without /api)
+      if (hostname.startsWith('api.')) return `${protocol}//${hostname}`;
+      if (hostname.startsWith('www.')) return `${protocol}//api.${hostname.substring(4)}`;
+      return `${protocol}//api.${hostname}`;
+    }
+
+    // 3. Fallback for development
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+      return `http://${hostname}:5000`;
+    }
   }
 
   return 'http://localhost:5000';
@@ -73,66 +77,36 @@ const CourseDetails = () => {
   const handlePdfView = async (pdfUrl) => {
     if (!pdfUrl) return;
 
-    // Build API base
+    // Build API base (this returns server base without /api)
     const apiBase = getApiBaseUrl();
 
-    // If relative path (starts with / or without protocol), use backend download endpoint
-    const isRelative = !/^https?:\/\//i.test(pdfUrl) && !/^\/\//.test(pdfUrl);
-    const isProtocolRelative = /^\/\//.test(pdfUrl);
+    // Normalise pdfUrl: if it's a local path, ensure it starts with /
+    let normalizedPath = pdfUrl;
+    if (!/^https?:\/\//i.test(pdfUrl) && !pdfUrl.startsWith('/')) {
+      normalizedPath = '/' + pdfUrl;
+    }
 
     try {
-      if (isRelative || pdfUrl.startsWith('/')) {
-        // Ensure we send the path relative to uploads folder (strip leading slash)
+      // If it's a local path (starts with /uploads or /backend/uploads), prepend server base
+      if (normalizedPath.startsWith('/uploads') || normalizedPath.startsWith('/backend/uploads')) {
+        // Strip /backend if present because the server serves static files from /uploads
+        const cleanPath = normalizedPath.replace(/^\/backend/, '');
+        const fullUrl = `${apiBase}${cleanPath}`;
+        window.open(fullUrl, '_blank');
+        return;
+      }
+
+      // If it's relative but not a known local path, fallback to download proxied via /api
+      // (This handles any legacy paths that might not be in /uploads)
+      if (!/^https?:\/\//i.test(pdfUrl)) {
         const relative = pdfUrl.replace(/^\/+/, '');
         const downloadUrl = `${apiBase}/api/uploads/download?file=${encodeURIComponent(relative)}`;
-        window.location.href = downloadUrl;
+        window.open(downloadUrl, '_blank');
         return;
       }
 
-      if (isProtocolRelative) {
-        const absolute = `${window.location.protocol}${pdfUrl}`;
-        // If same-hosted, proxy via backend
-        if (absolute.includes(window.location.hostname)) {
-          const urlPath = absolute.replace(`${window.location.protocol}//${window.location.hostname}`, '');
-          const relative = urlPath.replace(/^\/+/, '');
-          const downloadUrl = `${apiBase}/api/uploads/download?file=${encodeURIComponent(relative)}`;
-          window.location.href = downloadUrl;
-          return;
-        }
-        // otherwise fallback to fetch
-        pdfUrl = absolute;
-      }
-
-      // If absolute remote URL and same-origin API host, use backend proxy to attach download header
-      if (/^https?:\/\//i.test(pdfUrl)) {
-        const parsed = new URL(pdfUrl);
-        if (parsed.hostname === window.location.hostname || pdfUrl.includes(apiBase)) {
-          const downloadUrl = `${apiBase}/api/uploads/download?url=${encodeURIComponent(pdfUrl)}`;
-          window.location.href = downloadUrl;
-          return;
-        }
-
-        // External URL: fetch as blob and trigger download in browser
-        const resp = await fetch(pdfUrl);
-        if (!resp.ok) throw new Error('Failed to fetch file');
-        const blob = await resp.blob();
-        const disposition = resp.headers.get('content-disposition');
-        let filename = 'file.pdf';
-        if (disposition) {
-          const match = /filename\*=UTF-8''([^;\n]+)/i.exec(disposition) || /filename="?([^";\n]+)"?/i.exec(disposition);
-          if (match && match[1]) filename = decodeURIComponent(match[1]);
-        } else {
-          try { filename = pdfUrl.split('/').pop().split('?')[0] || filename; } catch (e) { }
-        }
-
-        const link = document.createElement('a');
-        link.href = window.URL.createObjectURL(blob);
-        link.download = filename;
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-        return;
-      }
+      // Already a full URL (like Cloudinary), just open it
+      window.open(pdfUrl, '_blank');
     } catch (err) {
       console.error('Download error:', err);
       // fallback: open in new tab

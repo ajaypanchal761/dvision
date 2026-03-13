@@ -307,8 +307,10 @@ exports.createCourse = asyncHandler(async (req, res) => {
           // PDF uploaded via Multer (saved locally)
           pdfFilePath = pdfFiles[i].path;
           // Convert absolute path to relative path for serving
-          // e.g., /path/to/project/uploads/file.pdf -> /uploads/file.pdf
-          const relativePath = pdfFilePath.replace(path.join(__dirname, '../../'), '').replace(/\\/g, '/');
+          // pdfFiles[i].path is absolute path from Multer (e.g., .../backend/uploads/file.pdf)
+          // We want to serve it as /uploads/file.pdf
+          const backendRoot = path.join(__dirname, '..');
+          const relativePath = path.relative(backendRoot, pdfFilePath).replace(/\\/g, '/');
           pdfUrl = relativePath.startsWith('/') ? relativePath : `/${relativePath}`;
         } else if (chapter.pdfBase64 && !pdfUrl) {
           // PDF provided as base64 (backward compatibility)
@@ -317,10 +319,10 @@ exports.createCourse = asyncHandler(async (req, res) => {
           const buffer = Buffer.from(base64Data, 'base64');
           const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
           const fileName = `dvision-chapter-${uniqueSuffix}.pdf`;
-          const filePath = path.join(__dirname, '../../uploads', fileName);
+          const filePath = path.join(__dirname, '../uploads', fileName);
 
           // Ensure uploads directory exists
-          const uploadsDir = path.join(__dirname, '../../uploads');
+          const uploadsDir = path.join(__dirname, '../uploads');
           if (!fs.existsSync(uploadsDir)) {
             fs.mkdirSync(uploadsDir, { recursive: true });
           }
@@ -602,11 +604,12 @@ exports.updateCourse = asyncHandler(async (req, res) => {
         // Delete old PDF if exists (local file)
         if (chapter.pdfUrl && !chapter.pdfUrl.startsWith('http')) {
           try {
-            const oldFilePath = path.join(__dirname, '../../', chapter.pdfUrl);
-            if (fs.existsSync(oldFilePath)) {
-              fs.unlinkSync(oldFilePath);
-            }
-          } catch (error) {
+          const cleanPdfPath = chapter.pdfUrl.replace(/^\/backend/, '');
+          const filePath = path.join(__dirname, '..', cleanPdfPath);
+          if (fs.existsSync(filePath)) {
+            fs.unlinkSync(filePath);
+          }
+        } catch (error) {
             console.error(`Error deleting old PDF for chapter ${i + 1}:`, error);
           }
         }
@@ -614,7 +617,8 @@ exports.updateCourse = asyncHandler(async (req, res) => {
         // Save PDF locally (already saved by Multer, just get relative path)
         try {
           // Convert absolute path to relative path for serving
-          const relativePath = pdfFilePath.replace(path.join(__dirname, '../../'), '').replace(/\\/g, '/');
+          const backendRoot = path.join(__dirname, '..');
+          const relativePath = path.relative(backendRoot, pdfFilePath).replace(/\\/g, '/');
           pdfUrl = relativePath.startsWith('/') ? relativePath : `/${relativePath}`;
           pdfFileIndex++; // Move to next PDF file
         } catch (error) {
@@ -630,7 +634,8 @@ exports.updateCourse = asyncHandler(async (req, res) => {
         // Delete old PDF if exists (local file)
         if (chapter.pdfUrl && !chapter.pdfUrl.startsWith('http')) {
           try {
-            const oldFilePath = path.join(__dirname, '../../', chapter.pdfUrl);
+            const cleanPdfPath = chapter.pdfUrl.replace(/^\/backend/, '');
+            const oldFilePath = path.join(__dirname, '..', cleanPdfPath);
             if (fs.existsSync(oldFilePath)) {
               fs.unlinkSync(oldFilePath);
             }
@@ -645,10 +650,10 @@ exports.updateCourse = asyncHandler(async (req, res) => {
           const buffer = Buffer.from(base64Data, 'base64');
           const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
           const fileName = `dvision-chapter-${uniqueSuffix}.pdf`;
-          const filePath = path.join(__dirname, '../../uploads', fileName);
+          const filePath = path.join(__dirname, '../uploads', fileName);
 
           // Ensure uploads directory exists
-          const uploadsDir = path.join(__dirname, '../../uploads');
+          const uploadsDir = path.join(__dirname, '../uploads');
           if (!fs.existsSync(uploadsDir)) {
             fs.mkdirSync(uploadsDir, { recursive: true });
           }
@@ -745,7 +750,8 @@ exports.deleteCourse = asyncHandler(async (req, res) => {
     for (const chapter of course.chapters) {
       if (chapter.pdfUrl && !chapter.pdfUrl.startsWith('http')) {
         try {
-          const filePath = path.join(__dirname, '../../', chapter.pdfUrl);
+          const cleanPdfPath = chapter.pdfUrl.replace(/^\/backend/, '');
+          const filePath = path.join(__dirname, '..', cleanPdfPath);
           if (fs.existsSync(filePath)) {
             fs.unlinkSync(filePath);
           }

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { courseAPI, classAPI, subjectAPI } from '../../services/api'
+import { courseAPI, classAPI, subjectAPI, getApiBaseUrl, getServerBaseUrl } from '../../services/api'
 
 const EditCourse = () => {
   const navigate = useNavigate()
@@ -322,7 +322,35 @@ const EditCourse = () => {
     }
     setChapters(updatedChapters)
   }
-
+ 
+  // Handle viewing PDF
+  const handleViewPdf = (pdfUrl) => {
+    if (!pdfUrl) return
+ 
+    const serverBase = getServerBaseUrl()
+    console.log('[Admin View] Original PDF URL:', pdfUrl)
+    console.log('[Admin View] Server Base:', serverBase)
+ 
+    // Normalise pdfUrl: if it's a local path, ensure it starts with /
+    let normalizedPath = pdfUrl
+    if (!/^https?:\/\//i.test(pdfUrl) && !pdfUrl.startsWith('/')) {
+      normalizedPath = '/' + pdfUrl
+    }
+ 
+    // If it's a local path (starts with /uploads or /backend/uploads), prepend server base
+    if (normalizedPath.startsWith('/uploads') || normalizedPath.startsWith('/backend/uploads')) {
+      // Strip /backend if present because the server serves static files from /uploads
+      const cleanPath = normalizedPath.replace(/^\/backend/, '')
+      const fullUrl = `${serverBase}${cleanPath}`
+      console.log('[Admin View] Opening absolute URL:', fullUrl)
+      window.open(fullUrl, '_blank')
+    } else {
+      // It's already a full URL (like Cloudinary), just open it
+      console.log('[Admin View] Opening direct URL:', pdfUrl)
+      window.open(pdfUrl, '_blank')
+    }
+  }
+ 
   // Check if form is valid
   const isFormValid = () => {
     if (!formData.title.trim() || !formData.subject || !formData.status) {
@@ -758,10 +786,9 @@ const EditCourse = () => {
                                     </div>
                                   </div>
                                   <div className="flex items-center gap-2 flex-shrink-0">
-                                    <a
-                                      href={chapter.pdfUrl}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
+                                    <button
+                                      type="button"
+                                      onClick={() => handleViewPdf(chapter.pdfUrl)}
                                       className="px-2 sm:px-3 py-1 text-xs sm:text-sm bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-all duration-200 flex items-center gap-1"
                                       title="View PDF"
                                     >
@@ -770,7 +797,7 @@ const EditCourse = () => {
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                                       </svg>
                                       <span className="hidden sm:inline">View</span>
-                                    </a>
+                                    </button>
                                     <button
                                       type="button"
                                       onClick={() => handleRemoveExistingPdf(index)}

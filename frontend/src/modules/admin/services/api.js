@@ -1,43 +1,50 @@
 // Auto-detect API base URL based on environment
 const getApiBaseUrl = () => {
-  // If explicitly set via environment variable, use that
+  // 1. If explicitly set via environment variable, use that
   if (import.meta.env.VITE_API_BASE_URL) {
     const envUrl = import.meta.env.VITE_API_BASE_URL;
-    // Remove trailing slash if present
-    const cleanUrl = envUrl.replace(/\/$/, '');
-    console.log('[Admin API] Using VITE_API_BASE_URL from env:', cleanUrl);
-    return cleanUrl;
-  }
-
-  // Auto-detect production environment
-  if (typeof window !== 'undefined') {
-    const hostname = window.location.hostname;
-    const isProduction = hostname.includes('dvisionacademy.com');
-
-    if (isProduction) {
-      // Try api subdomain first, fallback to same domain
-      const protocol = window.location.protocol;
-      let apiUrl;
-      if (hostname.startsWith('www.')) {
-        apiUrl = `${protocol}//api.${hostname.substring(4)}/api`;
-      } else if (!hostname.startsWith('api.')) {
-        apiUrl = `${protocol}//api.${hostname}/api`;
-      } else {
-        apiUrl = `${protocol}//${hostname}/api`;
-      }
-      console.log('[Admin API] Production detected. Hostname:', hostname, '→ API URL:', apiUrl);
-      return apiUrl;
-    } else {
-      console.log('[Admin API] Development mode. Hostname:', hostname);
+    if (envUrl.startsWith('http')) {
+      return envUrl.replace(/\/$/, '');
     }
   }
-
-  // Default to localhost for development
-  const defaultUrl = 'http://localhost:5000/api';
-  console.log('[Admin API] Using default API URL:', defaultUrl);
-  return defaultUrl;
+ 
+  // 2. Auto-detect environment based on window.location
+  if (typeof window !== 'undefined') {
+    const { hostname, protocol, port } = window.location;
+    const isProduction = hostname.includes('dvisionacademy.com');
+ 
+    if (isProduction) {
+      // Production domain logic
+      if (hostname.startsWith('api.')) return `${protocol}//${hostname}/api`;
+      if (hostname.startsWith('www.')) return `${protocol}//api.${hostname.substring(4)}/api`;
+      return `${protocol}//api.${hostname}/api`;
+    }
+ 
+    // 3. Fallback for development (checking if it might be running on a different port)
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+      // Most common setup: frontend on 5173, backend on 5000
+      return `http://${hostname}:5000/api`;
+    }
+  }
+ 
+  // 4. Absolute fallback
+  return 'http://localhost:5000/api';
 };
-
+ 
+// Helper to get server base URL (without /api)
+const getServerBaseUrl = () => {
+  const apiBase = getApiBaseUrl();
+  if (apiBase.startsWith('http')) {
+    return apiBase.replace(/\/api$/, '');
+  }
+  // If it's relative, return current origin
+  if (typeof window !== 'undefined') {
+    return window.location.origin;
+  }
+  return '';
+};
+ 
+export { getApiBaseUrl, getServerBaseUrl };
 const API_BASE_URL = getApiBaseUrl();
 console.log('[Admin API] Final API_BASE_URL:', API_BASE_URL);
 
