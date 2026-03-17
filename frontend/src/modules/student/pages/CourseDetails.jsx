@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { FiArrowLeft, FiShare2, FiFileText, FiDownload, FiInfo, FiCalendar, FiLayers } from 'react-icons/fi';
+import { FiArrowLeft, FiShare2, FiFileText, FiDownload, FiInfo, FiCalendar, FiLayers, FiEye, FiX } from 'react-icons/fi';
 import { studentAPI } from '../services/api';
 import { ROUTES } from '../constants/routes';
 import Image from '../components/common/Image';
@@ -49,6 +49,8 @@ const CourseDetails = () => {
   const [course, setCourse] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [viewPdfUrl, setViewPdfUrl] = useState('');
 
   useEffect(() => {
     const fetchCourse = async () => {
@@ -74,42 +76,47 @@ const CourseDetails = () => {
     }
   }, [id]);
 
-  const handlePdfView = async (pdfUrl) => {
+  // Handle Viewing PDF in a Modal
+  const handlePdfView = (pdfUrl) => {
     if (!pdfUrl) return;
 
-    // Build API base (this returns server base without /api)
+    // Build absolute URL for viewing
     const apiBase = getApiBaseUrl();
+    let fullUrl = pdfUrl;
 
-    // Normalise pdfUrl: if it's a local path, ensure it starts with /
-    let normalizedPath = pdfUrl;
-    if (!/^https?:\/\//i.test(pdfUrl) && !pdfUrl.startsWith('/')) {
-      normalizedPath = '/' + pdfUrl;
+    // Normalise pdfUrl for viewing (static link)
+    if (!/^https?:\/\//i.test(pdfUrl)) {
+      const cleanPath = pdfUrl.startsWith('/backend') ? pdfUrl.replace('/backend', '') : pdfUrl;
+      const normalizedPath = cleanPath.startsWith('/') ? cleanPath : '/' + cleanPath;
+      fullUrl = `${apiBase}${normalizedPath}`;
     }
 
+    setViewPdfUrl(fullUrl);
+    setIsModalOpen(true);
+  };
+
+  // Handle Forced Download using backend proxy
+  const handlePdfDownload = async (pdfUrl) => {
+    if (!pdfUrl) return;
+
+    const apiBase = getApiBaseUrl();
+
     try {
-      // If it's a local path (starts with /uploads or /backend/uploads), prepend server base
-      if (normalizedPath.startsWith('/uploads') || normalizedPath.startsWith('/backend/uploads')) {
-        // Strip /backend if present because the server serves static files from /uploads
-        const cleanPath = normalizedPath.replace(/^\/backend/, '');
-        const fullUrl = `${apiBase}${cleanPath}`;
-        window.open(fullUrl, '_blank');
-        return;
-      }
-
-      // If it's relative but not a known local path, fallback to download proxied via /api
-      // (This handles any legacy paths that might not be in /uploads)
+      let downloadUrl = '';
       if (!/^https?:\/\//i.test(pdfUrl)) {
-        const relative = pdfUrl.replace(/^\/+/, '');
-        const downloadUrl = `${apiBase}/api/uploads/download?file=${encodeURIComponent(relative)}`;
-        window.open(downloadUrl, '_blank');
-        return;
+        // Local path
+        const relative = pdfUrl.replace(/^\/+/, '').replace(/^backend\//, '');
+        downloadUrl = `${apiBase}/api/uploads/download?file=${encodeURIComponent(relative)}`;
+      } else {
+        // External URL (like Cloudinary)
+        downloadUrl = `${apiBase}/api/uploads/download?url=${encodeURIComponent(pdfUrl)}`;
       }
 
-      // Already a full URL (like Cloudinary), just open it
-      window.open(pdfUrl, '_blank');
+      // Open download URL in a hidden iframe or new tab to trigger download
+      window.open(downloadUrl, '_blank');
     } catch (err) {
       console.error('Download error:', err);
-      // fallback: open in new tab
+      // fallback
       window.open(pdfUrl, '_blank');
     }
   };
@@ -275,16 +282,24 @@ const CourseDetails = () => {
                           </p>
                         )}
 
-                        {/* PDF Button */}
+                        {/* PDF Buttons */}
                         {chapter.pdfUrl && (
-                          <button
-                            onClick={() => handlePdfView(chapter.pdfUrl)}
-                            className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-600 text-white px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg font-semibold text-[10px] sm:text-xs transition-all shadow-sm hover:shadow-md flex items-center justify-center gap-1 sm:gap-1.5 w-full sm:w-auto"
-                          >
-                            <FiFileText className="text-xs" />
-                            <span>Download PDF</span>
-                            <FiDownload className="text-xs" />
-                          </button>
+                          <div className="flex flex-col sm:flex-row gap-2 mt-3">
+                            <button
+                              onClick={() => handlePdfView(chapter.pdfUrl)}
+                              className="bg-gradient-to-r from-[var(--app-dark-blue)] to-[var(--app-teal)] text-white px-3 py-1.5 rounded-lg font-semibold text-[10px] sm:text-xs transition-all shadow-sm hover:shadow-md flex items-center justify-center gap-1.5 flex-1"
+                            >
+                              <FiEye className="text-sm" />
+                              <span>View PDF</span>
+                            </button>
+                            <button
+                              onClick={() => handlePdfDownload(chapter.pdfUrl)}
+                              className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-600 text-white px-3 py-1.5 rounded-lg font-semibold text-[10px] sm:text-xs transition-all shadow-sm hover:shadow-md flex items-center justify-center gap-1.5 flex-1"
+                            >
+                              <FiDownload className="text-sm" />
+                              <span>Download PDF</span>
+                            </button>
+                          </div>
                         )}
                       </div>
                     </div>
@@ -295,6 +310,62 @@ const CourseDetails = () => {
           </div>
         </div>
       </main>
+
+      {/* PDF Viewer Modal */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-sm">
+          <div className="relative bg-white w-full h-full sm:h-[90vh] sm:max-w-4xl sm:rounded-2xl flex flex-col overflow-hidden shadow-2xl animate-in zoom-in duration-300">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-4 py-3 bg-[var(--app-dark-blue)] text-white">
+              <div className="flex items-center gap-2">
+                <FiFileText className="text-xl text-[var(--app-teal)]" />
+                <h3 className="font-bold text-sm sm:text-base truncate max-w-[200px] sm:max-w-md">
+                  PDF Preview
+                </h3>
+              </div>
+              <button
+                onClick={() => setIsModalOpen(false)}
+                className="p-1.5 bg-white/20 hover:bg-white/30 rounded-full transition-colors"
+                aria-label="Close"
+              >
+                <FiX className="text-xl" />
+              </button>
+            </div>
+
+            {/* Viewer Content */}
+            <div className="flex-1 bg-gray-100 relative">
+              <iframe
+                src={`${viewPdfUrl}#toolbar=0&navpanes=0`}
+                className="w-full h-full border-none"
+                title="PDF Viewer"
+              />
+              {/* Note about direct download on some browsers */}
+              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 px-4 py-2 bg-black/60 text-white text-[10px] rounded-full pointer-events-none opacity-60">
+                Opening PDF viewer...
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-3 bg-gray-50 border-t flex justify-end gap-3">
+              <button
+                onClick={() => setIsModalOpen(false)}
+                className="px-4 py-2 text-gray-600 font-bold text-xs hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                Close
+              </button>
+              <button
+                onClick={() => {
+                  handlePdfDownload(viewPdfUrl);
+                  setIsModalOpen(false);
+                }}
+                className="bg-gradient-to-r from-red-600 to-red-700 text-white px-4 py-2 rounded-lg font-bold text-xs shadow-md"
+              >
+                Download Instead
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Bottom Navigation Bar */}
       <BottomNav />
