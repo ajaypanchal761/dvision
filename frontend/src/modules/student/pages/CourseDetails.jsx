@@ -7,7 +7,6 @@ import Image from '../components/common/Image';
 import BottomNav from '../components/common/BottomNav';
 
 // Helper function to get API base URL
-// Helper function to get API base URL
 const getApiBaseUrl = () => {
   // 1. If explicitly set via environment variable, use that
   if (import.meta.env.VITE_API_BASE_URL) {
@@ -235,7 +234,7 @@ const CourseDetails = () => {
           {/* Chapters Section */}
           <div>
             <div className="flex items-center gap-1.5 sm:gap-2 mb-3 sm:mb-4 flex-wrap">
-              <h3 className="font-bold text-gray-900 text-base sm:text-lg">Course Chapters</h3>
+              <h3 className="font-bold text-gray-900 text-base sm:text-lg text-red-600">Course Chapters (Updated)</h3>
               {course.chapters && course.chapters.length > 0 && (
                 <span className="px-1.5 sm:px-2 py-0.5 bg-gradient-to-r from-[var(--app-dark-blue)]/10 to-[var(--app-teal)]/10 rounded-full text-[var(--app-dark-blue)] text-[10px] sm:text-xs font-semibold border border-[var(--app-dark-blue)]/20">
                   {course.chapters.length} {course.chapters.length === 1 ? 'Chapter' : 'Chapters'}
@@ -282,22 +281,23 @@ const CourseDetails = () => {
                           </p>
                         )}
 
-                        {/* PDF Buttons */}
+                        {/* PDF Action Buttons - FORCED UPDATE */}
                         {chapter.pdfUrl && (
-                          <div className="flex flex-col sm:flex-row gap-2 mt-3">
+                          <div className="flex flex-col gap-3 mt-5">
+                            {console.log('[DEBUG] Rendering PDF BUTTONS for:', chapter.chapterName)}
                             <button
                               onClick={() => handlePdfView(chapter.pdfUrl)}
-                              className="bg-gradient-to-r from-[var(--app-dark-blue)] to-[var(--app-teal)] text-white px-3 py-1.5 rounded-lg font-semibold text-[10px] sm:text-xs transition-all shadow-sm hover:shadow-md flex items-center justify-center gap-1.5 flex-1"
+                              className="bg-gradient-to-r from-teal-500 to-blue-600 text-white px-5 py-3 rounded-2xl font-black text-sm transition-all shadow-xl hover:shadow-2xl flex items-center justify-center gap-3 active:scale-90 border-2 border-white"
                             >
-                              <FiEye className="text-sm" />
-                              <span>View PDF</span>
+                              <FiEye className="text-xl" />
+                              <span>CLICK TO VIEW PDF</span>
                             </button>
                             <button
                               onClick={() => handlePdfDownload(chapter.pdfUrl)}
-                              className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-600 text-white px-3 py-1.5 rounded-lg font-semibold text-[10px] sm:text-xs transition-all shadow-sm hover:shadow-md flex items-center justify-center gap-1.5 flex-1"
+                              className="bg-white border-4 border-red-500 text-red-600 px-5 py-2.5 rounded-2xl font-black text-xs transition-all flex items-center justify-center gap-2 hover:bg-red-50 active:scale-95 shadow-md"
                             >
-                              <FiDownload className="text-sm" />
-                              <span>Download PDF</span>
+                              <FiDownload className="text-lg" />
+                              <span>DOWNLOAD PDF FILE</span>
                             </button>
                           </div>
                         )}
