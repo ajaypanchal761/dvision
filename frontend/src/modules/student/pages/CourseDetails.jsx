@@ -76,7 +76,13 @@ const CourseDetails = () => {
     }
   }, [id]);
 
-  // Handle Viewing PDF in a Modal
+  // Helper for mobile detection
+  const isMobile = () => {
+    if (typeof navigator === 'undefined') return false;
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  };
+
+  // Handle Viewing PDF
   const handlePdfView = (pdfUrl) => {
     if (!pdfUrl) return;
 
@@ -91,8 +97,13 @@ const CourseDetails = () => {
       fullUrl = `${apiBase}${normalizedPath}`;
     }
 
-    setViewPdfUrl(fullUrl);
-    setIsModalOpen(true);
+    // Bypass modal on mobile devices as iframes have poor PDF support and trigger OS-level errors
+    if (isMobile()) {
+      window.open(fullUrl, '_blank');
+    } else {
+      setViewPdfUrl(fullUrl);
+      setIsModalOpen(true);
+    }
   };
 
   // Handle Forced Download using backend proxy
@@ -335,7 +346,7 @@ const CourseDetails = () => {
             {/* Viewer Content */}
             <div className="flex-1 bg-gray-100 relative">
               <iframe
-                src={`${viewPdfUrl}#toolbar=0&navpanes=0`}
+                src={viewPdfUrl}
                 className="w-full h-full border-none"
                 title="PDF Viewer"
               />
