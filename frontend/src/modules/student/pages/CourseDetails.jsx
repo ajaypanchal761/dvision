@@ -76,7 +76,7 @@ const CourseDetails = () => {
     }
   }, [id]);
 
-  // Helper for mobile detection
+  // Helper for mobile/WebView detection
   const isMobile = () => {
     if (typeof navigator === 'undefined') return false;
     return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -97,13 +97,9 @@ const CourseDetails = () => {
       fullUrl = `${apiBase}${normalizedPath}`;
     }
 
-    // Bypass modal on mobile devices as iframes have poor PDF support and trigger OS-level errors
-    if (isMobile()) {
-      window.open(fullUrl, '_blank');
-    } else {
-      setViewPdfUrl(fullUrl);
-      setIsModalOpen(true);
-    }
+    // Always show modal to keep the "vahi ke vahi" (on-page) experience the user wants
+    setViewPdfUrl(fullUrl);
+    setIsModalOpen(true);
   };
 
   // Handle Forced Download using backend proxy
@@ -344,35 +340,74 @@ const CourseDetails = () => {
             </div>
 
             {/* Viewer Content */}
-            <div className="flex-1 bg-gray-100 relative">
-              <iframe
-                src={viewPdfUrl}
-                className="w-full h-full border-none"
-                title="PDF Viewer"
-              />
-              {/* Note about direct download on some browsers */}
-              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 px-4 py-2 bg-black/60 text-white text-[10px] rounded-full pointer-events-none opacity-60">
-                Opening PDF viewer...
+            <div className="flex-1 bg-gray-100 flex flex-col relative overflow-hidden">
+              {/* Google Docs Viewer (Works best for production/public URLs) */}
+              {viewPdfUrl.startsWith('http') && !viewPdfUrl.includes('localhost') && !viewPdfUrl.includes('127.0.0.1') ? (
+                <iframe
+                  src={`https://docs.google.com/viewer?url=${encodeURIComponent(viewPdfUrl)}&embedded=true`}
+                  className="w-full h-full border-none"
+                  title="PDF Viewer"
+                />
+              ) : (
+                <iframe
+                  src={viewPdfUrl}
+                  className="w-full h-full border-none"
+                  title="PDF Viewer"
+                />
+              )}
+
+              {/* Enhanced Floating Call-to-Action for Mobile/WebView Users */}
+              {isMobile() && (
+                <div className="absolute inset-x-0 bottom-4 px-4 flex justify-center pointer-events-none">
+                  <div className="bg-black/80 backdrop-blur-md px-4 py-3 rounded-2xl border border-white/20 shadow-2xl flex flex-col items-center gap-1.5 pointer-events-auto max-w-[90%] text-center">
+                    <p className="text-white text-[10px] font-medium leading-tight">
+                      If the viewer doesn't load, use the button below
+                    </p>
+                    <button
+                      onClick={() => {
+                        // For WebViews, location.href is often more reliable than window.open
+                        window.location.href = viewPdfUrl;
+                      }}
+                      className="bg-[var(--app-teal)] text-white px-5 py-2 rounded-xl text-xs font-bold shadow-lg active:scale-95 transition-all w-full flex items-center justify-center gap-2"
+                    >
+                      <FiEye className="text-sm" />
+                      Open Full Screen Viewer
+                    </button>
+                  </div>
+                </div>
+              )}
+              
+              {/* Note about initial load */}
+              <div className="absolute top-4 right-4 animate-pulse pointer-events-none">
+                 <div className="bg-white/80 p-2 rounded-lg border text-[8px] text-gray-500 uppercase font-black">
+                    PDF Syncing...
+                 </div>
               </div>
             </div>
 
             {/* Modal Footer */}
-            <div className="p-3 bg-gray-50 border-t flex justify-end gap-3">
-              <button
-                onClick={() => setIsModalOpen(false)}
-                className="px-4 py-2 text-gray-600 font-bold text-xs hover:bg-gray-100 rounded-lg transition-colors"
-              >
-                Close
-              </button>
-              <button
-                onClick={() => {
-                  handlePdfDownload(viewPdfUrl);
-                  setIsModalOpen(false);
-                }}
-                className="bg-gradient-to-r from-red-600 to-red-700 text-white px-4 py-2 rounded-lg font-bold text-xs shadow-md"
-              >
-                Download Instead
-              </button>
+            <div className="p-3 bg-gray-50 border-t flex items-center justify-between">
+              <span className="text-[10px] text-gray-500 font-medium hidden sm:inline">
+                Having trouble? Try downloading the file instead.
+              </span>
+              <div className="flex gap-2 w-full sm:w-auto justify-end">
+                <button
+                  onClick={() => setIsModalOpen(false)}
+                  className="px-4 py-2.5 text-gray-700 font-bold text-xs hover:bg-gray-200 rounded-xl transition-colors flex-1 sm:flex-none border"
+                >
+                  Close
+                </button>
+                <button
+                  onClick={() => {
+                    handlePdfDownload(viewPdfUrl);
+                    setIsModalOpen(true); // Keep modal to show user we're still with them
+                  }}
+                  className="bg-red-600 text-white px-5 py-2.5 rounded-xl font-bold text-xs shadow-md active:bg-red-700 flex-1 sm:flex-none flex items-center justify-center gap-2"
+                >
+                  <FiDownload className="text-sm" />
+                  Download
+                </button>
+              </div>
             </div>
           </div>
         </div>
