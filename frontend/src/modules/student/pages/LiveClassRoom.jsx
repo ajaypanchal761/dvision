@@ -115,6 +115,7 @@ const LiveClassRoom = () => {
   const [isKicked, setIsKicked] = useState(false);
   const [classEnded, setClassEnded] = useState(false);
   const [hasTeacherVideo, setHasTeacherVideo] = useState(false);
+  const [videoRotation, setVideoRotation] = useState(0);
 
   // Chat
   const [chatMessages, setChatMessages] = useState([]);
@@ -280,14 +281,23 @@ const LiveClassRoom = () => {
         if (videoElement) {
           // WhatsApp-like behavior: contain mode with black bars, centered
           videoElement.style.objectFit = 'contain';
-          videoElement.style.width = '100%';
-          videoElement.style.height = '100%';
-          videoElement.style.maxWidth = '100%';
-          videoElement.style.maxHeight = '100%';
+          
+          if (videoRotation === 90 || videoRotation === 270) {
+            videoElement.style.width = `${teacherVideoContainerRef.current.clientHeight}px`;
+            videoElement.style.height = `${teacherVideoContainerRef.current.clientWidth}px`;
+            videoElement.style.maxWidth = 'none';
+            videoElement.style.maxHeight = 'none';
+          } else {
+            videoElement.style.width = '100%';
+            videoElement.style.height = '100%';
+            videoElement.style.maxWidth = '100%';
+            videoElement.style.maxHeight = '100%';
+          }
+          
           videoElement.style.position = 'absolute';
           videoElement.style.top = '50%';
           videoElement.style.left = '50%';
-          videoElement.style.transform = 'translate(-50%, -50%)';
+          videoElement.style.transform = `translate(-50%, -50%) rotate(${videoRotation}deg)`;
           videoElement.style.backgroundColor = 'black';
         }
       }
@@ -303,7 +313,7 @@ const LiveClassRoom = () => {
       clearTimeout(timeout);
       clearInterval(interval);
     };
-  }, [orientation, hasTeacherVideo]);
+  }, [orientation, hasTeacherVideo, videoRotation]);
 
 
 
@@ -1555,6 +1565,13 @@ const LiveClassRoom = () => {
       {/* Controls */}
       {showChrome && (
       <div className="bg-gray-800 px-4 py-3 flex items-center justify-center gap-4">
+        <button
+          onClick={() => setVideoRotation(prev => (prev + 90) % 360)}
+          className="p-3 rounded-full bg-gray-700 hover:bg-opacity-80"
+          title="Rotate Video"
+        >
+          <FiRotateCw className="text-xl" />
+        </button>
         <button
           onClick={toggleMute}
           className={`p-3 rounded-full ${isMuted ? 'bg-red-600' : 'bg-gray-700'} hover:bg-opacity-80 relative`}
