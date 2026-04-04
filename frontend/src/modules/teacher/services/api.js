@@ -649,6 +649,13 @@ export const liveClassAPI = {
       method: 'POST',
     });
   },
+  // Delete live class
+  deleteLiveClass: async (id) => {
+    console.log('[API][Teacher] deleteLiveClass', { id });
+    return apiRequest(`/live-classes/teacher/live-classes/${id}`, {
+      method: 'DELETE',
+    });
+  },
 };
 
 // Agent API functions

@@ -10,7 +10,8 @@ import {
   FiUsers,
   FiBook,
   FiSearch,
-  FiX
+  FiX,
+  FiTrash2
 } from 'react-icons/fi';
 import BottomNav from '../components/common/BottomNav';
 import { liveClassAPI, timetableAPI } from '../services/api';
@@ -229,6 +230,26 @@ const LiveClasses = () => {
   const handleJoinClass = (liveClassId) => {
     navigate(`/teacher/live-class/${liveClassId}`);
   };
+  
+  const handleDeleteClass = async (liveClassId, e) => {
+    // Stop propagation to prevent triggering parent click events if any
+    if (e) e.stopPropagation();
+    
+    const confirmDelete = window.confirm('Are you sure you want to delete this class? This action cannot be undone.');
+    if (!confirmDelete) return;
+    
+    try {
+      const response = await liveClassAPI.deleteLiveClass(liveClassId);
+      if (response.success) {
+        // Remove from local state
+        setLiveClasses(prev => prev.filter(lc => lc._id !== liveClassId));
+        alert('Class deleted successfully');
+      }
+    } catch (err) {
+      console.error('Error deleting class:', err);
+      alert(err.message || 'Failed to delete class');
+    }
+  };
 
   const getStatusBadge = (status) => {
     const badges = {
@@ -431,9 +452,20 @@ const LiveClasses = () => {
                                 </span>
                               </div>
                             </div>
-                            <span className={`px-2 py-1 rounded-lg text-xs font-semibold ${getStatusBadge(liveClass.status)}`}>
-                              {liveClass.status}
-                            </span>
+                            <div className="flex items-center gap-2">
+                              <span className={`px-2 py-1 rounded-lg text-xs font-semibold ${getStatusBadge(liveClass.status)}`}>
+                                {liveClass.status}
+                              </span>
+                              {liveClass.status !== 'live' && (
+                                <button
+                                  onClick={(e) => handleDeleteClass(liveClass._id, e)}
+                                  className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                                  title="Delete Class"
+                                >
+                                  <FiTrash2 className="text-sm sm:text-base" />
+                                </button>
+                              )}
+                            </div>
                           </div>
                           <button
                             onClick={() => handleJoinClass(liveClass._id)}
@@ -502,9 +534,20 @@ const LiveClasses = () => {
                                 </span>
                               </div>
                             </div>
-                            <span className={`px-2 py-1 rounded-lg text-xs font-semibold ${getStatusBadge(liveClass.status)}`}>
-                              {liveClass.status}
-                            </span>
+                            <div className="flex items-center gap-2">
+                              <span className={`px-2 py-1 rounded-lg text-xs font-semibold ${getStatusBadge(liveClass.status)}`}>
+                                {liveClass.status}
+                              </span>
+                              {liveClass.status !== 'live' && (
+                                <button
+                                  onClick={(e) => handleDeleteClass(liveClass._id, e)}
+                                  className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                                  title="Delete Class"
+                                >
+                                  <FiTrash2 className="text-sm sm:text-base" />
+                                </button>
+                              )}
+                            </div>
                           </div>
                           <button
                             onClick={() => handleStartClass(liveClass._id)}
@@ -579,9 +622,20 @@ const LiveClasses = () => {
                                 </div>
                               )}
                             </div>
-                            <span className={`px-2 py-1 rounded-lg text-xs font-semibold ${getStatusBadge(liveClass.status)}`}>
-                              {liveClass.status}
-                            </span>
+                            <div className="flex items-center gap-2">
+                              <span className={`px-2 py-1 rounded-lg text-xs font-semibold ${getStatusBadge(liveClass.status)}`}>
+                                {liveClass.status}
+                              </span>
+                              {liveClass.status !== 'live' && (
+                                <button
+                                  onClick={(e) => handleDeleteClass(liveClass._id, e)}
+                                  className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                                  title="Delete Class"
+                                >
+                                  <FiTrash2 className="text-sm sm:text-base" />
+                                </button>
+                              )}
+                            </div>
                           </div>
                         </div>
                       );
@@ -643,9 +697,20 @@ const LiveClasses = () => {
                                 </span>
                               </div>
                             </div>
-                            <span className={`px-2 py-1 rounded-lg text-xs font-semibold ${getStatusBadge(liveClass.status)}`}>
-                              {liveClass.status}
-                            </span>
+                            <div className="flex items-center gap-2">
+                              <span className={`px-2 py-1 rounded-lg text-xs font-semibold ${getStatusBadge(liveClass.status)}`}>
+                                {liveClass.status}
+                              </span>
+                              {liveClass.status !== 'live' && (
+                                <button
+                                  onClick={(e) => handleDeleteClass(liveClass._id, e)}
+                                  className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                                  title="Delete Class"
+                                >
+                                  <FiTrash2 className="text-sm sm:text-base" />
+                                </button>
+                              )}
+                            </div>
                           </div>
                         </div>
                       );

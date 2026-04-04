@@ -19,6 +19,7 @@ const {
   toggleMute,
   toggleVideo,
   getLiveClass,
+  deleteLiveClass,
   uploadRecording,
   getStudentRecordings,
   getRecording,
@@ -53,6 +54,7 @@ router.get('/teacher/live-classes/assigned-options', protect, authorize('teacher
 router.post('/teacher/live-classes', protect, authorize('teacher'), createLiveClass);
 router.put('/teacher/live-classes/:id/start', protect, authorize('teacher'), startLiveClass);
 router.put('/teacher/live-classes/:id/end', protect, authorize('teacher'), endLiveClass);
+router.delete('/teacher/live-classes/:id', protect, authorize('teacher', 'admin', 'super_admin'), deleteLiveClass);
 // Manual recording control routes
 router.post('/teacher/live-classes/:id/recording/start', protect, authorize('teacher'), startRecording);
 router.post('/teacher/live-classes/:id/recording/stop', protect, authorize('teacher'), stopRecording);
