@@ -806,6 +806,38 @@ exports.getMyLiveClasses = asyncHandler(async (req, res) => {
   });
 });
 
+// @desc    Delete live class
+// @route   DELETE /api/live-classes/teacher/live-classes/:id
+// @access  Private/Teacher
+exports.deleteLiveClass = asyncHandler(async (req, res) => {
+  const liveClass = await LiveClass.findById(req.params.id);
+
+  if (!liveClass) {
+    throw new ErrorResponse('Live class not found', 404);
+  }
+
+  // Check if class belongs to teacher (skip if admin/super_admin)
+  if (req.user.role !== 'admin' && req.user.role !== 'super_admin' && liveClass.teacherId.toString() !== req.user._id.toString()) {
+    throw new ErrorResponse('Not authorized to delete this class', 401);
+  }
+
+  // Prevent deletion of live classes
+  if (liveClass.status === 'live') {
+    throw new ErrorResponse('Cannot delete a live class. End it first.', 400);
+  }
+
+  // Delete associated recordings metadata if any
+  await Recording.deleteMany({ liveClassId: liveClass._id });
+
+  await LiveClass.findByIdAndDelete(req.params.id);
+
+  res.status(200).json({
+    success: true,
+    message: 'Live class deleted successfully'
+  });
+});
+
+
 // @desc    Get class statistics for teacher dashboard
 // @route   GET /api/live-classes/teacher/statistics
 // @access  Private/Teacher
